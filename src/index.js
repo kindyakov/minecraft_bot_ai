@@ -1,20 +1,12 @@
-import mineflayer from "mineflayer";
-import Config from "./core/config.js";
+import MinecraftBot from "./core/bot.js";
+import Logger from "./core/logger.js";
 
-const bot = mineflayer.createBot({
-  host: Config.minecraft.host,
-  username: Config.minecraft.username,
-  port: Config.minecraft.port,
-  version: Config.minecraft.version,
-  auth: 'offline',
-})
+const minecraftBot = new MinecraftBot();
 
-bot.on('chat', (username, message) => {
-  if (username === bot.username) return
-  bot.chat(message)
-})
+minecraftBot.start();
 
-// bot.on('kicked', console.log)
-bot.on('error', (err) => {
-  console.log(err)
-})
+process.on("SIGINT", () => {
+  Logger.info("Остановка бота...");
+  minecraftBot.stop("Выключение сервера");
+  process.exit();
+});
