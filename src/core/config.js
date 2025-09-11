@@ -1,5 +1,3 @@
-
-
 import 'dotenv/config';
 
 class Config {
