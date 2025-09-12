@@ -87,6 +87,9 @@ MINECRAFT_PORT=22222
 MINECRAFT_USERNAME=bot
 MINECRAFT_VERSION=1.20.1
 
+MINECRAFT_VIEWER_PORT=9000
+MINECRAFT_WEB_INVENTORY_PORT=9001
+
 AI_PROVIDER=openai
 AI_MODEL=gpt-4o-mini
 AI_API_KEY=sk-...
@@ -204,8 +207,10 @@ npm run dev
 **Примеры команд**
 
 - `:follow <player>` — следовать за игроком
-- `stop` — остановить действия
-- `farm` — начать фермерство
+- `:stop` — остановить действия
+- `:farm` — начать фермерство
+- `:guard` — охрана/защита/выживание
+- `:help` — список команд
 
 ## 🛣 Roadmap
 
