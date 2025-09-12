@@ -8,6 +8,7 @@ minecraft-bot/
 │ ├── core/ # базовые вещи
 │ │ ├── bot.js # класс MinecraftBot
 │ │ ├── config.js # dotenv, парсинг конфигов
+│ │ ├── cmdSate.js # активные команды бота
 │ │ ├── logger.js # winston
 │ │ └── utils.js # общие утилиты
 │ ├── modules/
@@ -16,9 +17,13 @@ minecraft-bot/
 │ │ ├── command_handler/ # обработка команд
 │ │ │ ├── index.js # регистрация/парсинг
 │ │ │ └── commands/
-│ │ │ ├── follow.js
-│ │ │ ├── stop.js
-│ │ │ └── ...
+│ │ │ │ ├── follow.js
+│ │ │ │ ├── stop.js
+│ │ │ │ ├── help.js
+│ │ │ │ ├── guard.js
+│ │ │ │ ├── mine.js
+│ │ │ │ ├── build.js
+│ │ │ │ └── ...
 │ │ ├── controls/ # низкоуровневые действия
 │ │ │ ├── movement.js # pathfinder: ходьба, навигация
 │ │ │ ├── interaction.js # клик, place, attack
@@ -56,6 +61,8 @@ minecraft-bot/
 - `mineflayer-pathfinder` — навигация
 - `mineflayer-collectblock` — сбор блоков
 - `minecraft-data` — доступ к данным о мире
+- `@nxg-org/mineflayer-custom-pvp` - пвп режим бота
+- `mineflayer-armor-manager` - автоматически экипировать более качественную броню
 - `dotenv` — конфиги
 - `winston` — логирование
 - `axios` — вызовы внешних API (AI)
@@ -134,12 +141,12 @@ AI_MAX_TOKENS=300
 
 ## 📜 Поведенческие состояния
 
-- IDLE - ожидание, периодические AI решения
-- FOLLOW - следование за игроком
-- GUARD - защита/выживание
-- FARM - автоматическое фермерство
-- MINE - добыча ресурсов
-- BUILD - строительство по планам
+- **IDLE** - ожидание, периодические AI решения
+- **FOLLOW** - следование за игроком
+- **GUARD** - защита/выживание
+- **FARM** - автоматическое фермерство
+- **MINE** - добыча ресурсов
+- **BUILD** - строительство по планам
 
 ## 📝 Логирование
 

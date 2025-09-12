@@ -4,3 +4,70 @@
 2025-09-05 02:36:17 [ERROR] Ошибка запуска бота:
 2025-09-05 02:36:20 [ERROR] Ошибка запуска бота:
 2025-09-05 02:45:23 [ERROR] Ошибка запуска бота:
+2025-09-11 20:52:09 [ERROR] Ошибка запуска бота:
+2025-09-11 20:52:12 [ERROR] Ошибка запуска бота:
+2025-09-11 20:52:18 [ERROR] Ошибка запуска бота:
+2025-09-11 20:52:30 [ERROR] Ошибка запуска бота:
+2025-09-11 20:55:54 [ERROR] Не обнаружен экземпляр бота
+2025-09-11 20:57:52 [ERROR] Не обнаружен экземпляр бота
+2025-09-11 20:58:07 [ERROR] Не обнаружен экземпляр бота
+2025-09-11 20:58:21 [ERROR] Не обнаружен экземпляр бота
+2025-09-11 20:59:33 [ERROR] Не обнаружен экземпляр бота
+2025-09-11 20:59:52 [ERROR] Не обнаружен экземпляр бота
+2025-09-12 01:39:08 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:39:10 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:39:17 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:41:32 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:42:53 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:43:03 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:43:06 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:43:14 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:43:33 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:43:42 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:43:44 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:48:36 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:48:57 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:49:00 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:49:06 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:52:15 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:52:18 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:52:20 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:52:23 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:52:26 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:52:29 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:52:35 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:52:47 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:53:11 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:53:59 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:53:59 [ERROR] Превышено число попыток реконнекта. Бот больше не подключается.
+2025-09-12 01:55:35 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:55:38 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:55:44 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 01:57:10 [ERROR] Ошибка запуска бота:
+2025-09-12 01:57:13 [ERROR] Ошибка запуска бота:
+2025-09-12 01:57:50 [ERROR] Ошибка запуска бота:
+2025-09-12 01:57:53 [ERROR] Ошибка запуска бота:
+2025-09-12 02:22:02 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 02:22:05 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 02:22:11 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 02:22:23 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 02:22:47 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 02:24:11 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 02:24:14 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 02:24:18 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 02:24:21 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 02:24:24 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 02:24:27 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"=="}
+2025-09-12 02:40:16 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"==","diff":"simple"}
+2025-09-12 02:40:19 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"==","diff":"simple"}
+2025-09-12 02:42:24 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"==","diff":"simple"}
+2025-09-12 02:42:27 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"==","diff":"simple"}
+2025-09-12 02:42:29 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"==","diff":"simple"}
+2025-09-12 02:42:31 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"==","diff":"simple"}
+2025-09-12 02:42:33 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"==","diff":"simple"}
+2025-09-12 02:42:37 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"==","diff":"simple"}
+2025-09-12 02:42:38 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"==","diff":"simple"}
+2025-09-12 02:42:41 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"==","diff":"simple"}
+2025-09-12 02:42:48 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"==","diff":"simple"}
+2025-09-12 02:42:56 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"==","diff":"simple"}
+2025-09-12 02:42:59 [ERROR] Ошибка запуска бота: {"generatedMessage":false,"code":"ERR_ASSERTION","actual":false,"expected":true,"operator":"==","diff":"simple"}

@@ -1,11 +1,16 @@
+import EventEmitter from 'node:events';
 import MineFlayer from "mineflayer"
 import Config from "./config.js"
 import Logger from "./logger.js"
+import CommandState from './cmdSate.js';
+import { loadPlugins } from '../modules/plugins/index.js';
 import { initConnection } from "../modules/connection/index.js"
 
-class MinecraftBot {
+class MinecraftBot extends EventEmitter {
   constructor() {
+    super();
     this.bot = null
+    this.cmdState = new CommandState()
     this.isConnected = false
     this.currentState = 'IDLE'
     this.reconnectAttempts = 0
@@ -17,6 +22,11 @@ class MinecraftBot {
     try {
       Logger.info('Запуск бота...');
 
+      if (this.bot) {
+        Logger.warn('Бот уже запущен!')
+        return
+      }
+
       this.bot = MineFlayer.createBot({
         host: Config.minecraft.host,
         username: Config.minecraft.username,
@@ -24,9 +34,25 @@ class MinecraftBot {
         version: Config.minecraft.version,
       })
 
-      initConnection(this)
+      this.bot.cmdState = this.cmdState
+
+      this.bot.on('botReady', () => {
+        this.isConnected = true
+        this.reconnectAttempts = 0 // сброси счётчик
+      })
+
+      this.bot.on('botDisconnected', (reason) => {
+        this.isConnected = false
+        this.bot = null
+        this.scheduleReconnect()
+      })
+
+      loadPlugins(this.bot)
+      initConnection(this.bot)
     } catch (error) {
       Logger.error('Ошибка запуска бота:', error);
+      this.isConnected = false
+      this.bot = null
       this.scheduleReconnect()
     }
   }
@@ -36,8 +62,10 @@ class MinecraftBot {
       Logger.warn('Попытка остановить бота, который не был запущен.');
       return
     }
+    this.isConnected = false
     Logger.info('Отключение бота...');
     this.bot.quit(reason);
+    this.bot = null
   }
 
   scheduleReconnect() {
@@ -51,38 +79,6 @@ class MinecraftBot {
 
     this.reconnectAttempts++
     setTimeout(() => this.start(), delay)
-  }
-
-  /**
-   * Выполняет команду в чате.
-   * @param {string} command - Команда для выполнения (например, /say, /tp).
-   * @param {string[]} params - Параметры команды.
-   */
-  executeCommand(command, params = []) {
-    if (!this.isConnected) {
-      Logger.warn('Попытка выполнить команду без подключения к серверу.');
-      return;
-    }
-    const fullCommand = `${command} ${params.join(' ')}`.trim();
-    Logger.info(`Выполнение команды: "${fullCommand}"`);
-  }
-
-  /**
-  * Устанавливает новое состояние для конечного автомата (FSM).
-  * @param {string} newState - Новое состояние (IDLE, FOLLOW, GUARD и т.д.).
-  */
-  setState(newState) {
-    Logger.info(`Смена состояния: ${this.currentState} -> ${newState}`);
-    this.currentState = newState;
-    // Здесь может быть логика для запуска/остановки задач, связанных с состоянием
-  }
-
-  getCurrentPosition() {
-    if (!this.isConnected) {
-      Logger.warn('Попытка получить координаты бота без подключения к серверу.');
-      return null;
-    }
-    return this.bot.entity.position;
   }
 }
 
