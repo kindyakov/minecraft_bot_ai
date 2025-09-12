@@ -1,3 +1,5 @@
 node_modules
 .env
 .continue
+commit-message.txt
+logs

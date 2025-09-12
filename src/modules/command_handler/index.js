@@ -34,6 +34,11 @@ export class CommandHandler {
     const [command, options] = parsed
 
     if (this.commands[command]) {
+      // Если есть активные команды то останавливаем их
+      if (this.bot.cmdState?.activeCommands.size !== 0) {
+        this.bot.cmdState.stopAllCommands(this.bot)
+      }
+
       this.commands[command].execute({
         bot: this.bot,
         options,
@@ -41,7 +46,7 @@ export class CommandHandler {
         availableCommands: Object.keys(this.commands),
       })
 
-      logger.info(`Команда от ${username}: ${command}`, options)
+      logger.playerCommand(`Команда от ${username}: ${command}`, options)
     } else {
       this.bot.chat(`Неизвестная команда: ${command}`)
     }

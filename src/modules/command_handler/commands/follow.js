@@ -9,6 +9,10 @@ class Follow extends BaseCommand {
   }
 
   execute({ bot, username, options }) {
+    if (this.isActive) {
+      this.stop(bot)
+    }
+
     const playerName = options[0] ? options[0] : username
     const target = bot.players[playerName]?.entity
 
@@ -17,8 +21,11 @@ class Follow extends BaseCommand {
       return
     }
 
-    const goal = new GoalFollow(target, 2)
-    bot.pathfinder.setGoal(goal, true)
+    if (bot.movements) {
+      bot.movements.allowSprinting = false // Разрешаем боту бежать        
+    }
+
+    bot.pathfinder.setGoal(new GoalFollow(target, 2), true)
 
     this.clearInterval()
     this.interval = setInterval(() => {
@@ -46,8 +53,8 @@ class Follow extends BaseCommand {
   stop(bot) {
     this.clearInterval()
     this.isActive = false
-    bot?.pathfinder?.stop()
-    bot?.cmdState?.unregisterCommand(this)
+    bot.pathfinder?.setGoal(null)
+    bot.cmdState?.unregisterCommand(this)
   }
 
   clearInterval() {

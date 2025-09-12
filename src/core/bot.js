@@ -39,6 +39,7 @@ class MinecraftBot extends EventEmitter {
       this.bot.on('botReady', () => {
         this.isConnected = true
         this.reconnectAttempts = 0 // сброси счётчик
+        this.bot.chat("Я готов к работе ;)")
       })
 
       this.bot.on('botDisconnected', (reason) => {

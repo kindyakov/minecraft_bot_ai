@@ -8,26 +8,35 @@ minecraft-bot/
 │ ├── core/ # базовые вещи
 │ │ ├── bot.js # класс MinecraftBot
 │ │ ├── config.js # dotenv, парсинг конфигов
-│ │ ├── cmdSate.js # активные команды бота
-│ │ ├── logger.js # winston
+│ │ ├── cmdState.js # состояние активных команд бота
+│ │ ├── logger.js # winston логер
 │ │ └── utils.js # общие утилиты
 │ ├── modules/
-│ │ ├── connection/ # Подключение/реконнект бота
-│ │ │ └── index.js
+│ │ ├── connection/
+│ │ │ └── index.js # Подключение бота
 │ │ ├── command_handler/ # обработка команд
 │ │ │ ├── index.js # регистрация/парсинг
 │ │ │ └── commands/
-│ │ │ │ ├── follow.js
-│ │ │ │ ├── stop.js
-│ │ │ │ ├── help.js
-│ │ │ │ ├── guard.js
-│ │ │ │ ├── mine.js
-│ │ │ │ ├── build.js
+│ │ │ │ ├── follow.js # следование за игроком
+│ │ │ │ ├── stop.js   # остановка всех команд
+│ │ │ │ ├── help.js   # вывод в чат доступные команды
+│ │ │ │ ├── guard.js  # охрана/защита/выживание
+│ │ │ │ ├── mine.js   # добыча ресурсов
+│ │ │ │ ├── build.js  # строительство
+│ │ │ │ ├── farm.js   # фермерство
 │ │ │ │ └── ...
 │ │ ├── controls/ # низкоуровневые действия
 │ │ │ ├── movement.js # pathfinder: ходьба, навигация
 │ │ │ ├── interaction.js # клик, place, attack
 │ │ │ └── inventory.js # работа с инвентарём
+│ │ ├── plugins/ # плагины
+│ │ │ ├── index.js # загрузка/инициализация плагинов
+│ │ │ ├── armorManager.js # автоматическая экипировка брони
+│ │ │ ├── pathfinder.js # навигация
+│ │ │ ├── pvp.js # пвп режим (пока нет подходяжего плагина для установки)
+│ │ │ ├── viewer.js # вид от лица бота
+│ │ │ ├── webInventory.js # веб-инвентарь
+│ │ │ └── ...
 │ │ ├── states/ # FSM состояния
 │ │ │ ├── idle.js # ждать/периодические AI решения
 │ │ │ ├── follow.js # следовать
@@ -61,8 +70,9 @@ minecraft-bot/
 - `mineflayer-pathfinder` — навигация
 - `mineflayer-collectblock` — сбор блоков
 - `minecraft-data` — доступ к данным о мире
-- `@nxg-org/mineflayer-custom-pvp` - пвп режим бота
 - `mineflayer-armor-manager` - автоматически экипировать более качественную броню
+- `mineflayer-web-inventory` - просмотр инвенторя в браузере
+- `mineflayer-auto-eat` - автоматическая еда
 - `dotenv` — конфиги
 - `winston` — логирование
 - `axios` — вызовы внешних API (AI)
