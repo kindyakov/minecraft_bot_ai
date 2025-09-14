@@ -4,6 +4,8 @@ import BotStateMachine from "./fsm.js"
 import Config from "../config/config.js"
 import Logger from "../config/logger.js"
 import { initConnection } from "../modules/connection/index.js"
+import { CommandHandler } from "../modules/commands/CommandHandler.js"
+import { BotUtils } from '../utils/minecraft/botUtils.js';
 
 class MinecraftBot extends EventEmitter {
   constructor() {
@@ -30,7 +32,10 @@ class MinecraftBot extends EventEmitter {
         this.isConnected = true
         this.reconnectAttempts = 0 // сброси счётчик
 
+        this.bot.utils = new BotUtils(this.bot)
+        this.bot.commandHandler = new CommandHandler(bot)
         this.bot.fsm = new BotStateMachine(this.bot)
+
         this.bot.chat("Я готов к работе ;)")
       })
 

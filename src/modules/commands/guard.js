@@ -31,7 +31,6 @@ class Guard extends BaseCommand {
     bot.armorManager.equipAll() // Бот при наличии брони в инвенторе наденет её
     this.center = bot.entity?.position
     this.isActive = true
-    bot.cmdState?.registerCommand(this)
 
     if (bot.movements) {
       bot.movements.allowSprinting = true // Разрешаем боту бежать        
@@ -55,7 +54,6 @@ class Guard extends BaseCommand {
     this.ignoredMobs.clear()
     this._clearGoalHandler(bot)
     bot.pathfinder.setGoal(null)
-    bot.cmdState?.unregisterCommand(this)
   }
 
   findEnemies(bot) {

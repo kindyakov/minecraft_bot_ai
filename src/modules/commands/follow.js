@@ -46,7 +46,6 @@ class Follow extends BaseCommand {
     }, 1000)
 
 
-    bot.cmdState?.registerCommand(this)
     this.isActive = true
   }
 
@@ -54,7 +53,6 @@ class Follow extends BaseCommand {
     this.clearInterval()
     this.isActive = false
     bot.pathfinder?.setGoal(null)
-    bot.cmdState?.unregisterCommand(this)
   }
 
   clearInterval() {

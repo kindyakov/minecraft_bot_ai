@@ -35,11 +35,6 @@ export class CommandHandler {
     const [command, options] = parsed
 
     if (this.commands[command]) {
-      // Если есть активные команды то останавливаем их
-      if (this.bot.cmdState?.activeCommands.size !== 0) {
-        this.bot.cmdState.stopAllCommands(this.bot)
-      }
-
       this.bot.fsm.emit('PLAYER_COMMAND', {
         command,
         options,

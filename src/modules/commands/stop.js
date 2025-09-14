@@ -6,7 +6,6 @@ class Stop extends BaseCommand {
   }
 
   execute({ bot }) {
-    bot.cmdState?.stopAllCommands(bot)
     bot.chat('Остановлен!')
   }
 }
