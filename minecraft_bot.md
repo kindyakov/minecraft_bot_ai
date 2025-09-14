@@ -3,65 +3,57 @@
 ## 📂 Архитектура проекта
 
 ```
-minecraft-bot/
-├── src/
-│ ├── core/ # базовые вещи
-│ │ ├── bot.js # класс MinecraftBot
-│ │ ├── config.js # dotenv, парсинг конфигов
-│ │ ├── cmdState.js # состояние активных команд бота
-│ │ ├── logger.js # winston логер
-│ │ └── utils.js # общие утилиты
-│ ├── modules/
-│ │ ├── connection/
-│ │ │ └── index.js # Подключение бота
-│ │ ├── command_handler/ # обработка команд
-│ │ │ ├── index.js # регистрация/парсинг
-│ │ │ └── commands/
-│ │ │ │ ├── follow.js # следование за игроком
-│ │ │ │ ├── stop.js   # остановка всех команд
-│ │ │ │ ├── help.js   # вывод в чат доступные команды
-│ │ │ │ ├── guard.js  # охрана/защита/выживание
-│ │ │ │ ├── mine.js   # добыча ресурсов
-│ │ │ │ ├── build.js  # строительство
-│ │ │ │ ├── farm.js   # фермерство
-│ │ │ │ └── ...
-│ │ ├── controls/ # низкоуровневые действия
-│ │ │ ├── movement.js # pathfinder: ходьба, навигация
-│ │ │ ├── interaction.js # клик, place, attack
-│ │ │ └── inventory.js # работа с инвентарём
-│ │ ├── plugins/ # плагины
-│ │ │ ├── index.js # загрузка/инициализация плагинов
-│ │ │ ├── armorManager.js # автоматическая экипировка брони
-│ │ │ ├── pathfinder.js # навигация
-│ │ │ ├── pvp.js # пвп режим (пока нет подходяжего плагина для установки)
-│ │ │ ├── viewer.js # вид от лица бота
-│ │ │ ├── webInventory.js # веб-инвентарь
-│ │ │ └── ...
-│ │ ├── states/ # FSM состояния
-│ │ │ ├── idle.js # ждать/периодические AI решения
-│ │ │ ├── follow.js # следовать
-│ │ │ ├── guard.js # охрана/защищать/выживание
-│ │ │ ├── farm.js # фермерство
-│ │ │ ├── mine.js # добыча ресурсов
-│ │ │ └── build.js # строительство
-│ │ ├── ai/ # AI адаптер
-│ │ │ └── index.js # вызовы API + schema validation
-│ │ ├── scheduler/ # планировщик задач
-│ │ │ └── index.js
-│ │ └── utils/ # локальные хелперы
-│ │ └── index.js
-│ ├── tests/ # unit/integration тесты
-│ └── index.js # точка входа
-├── config/
-│ └── .env.example
-├── docs/
-│ └── README.md
-├── .eslintrc.js
-├── .prettierrc.js
-├── .gitignore
-├── package.json
-├── package-lock.json
-└── nodemon.json
+minecraft_bot_ai/
+├── 📁 src/                                  ← ✅ Основная логика приложения
+│   ├── 📁 core/                             ← ✅ Базовые системные компоненты
+│   │   ├── bot.js                           ← ✅ MinecraftBot - управление ботом
+│   │   ├── fsm.js                           ← ✅ BotStateMachine - управление переходами состояний
+│   ├── 📁 modules/                          ← ✅ Основные функциональные модули
+│   │   ├── 📁 connection/                   ← ✅ Управление подключением к серверу
+│   │   │   └── index.js                     ← ✅ initConnection - инициализация плагинов и CommandHandler
+│   │   │
+│   │   ├── 📁 commands/                     ← ✅ Команды от игроков (обновлено!)
+│   │   │   ├── BaseCommand.js               ← ✅ Абстрактный класс для команд
+│   │   │   ├── CommandHandler.js           ← ✅ Парсер команд и диспетчер выполнения
+│   │   │   ├── follow.js                   ← ✅ Команда следования за игроком
+│   │   │   ├── combat.js                    ← ✅ Команда охраны/защиты территории
+│   │   │   ├── help.js                     ← ✅ Справка по доступным командам
+│   │   │   ├── stop.js                     ← ✅ Остановка всех активных команд
+│   │   │   └── ...
+│   │   │
+│   │   ├── 📁 states/                      ← ✅ FSM состояния бота
+│   │   │   ├── BaseState.js                ← ✅ Абстрактный класс с enter/update/exit методами
+│   │   │   ├── IdleState.js                ← ✅ Состояние ожидания с проверками врагов/здоровья
+│   │   │   ├── ...
+│   │   │   └── indexStates.js              ← ✅ Реестр доступных состояний для FSM
+│   │   │
+│   │   └── 📁 plugins/                     ← ✅ Mineflayer плагины и инициализация
+│   │       ├── armorManager.js
+│   │       ├── pathfinder.js
+│   │       ├── viewer.js
+│   │       ├── webInventory.js
+│   │       ├── goals.js
+│   │       ├── ...
+│   │       └── index.js                    ← ✅ Загрузка pathfinder, armor-manager, auto-eat, web-inventory, viewer
+│   │
+│   └── 📁 config/                          ← ✅ Конфигурационные файлы
+│       ├── states.js                       ← ✅ Константы состояний FSM (IDLE, FOLLOW, COMBAT, etc.)
+│       ├── commands.js
+│       ├── config.js
+│       └── logger.js                       ← ✅ BotLogger класс с методами для разных типов логирования
+
+├── 📁 config/                              ← ✅ Внешние конфигурации
+│   └── .env.example                        ← ✅ Шаблон переменных окружения
+│
+├── 📁 docs/                               ← ✅ Документация проекта
+│   └── README.md
+│
+├── 📁 minecraft_bot.md                    ← ✅ Подробная архитектурная документация
+│
+├── 📄 .gitignore                          ← ✅ Git исключения (logs, node_modules, .env)
+├── 📄 nodemon.json                        ← ✅ Конфигурация для разработки с hot reload
+├── 📄 package.json                        ← ✅ Зависимости и скрипты проекта
+└── 📄 package-lock.json                   ← ✅ Lockfile зависимостей
 ```
 
 ## ⚙️ Основные зависимости
@@ -95,6 +87,8 @@ AI_MODEL=gpt-4o-mini
 AI_API_KEY=sk-...
 AI_TIMEOUT_MS=800
 AI_MAX_TOKENS=300
+
+NODE_ENV=development
 ```
 
 ## 🚦 Жизненный цикл бота
@@ -156,7 +150,7 @@ AI_MAX_TOKENS=300
 
 - **IDLE** - ожидание, периодические AI решения
 - **FOLLOW** - следование за игроком
-- **GUARD** - защита/выживание
+- **COMBAT** - защита/выживание
 - **FARM** - автоматическое фермерство
 - **MINE** - добыча ресурсов
 - **BUILD** - строительство по планам
@@ -209,7 +203,7 @@ npm run dev
 - `:follow <player>` — следовать за игроком
 - `:stop` — остановить действия
 - `:farm` — начать фермерство
-- `:guard` — охрана/защита/выживание
+- `:combat` — охрана/защита/выживание
 - `:help` — список команд
 
 ## 🛣 Roadmap

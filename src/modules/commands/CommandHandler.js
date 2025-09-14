@@ -40,12 +40,19 @@ export class CommandHandler {
         this.bot.cmdState.stopAllCommands(this.bot)
       }
 
-      this.commands[command].execute({
-        bot: this.bot,
+      this.bot.fsm.emit('PLAYER_COMMAND', {
+        command,
         options,
         username,
-        availableCommands: Object.keys(this.commands),
+        timestamp: Date.now()
       })
+
+      // this.commands[command].execute({
+      //   bot: this.bot,
+      //   options,
+      //   username,
+      //   availableCommands: Object.keys(this.commands),
+      // })
 
       logger.playerCommand(`Команда от ${username}: ${command}`, options)
     } else {

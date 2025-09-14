@@ -27,6 +27,7 @@
     "mineflayer-armor-manager": "^2.0.1",
     "mineflayer-auto-eat": "^5.0.3",
     "mineflayer-pathfinder": "^2.4.5",
+    "mineflayer-tool": "^1.2.0",
     "mineflayer-web-inventory": "^1.8.5",
     "prismarine-viewer": "^1.33.0",
     "winston": "^3.17.0"

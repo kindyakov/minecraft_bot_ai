@@ -3,9 +3,7 @@ import { states } from "../../config/states.js";
 
 export class IdleState extends BaseState {
   constructor(fsm) {
-    super(states.IDLE)
-    this.timer = null
-    this.fsm = fsm
+    super(fsm, states.IDLE)
   }
 
   enter(bot, options = {}) {
@@ -15,37 +13,30 @@ export class IdleState extends BaseState {
   }
 
   update(bot) {
-    clearTimeout(this.timer)
+    clearTimeout(this._timerUpdate)
 
-    const enemy = bot.nearestEntity(e => e.type === 'hostile')
-    if (enemy) {
-      this.fsm.transition(states.GUARD, { enemy })
+    const eatStatus = bot.utils.needsToEat()
+    if (eatStatus.shouldEat && ['medium', 'high', 'critical'].includes(eatStatus.priority)) {
+      this.fsm.transition(states.SURVIVAL)
       return
     }
-    const inventory = bot.inventory.items()
 
-    if (inventory.length >= 36) {
-
-      return  // переход в другое состояние
+    const enemy = bot.utils.findNearestEnemy()
+    if (enemy) {
+      this.fsm.transition(states.COMBAT, { enemy })
+      return
     }
 
-    // проверка голода
-    if (bot.food <= 17) {
-
-      return // переход в другое состояние
+    const player = bot.utils.searchNearestPlayer()
+    if (player) {
+      bot.lookAt(player.position)
     }
 
-    // проверка здоровья
-    if (bot.health <= 15 && bot.foodSaturation < 5) {
-
-      return   // переход в другое состояние
-    }
-
-    this.timer = setTimeout(() => this.update(bot), 1000)
+    this._timerUpdate = setTimeout(() => this.update(bot), this._timeout)
   }
 
   exit(bot) {
-    clearTimeout(this.timer)
-    this.timer = null
+    clearTimeout(this._timerUpdate)
+    this._timerUpdate = null
   }
 }

@@ -2,8 +2,11 @@
   * @param {string} stateName - название состояния
  */
 export class BaseState {
-  constructor(stateName) {
+  constructor(fsm, stateName) {
+    this.fsm = fsm
     this.name = stateName
+    this._timerUpdate = null
+    this._timeout = 500
   }
 
   /**
@@ -25,6 +28,8 @@ export class BaseState {
   * @param {Object} bot - экземпляр бота
  */
   exit(bot) {
+    clearInterval(this._timerUpdate)
+    this._timerUpdate = null
     logger.info(`Exit state ${this.name}`)
   }
 }

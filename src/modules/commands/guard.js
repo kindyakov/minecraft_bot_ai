@@ -1,7 +1,6 @@
-import Logger from "../../../core/logger.js";
+import Logger from "../../config/logger.js";
 import { BaseCommand } from "./BaseCommand.js";
-import { GoalFollow, GoalBlock } from "../../navigation/goals.js";
-import { searchWeapons } from "../../controls/inventory.js";
+import { GoalFollow, GoalBlock } from "../plugins/goals.js";
 
 class Guard extends BaseCommand {
   constructor() {
@@ -24,7 +23,7 @@ class Guard extends BaseCommand {
       this.stop(bot)
     }
 
-    const weapon = searchWeapons(bot) // поиск оружия меч/топор
+    const weapon = bot.utils.searchWeapons(bot) // поиск оружия меч/топор
     if (weapon) {
       bot.equip(weapon, 'hand')
     }

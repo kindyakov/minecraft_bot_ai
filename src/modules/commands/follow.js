@@ -1,5 +1,5 @@
 import { BaseCommand } from './BaseCommand.js';
-import { GoalFollow } from '../../navigation/goals.js';
+import { GoalFollow } from '../plugins/goals.js';
 
 class Follow extends BaseCommand {
   constructor() {

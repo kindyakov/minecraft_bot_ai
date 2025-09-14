@@ -1,5 +1,6 @@
 import EventEmitter from 'node:events';
 import MineFlayer from "mineflayer"
+import BotStateMachine from "./fsm.js"
 import Config from "../config/config.js"
 import Logger from "../config/logger.js"
 import { initConnection } from "../modules/connection/index.js"
@@ -9,7 +10,6 @@ class MinecraftBot extends EventEmitter {
     super();
     this.bot = null
     this.isConnected = false
-    this.currentState = 'IDLE'
     this.reconnectAttempts = 0
     this.maxReconnectAttempts = 5
     this.reconnectDelay = 3000
@@ -29,6 +29,8 @@ class MinecraftBot extends EventEmitter {
       this.bot.on('botReady', () => {
         this.isConnected = true
         this.reconnectAttempts = 0 // сброси счётчик
+
+        this.bot.fsm = new BotStateMachine(this.bot)
         this.bot.chat("Я готов к работе ;)")
       })
 

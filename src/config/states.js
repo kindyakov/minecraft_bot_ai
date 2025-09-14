@@ -1,8 +1,9 @@
 export const states = {
   IDLE: 'idle',
   FOLLOW: 'follow',
-  GUARD: 'guard',
+  COMBAT: 'combat',
   FARM: 'farm',
   MINE: 'mine',
-  BUILD: 'build'
+  BUILD: 'build',
+  SURVIVAL: 'survival'
 }

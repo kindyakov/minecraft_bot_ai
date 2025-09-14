@@ -1,5 +1,5 @@
 import EventEmitter from 'node:events';
-import logger from './logger.js';
+import logger from '../config/logger.js';
 import { states } from '../config/states.js'
 import { indexStates } from '../modules/states/indexStates.js'
 
@@ -9,6 +9,7 @@ class BotStateMachine extends EventEmitter {
     this.bot = bot
     this.states = indexStates
     this.state = null
+    this.previousState = ''
     this.transition(states.IDLE)
   }
 
@@ -27,10 +28,11 @@ class BotStateMachine extends EventEmitter {
       return
     }
 
+    logger.info(`FSM: ${this.state?.name || '_'} → ${newStateName}`);
+    this.previousState = this.state?.name || ''
+
     this.state = new this.states[newStateName](this);
     this.state.enter(this.bot, data)
-
-    logger.info(`FSM: ${this.state.name} → ${newStateName}`);
   }
 }
 
