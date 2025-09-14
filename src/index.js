@@ -1,8 +1,7 @@
 import MinecraftBot from "./core/bot.js";
-import Logger from "./core/logger.js";
+import Logger from "./config/logger.js";
 
 const minecraftBot = new MinecraftBot();
-
 minecraftBot.start();
 
 process.on("SIGINT", () => {

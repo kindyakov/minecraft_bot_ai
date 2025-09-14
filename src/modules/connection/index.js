@@ -1,5 +1,5 @@
-import Logger from "../../core/logger.js"
-import { CommandHandler } from "../command_handler/index.js"
+import Logger from "../../config/logger.js"
+import { CommandHandler } from "../commands/CommandHandler.js"
 import { loadPlugins } from "../plugins/index.js"
 import { initPlugins } from "../plugins/index.js"
 
@@ -9,8 +9,7 @@ export const initConnection = (bot) => {
   bot.once("spawn", () => {
     initPlugins(bot)
 
-    const commandHandler = new CommandHandler(bot)
-    commandHandler.init()
+    new CommandHandler(bot)
 
     Logger.info("Бот заспавнился")
     bot.emit('botReady')
