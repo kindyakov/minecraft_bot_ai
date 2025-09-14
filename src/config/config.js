@@ -1,7 +1,6 @@
 import 'dotenv/config';
 
 class Config {
-
   // Minecraft настройки
   get minecraft() {
     return {

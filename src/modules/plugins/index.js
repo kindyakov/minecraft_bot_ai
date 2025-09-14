@@ -8,11 +8,11 @@ export const loadPlugins = (bot) => {
   loadPathfinder(bot)
   loadArmorManager(bot)
   loadWebInventory(bot)
-  // loadPvp(bot)
+  // loadPvp(bot) // не совместим с текущей версией mineflayer
 }
 
 export const initPlugins = (bot) => {
   initPathfinder(bot)
   initArmorManager(bot)
-  // initViewer(bot)
+  initViewer(bot)
 }

@@ -1,16 +1,13 @@
 import EventEmitter from 'node:events';
 import MineFlayer from "mineflayer"
-import Config from "./config.js"
-import Logger from "./logger.js"
-import CommandState from './cmdSate.js';
-import { loadPlugins } from '../modules/plugins/index.js';
+import Config from "../config/config.js"
+import Logger from "../config/logger.js"
 import { initConnection } from "../modules/connection/index.js"
 
 class MinecraftBot extends EventEmitter {
   constructor() {
     super();
     this.bot = null
-    this.cmdState = new CommandState()
     this.isConnected = false
     this.currentState = 'IDLE'
     this.reconnectAttempts = 0
@@ -27,14 +24,7 @@ class MinecraftBot extends EventEmitter {
         return
       }
 
-      this.bot = MineFlayer.createBot({
-        host: Config.minecraft.host,
-        username: Config.minecraft.username,
-        port: Config.minecraft.port,
-        version: Config.minecraft.version,
-      })
-
-      this.bot.cmdState = this.cmdState
+      this.bot = MineFlayer.createBot(Config.minecraft)
 
       this.bot.on('botReady', () => {
         this.isConnected = true
@@ -48,7 +38,6 @@ class MinecraftBot extends EventEmitter {
         this.scheduleReconnect()
       })
 
-      loadPlugins(this.bot)
       initConnection(this.bot)
     } catch (error) {
       Logger.error('Ошибка запуска бота:', error);

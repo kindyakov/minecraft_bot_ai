@@ -1,8 +1,10 @@
 import Logger from "../../core/logger.js"
 import { CommandHandler } from "../command_handler/index.js"
+import { loadPlugins } from "../plugins/index.js"
 import { initPlugins } from "../plugins/index.js"
 
 export const initConnection = (bot) => {
+  loadPlugins(bot)
 
   bot.once("spawn", () => {
     initPlugins(bot)

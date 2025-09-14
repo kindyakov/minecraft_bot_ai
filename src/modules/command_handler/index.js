@@ -1,8 +1,8 @@
-import logger from "../../core/logger.js"
-import { follow } from "./commands/follow.js"
-import { help } from "./commands/help.js"
-import { stop } from "./commands/stop.js"
-import { guard } from "./commands/guard.js"
+import logger from "../../config/logger.js"
+import { follow } from "../commands/follow.js"
+import { help } from "../commands/help.js"
+import { stop } from "../commands/stop.js"
+import { guard } from "../commands/guard.js"
 
 export class CommandHandler {
   constructor(bot) {
