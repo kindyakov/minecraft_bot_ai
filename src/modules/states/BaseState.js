@@ -1,10 +1,12 @@
 /**
+  * @param {object} fsm - контекст FSM
   * @param {string} stateName - название состояния
  */
 export class BaseState {
-  constructor(fsm, stateName) {
+  constructor(fsm, stateName, priority = 7) {
     this.fsm = fsm
     this.name = stateName
+    this.priority = priority
     this._timerUpdate = null
     this._timeout = 500
   }
@@ -31,5 +33,21 @@ export class BaseState {
     clearInterval(this._timerUpdate)
     this._timerUpdate = null
     logger.info(`Exit state ${this.name}`)
+  }
+
+  /**
+ * @param {Object} bot - экземпляр бота
+ */
+  pause(bot) {
+    clearInterval(this._timerUpdate)
+    this._timerUpdate = null
+    logger.info(`Pause state ${this.name}`)
+  }
+
+  /**
+   * @param {Object} bot - экземпляр бота
+   */
+  resume(bot) {
+    logger.info(`Resume state ${this.name}`)
   }
 }

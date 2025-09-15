@@ -5,7 +5,7 @@ import logger from "../../config/logger.js";
 
 export class CombatState extends BaseState {
   constructor(fsm) {
-    super(fsm, states.COMBAT)
+    super(fsm, states.COMBAT, 6)
     this.currentEnemy = null
     this._debugMode = true
     this._timerAttack = null
@@ -90,5 +90,14 @@ export class CombatState extends BaseState {
     this._ignoredMobs.clear()
 
     bot.pathfinder.setGoal(null)
+  }
+
+  pause(bot) {
+    clearTimeout(this._timerUpdate)
+    this._timerUpdate = null
+  }
+
+  resume(bot) {
+    this.update(bot, this.currentEnemy)
   }
 }

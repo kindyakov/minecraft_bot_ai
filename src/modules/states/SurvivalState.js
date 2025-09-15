@@ -5,7 +5,7 @@ import { GoalNear } from '../plugins/goals.js'
 
 export class SurvivalState extends BaseState {
   constructor(fsm) {
-    super(fsm, states.SURVIVAL)
+    super(fsm, states.SURVIVAL, 6)
   }
 
   enter(bot) {

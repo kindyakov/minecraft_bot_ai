@@ -3,7 +3,7 @@ import { states } from "../../config/states.js";
 
 export class IdleState extends BaseState {
   constructor(fsm) {
-    super(fsm, states.IDLE)
+    super(fsm, states.IDLE, 1)
   }
 
   enter(bot, options = {}) {
