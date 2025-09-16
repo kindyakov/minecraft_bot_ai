@@ -6,6 +6,7 @@ import Config from "../config/config.js"
 import Logger from "../config/logger.js"
 import { initConnection } from "../modules/connection/index.js"
 import { CommandHandler } from "../modules/commands/CommandHandler.js"
+import { TaskManager } from "../modules/tasks/TaskManager.js"
 import { BotUtils } from '../utils/minecraft/botUtils.js';
 
 class MinecraftBot extends EventEmitter {
@@ -34,9 +35,12 @@ class MinecraftBot extends EventEmitter {
         this.reconnectAttempts = 0 // сброси счётчик
 
         this.bot.utils = new BotUtils(this.bot)
-        const fsm = new BotStateMachine(this.bot)
+        const taskManager = new TaskManager()
+        const fsm = new BotStateMachine(this.bot, taskManager)
         const commandHandler = new CommandHandler(this.bot, fsm)
-        const survivalSystem = new SurvivalSystem(this.bot, fsm)
+        const survivalSystem = new SurvivalSystem(this.bot, taskManager)
+
+        taskManager.setFsm(fsm)
 
         this.bot.chat("Я готов к работе ;)")
       })

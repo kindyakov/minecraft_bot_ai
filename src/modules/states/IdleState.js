@@ -1,9 +1,9 @@
 import { BaseState } from "./BaseState.js";
-import { states } from "../../config/states.js";
+import { STATES_TYPES } from "./index.states.js";
 
 export class IdleState extends BaseState {
   constructor(fsm) {
-    super(fsm, states.IDLE, 1)
+    super(fsm, STATES_TYPES.IDLE, 1)
   }
 
   enter(bot, options = {}) {
@@ -17,13 +17,13 @@ export class IdleState extends BaseState {
 
     const eatStatus = bot.utils.needsToEat()
     if (eatStatus.shouldEat && ['medium', 'high', 'critical'].includes(eatStatus.priority)) {
-      this.fsm.transition(states.SURVIVAL)
+      this.fsm.transition(STATES_TYPES.SURVIVAL)
       return
     }
 
     const enemy = bot.utils.findNearestEnemy()
     if (enemy) {
-      this.fsm.transition(states.COMBAT, { enemy })
+      this.fsm.transition(STATES_TYPES.COMBAT, { enemy })
       return
     }
 

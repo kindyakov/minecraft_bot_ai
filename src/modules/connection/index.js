@@ -1,6 +1,5 @@
 import Logger from "../../config/logger.js"
-import { loadPlugins } from "../plugins/index.js"
-import { initPlugins } from "../plugins/index.js"
+import { loadPlugins, initPlugins } from "../plugins/index.plugins.js"
 
 export const initConnection = (bot) => {
   loadPlugins(bot)

@@ -1,11 +1,11 @@
 import { BaseState } from "./BaseState.js";
-import { states } from "../../config/states.js";
+import { STATES_TYPES } from "./index.states.js";
 import { GoalFollow } from "../plugins/goals.js";
 import logger from "../../config/logger.js";
 
 export class CombatState extends BaseState {
   constructor(fsm) {
-    super(fsm, states.COMBAT, 6)
+    super(fsm, STATES_TYPES.COMBAT, 6)
     this.currentEnemy = null
     this._debugMode = true
     this._timerAttack = null
@@ -28,7 +28,7 @@ export class CombatState extends BaseState {
 
     const eatStatus = bot.utils.needsToEat()
     if (eatStatus.shouldEat && ['medium', 'high', 'critical'].includes(eatStatus.priority)) {
-      this.fsm.transition(states.SURVIVAL)
+      this.fsm.transition(STATES_TYPES.SURVIVAL)
       return
     }
 
@@ -38,7 +38,7 @@ export class CombatState extends BaseState {
     )
 
     if (!this.currentEnemy) {
-      this.fsm.transition(states.IDLE)
+      this.fsm.transition(STATES_TYPES.IDLE)
       return
     }
 

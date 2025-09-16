@@ -1,16 +1,15 @@
 import EventEmitter from 'node:events';
 import logger from '../config/logger.js';
-import { states } from '../config/states.js'
-import { indexStates } from '../modules/states/indexStates.js'
+import { STATES, STATES_TYPES } from '../modules/states/index.states.js'
 
 class BotStateMachine extends EventEmitter {
   constructor(bot) {
     super()
     this.bot = bot
-    this.states = indexStates
+    this.states = STATES
     this.state = null
     this.previousState = ''
-    this.transition(states.IDLE)
+    this.transition(STATES_TYPES.IDLE)
   }
 
   transition(newStateName, data = {}) {
@@ -36,7 +35,9 @@ class BotStateMachine extends EventEmitter {
   }
 
   handlers() {
-
+    this.on('addTask', (task) => {
+      logger.info(`FSM: Добавлена задача`)
+    })
   }
 }
 

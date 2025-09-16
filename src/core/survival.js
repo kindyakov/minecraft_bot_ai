@@ -1,10 +1,10 @@
 import logger from '../config/logger.js'
 
-class SurvivalSystem extends EventEmitter {
-  constructor(bot, fsm) {
+class SurvivalSystem {
+  constructor(bot, taskManager) {
     super()
     this.bot = bot
-    this.fsm = fsm
+    this.taskManager = taskManager
     this._timerArmor = null
     this._timerTools = null
     this._timerFood = null
@@ -59,12 +59,13 @@ class SurvivalSystem extends EventEmitter {
     if (this.bot.foodSaturation > 0) return // Если сытость выше 0 то нечего делать не надо
 
     const foodInInventory = this.bot.inventory.items().filter(item =>
-      bot.autoEat.foodsByName[item.name]
+      this.bot.autoEat.foodsByName[item.name]
     )
 
     if (!foodInInventory.length) {
       if (this.bot.health <= 5) {
         // Добавляем задачу в таск как критическая ситуация
+        this.bot.chat('Я вот-вот умру! 🤕')
         return
       } else {
         // Добавляем задачу в таск нет еды
@@ -73,7 +74,7 @@ class SurvivalSystem extends EventEmitter {
     }
 
     if (this.bot.health <= 17) {
-      bot.autoEat.eat(this.optionsAutoEat)
+      // bot.autoEat.eat(this.optionsAutoEat)
     }
   }
 
@@ -88,7 +89,7 @@ class SurvivalSystem extends EventEmitter {
     }
 
     if (this.bot.food <= 17) {
-      bot.autoEat.eat(this.optionsAutoEat)
+      // bot.autoEat.eat(this.optionsAutoEat)
     }
   }
 

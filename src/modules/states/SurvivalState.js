@@ -1,11 +1,11 @@
-import { states } from "../../config/states.js";
 import { BaseState } from "./BaseState.js";
+import { STATES_TYPES } from "./index.states.js";
 import logger from "../../config/logger.js";
 import { GoalNear } from '../plugins/goals.js'
 
 export class SurvivalState extends BaseState {
   constructor(fsm) {
-    super(fsm, states.SURVIVAL, 6)
+    super(fsm, STATES_TYPES.SURVIVAL, 6)
   }
 
   enter(bot) {

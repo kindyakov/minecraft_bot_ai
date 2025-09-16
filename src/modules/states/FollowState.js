@@ -1,6 +1,9 @@
+import { BaseState } from "./BaseState.js"
+import { STATES_TYPES } from "./index.states.js"
+
 export class FollowState extends BaseState {
   constructor(fsm) {
-    super(fsm, states.FOLLOW, 5)
+    super(fsm, STATES_TYPES.FOLLOW, 5)
   }
 
   enter(bot, options = {}) {

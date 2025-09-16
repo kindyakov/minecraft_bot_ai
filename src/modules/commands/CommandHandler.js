@@ -1,20 +1,10 @@
 import logger from "../../config/logger.js"
-import { follow } from "./follow.js"
-import { help } from "./help.js"
-import { stop } from "./stop.js"
-import { guard } from "./guard.js"
+import { commands } from "./index.commands.js"
 
 export class CommandHandler {
   constructor(bot) {
     this.bot = bot
     this.init()
-  }
-
-  commands = {
-    follow,
-    help,
-    stop,
-    guard,
   }
 
   init() {
@@ -34,7 +24,7 @@ export class CommandHandler {
 
     const [command, options] = parsed
 
-    if (this.commands[command]) {
+    if (commands[command]) {
       this.bot.fsm.emit('PLAYER_COMMAND', {
         command,
         options,
@@ -42,11 +32,11 @@ export class CommandHandler {
         timestamp: Date.now()
       })
 
-      // this.commands[command].execute({
+      // commands[command].execute({
       //   bot: this.bot,
       //   options,
       //   username,
-      //   availableCommands: Object.keys(this.commands),
+      //   availableCommands: Object.keys(commands),
       // })
 
       logger.playerCommand(`Команда от ${username}: ${command}`, options)
