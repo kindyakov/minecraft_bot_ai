@@ -8,10 +8,21 @@ export class FollowState extends BaseState {
 
   enter(bot, options = {}) {
     bot.chat('Я в состоянии следования 👀')
+    this.status = 'active'
+
     // bot.pathfinder.setGoal()
   }
 
   exit(bot) {
     bot.pathfinder.setGoal(null)
+    this.status = 'inactive'
+  }
+
+  pause() {
+    this.status = 'pause'
+  }
+
+  resume() {
+    this.status = 'active'
   }
 }

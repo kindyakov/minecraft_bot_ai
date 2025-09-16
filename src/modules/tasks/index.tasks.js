@@ -3,9 +3,9 @@ import { RepairArmorTask } from "./RepairArmorTask.js";
 import { FindShelterTask } from "./FindShelterTask.js";
 
 export const TASK_TYPES = {
-  NEED_FOOD: 'NEED_FOOD',
-  REPAIR_ARMOR: 'REPAIR_ARMOR',
-  FIND_SHELTER: 'FIND_SHELTER'
+  NEED_FOOD: 'need_food',
+  REPAIR_ARMOR: 'repair_armor',
+  FIND_SHELTER: 'find_shelter'
 }
 
 export const TASKS = {

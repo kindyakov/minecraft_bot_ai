@@ -19,7 +19,7 @@ export class CombatState extends BaseState {
     }
 
     bot.armorManager.equipAll() // Бот при наличии брони в инвенторе наденет её
-
+    this.status = 'active'
     this.update(bot, enemy)
   }
 
@@ -89,15 +89,19 @@ export class CombatState extends BaseState {
     this.currentEnemy = null
     this._ignoredMobs.clear()
 
+    this.status = 'inactive'
+
     bot.pathfinder.setGoal(null)
   }
 
   pause(bot) {
     clearTimeout(this._timerUpdate)
+    this.status = 'pause'
     this._timerUpdate = null
   }
 
   resume(bot) {
+    this.status = 'active'
     this.update(bot, this.currentEnemy)
   }
 }

@@ -10,6 +10,7 @@ export class SurvivalState extends BaseState {
 
   enter(bot) {
     bot.chat(`Режим выживания: ${bot.health.toFixed(0)} - здоровье, ${bot.food} - голод, ${bot.foodSaturation} - сытость`)
+    this.status = 'active'
     this.update(bot)
   }
 
@@ -32,5 +33,14 @@ export class SurvivalState extends BaseState {
   exit(bot) {
     clearTimeout(this._timerUpdate)
     this._timerUpdate = null
+    this.status = 'inactive'
+  }
+
+  pause() {
+    this.status = 'pause'
+  }
+
+  resume() {
+    this.status = 'active'
   }
 }

@@ -1,4 +1,5 @@
 import logger from '../config/logger.js'
+import { TASK_TYPES } from '../modules/tasks/index.tasks.js'
 
 class SurvivalSystem {
   constructor(bot, taskManager) {
@@ -64,11 +65,11 @@ class SurvivalSystem {
 
     if (!foodInInventory.length) {
       if (this.bot.health <= 5) {
-        // Добавляем задачу в таск как критическая ситуация
+        this.taskManager.addTask(TASK_TYPES.NEED_FOOD, { priority: 8 })
         this.bot.chat('Я вот-вот умру! 🤕')
         return
       } else {
-        // Добавляем задачу в таск нет еды
+        this.taskManager.addTask(TASK_TYPES.NEED_FOOD, { priority: 5 })
         return
       }
     }

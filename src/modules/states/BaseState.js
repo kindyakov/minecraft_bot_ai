@@ -7,6 +7,7 @@ export class BaseState {
     this.fsm = fsm
     this.name = stateName
     this.priority = priority
+    this.status = 'inactive'
     this._timerUpdate = null
     this._timeout = 500
   }
