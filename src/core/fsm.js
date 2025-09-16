@@ -34,6 +34,10 @@ class BotStateMachine extends EventEmitter {
     this.state = new this.states[newStateName](this);
     this.state.enter(this.bot, data)
   }
+
+  handlers() {
+
+  }
 }
 
 export default BotStateMachine

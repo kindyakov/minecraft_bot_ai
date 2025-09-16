@@ -16,26 +16,6 @@ export class SurvivalState extends BaseState {
   update(bot) {
     clearTimeout(this._timerUpdate)
 
-    const eatStatus = bot.utils.needsToEat()
-    if (eatStatus.shouldEat) {
-      bot.autoEat.eat({
-        equipOldItem: true,      // вернуть предмет после еды
-        priority: 'saturation',   // бот выбирает еду, которая даёт максимальное насыщение
-        offhand: true, // бот будет использовать вторую руку
-      }).catch(err => {
-        if (err.message.toString().toLowerCase().includes('no food')) {
-          // bot.chat('Не могу найти еду! 😿')
-        }
-      })
-    } else {
-      if (this.fsm.previousState === states.COMBAT && bot.utils.findNearestEnemy()) {
-        this.fsm.transition(states.COMBAT)
-      } else {
-        this.fsm.transition(states.IDLE)
-      }
-      return
-    }
-
     const enemy = bot.utils.findNearestEnemy(10)
     if (enemy && (eatStatus.priority === 'high' || eatStatus.priority === 'critical')) {
       // Убегаем от врага во время лечения

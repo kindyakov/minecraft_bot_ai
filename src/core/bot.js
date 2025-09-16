@@ -1,6 +1,7 @@
 import EventEmitter from 'node:events';
 import MineFlayer from "mineflayer"
 import BotStateMachine from "./fsm.js"
+import SurvivalSystem from './survival.js';
 import Config from "../config/config.js"
 import Logger from "../config/logger.js"
 import { initConnection } from "../modules/connection/index.js"
@@ -33,8 +34,9 @@ class MinecraftBot extends EventEmitter {
         this.reconnectAttempts = 0 // сброси счётчик
 
         this.bot.utils = new BotUtils(this.bot)
-        this.bot.commandHandler = new CommandHandler(bot)
-        this.bot.fsm = new BotStateMachine(this.bot)
+        const fsm = new BotStateMachine(this.bot)
+        const commandHandler = new CommandHandler(this.bot, fsm)
+        const survivalSystem = new SurvivalSystem(this.bot, fsm)
 
         this.bot.chat("Я готов к работе ;)")
       })

@@ -1,5 +1,6 @@
-logs
+logs/
 node_modules
 .env
 .continue
 commit.txt
+start_promt_ai.md
