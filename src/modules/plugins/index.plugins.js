@@ -5,19 +5,21 @@ import { initViewer } from "./viewer.js"
 import { loadWebInventory } from "./webInventory.js"
 import { loadAutoEat, initAutoEat } from "./autoEat.js"
 import { loadTool } from "./tool.js"
+// import { loadDashboard } from "./dashboard.js"
 
 export const loadPlugins = (bot) => {
   loadPathfinder(bot)
   loadArmorManager(bot)
   loadWebInventory(bot)
   loadAutoEat(bot)
+  // loadDashboard(bot)
   // loadTool(bot) // походу тоже ну совместим
   // loadPvp(bot) // не совместим с текущей версией mineflayer
 }
 
 export const initPlugins = (bot) => {
   initPathfinder(bot)
-  initArmorManager(bot)
-  initViewer(bot)
+  // initArmorManager(bot)
+  // initViewer(bot)
   // initAutoEat(bot)
 }

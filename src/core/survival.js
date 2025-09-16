@@ -3,7 +3,6 @@ import { TASK_TYPES } from '../modules/tasks/index.tasks.js'
 
 class SurvivalSystem {
   constructor(bot, taskManager) {
-    super()
     this.bot = bot
     this.taskManager = taskManager
     this._timerArmor = null
@@ -15,7 +14,7 @@ class SurvivalSystem {
   optionsAutoEat = {
     equipOldItem: true,      // вернуть предмет после еды
     priority: 'saturation',   // бот выбирает еду, которая даёт максимальное насыщение
-    offhand: true, // бот будет использовать вторую руку
+    // offhand: true, // бот будет использовать вторую руку
   }
 
   init() {
@@ -53,44 +52,51 @@ class SurvivalSystem {
   }
 
   checkInventoryChanges(collector, collected) {
-    console.log(collector, collected)
+
   }
 
   checkHealth() {
+    logger.info(`SurvivalSystem: здоровье ${this.bot.health.toFixed(0)}`)
+
     if (this.bot.foodSaturation > 0) return // Если сытость выше 0 то нечего делать не надо
 
-    const foodInInventory = this.bot.inventory.items().filter(item =>
-      this.bot.autoEat.foodsByName[item.name]
-    )
+    const foodInInventory = this.bot.utils.getAllFood()
 
     if (!foodInInventory.length) {
-      if (this.bot.health <= 5) {
-        this.taskManager.addTask(TASK_TYPES.NEED_FOOD, { priority: 8 })
+      if (this.bot.utils.needsHealing(5)) {
         this.bot.chat('Я вот-вот умру! 🤕')
+        // this.taskManager.addTask(TASK_TYPES.NEED_FOOD, { priority: 8 })
         return
       } else {
-        this.taskManager.addTask(TASK_TYPES.NEED_FOOD, { priority: 5 })
+        // this.taskManager.addTask(TASK_TYPES.NEED_FOOD, { priority: 5 })
         return
       }
     }
 
-    if (this.bot.health <= 17) {
-      // bot.autoEat.eat(this.optionsAutoEat)
+    if (!this.bot.autoEat.isEating && this.bot.utils.needsHealing(17)) {
+      console.log(`SyrvivalSystem: checkHealth() кушаю`)
+      this.bot.autoEat.eat(this.optionsAutoEat).catch(err => {
+        logger.error(`SyrvivalSystem: checkHealth() Ошибка при еде: ${err.message}`)
+      })
     }
   }
 
   checkFood() {
     const foodInInventory = this.bot.inventory.items().filter(item =>
-      bot.autoEat.foodsByName[item.name]
+      this.bot.autoEat.foodsByName[item.name]
     )
 
     if (!foodInInventory.length) {
-      // Добавляем задачу в таск нет еды
+      // добавить задачу
       return
     }
 
-    if (this.bot.food <= 17) {
-      // bot.autoEat.eat(this.optionsAutoEat)
+    if (!this.bot.autoEat.isEating && this.bot.utils.needsFood(17)) {
+      logger.info(`SurvivalSystem: checkFood голод ${this.bot.food}`)
+      console.log(`SyrvivalSystem: checkFood() кушаю`)
+      this.bot.autoEat.eat(this.optionsAutoEat).catch(err => {
+        logger.error(`Ошибка при еде: ${err.message}`)
+      })
     }
   }
 
@@ -99,11 +105,13 @@ class SurvivalSystem {
   }
 
   checkArmor() {
-    const helmet = bot.inventory.slots[5]      // шлем
-    const chestplate = bot.inventory.slots[6]  // нагрудник  
-    const leggings = bot.inventory.slots[7]    // поножи
-    const boots = bot.inventory.slots[8]       // ботинки
-    const shield = bot.inventory.slots[45]     // щит/оффхенд
+    const helmet = this.bot.inventory.slots[5]      // шлем
+    const chestplate = this.bot.inventory.slots[6]  // нагрудник  
+    const leggings = this.bot.inventory.slots[7]    // поножи
+    const boots = this.bot.inventory.slots[8]       // ботинки
+    const shield = this.bot.inventory.slots[45]     // щит/оффхенд
+
+    // console.log(helmet.maxDurability)
   }
 }
 

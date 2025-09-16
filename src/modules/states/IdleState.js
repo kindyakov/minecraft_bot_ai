@@ -16,7 +16,8 @@ export class IdleState extends BaseState {
     clearTimeout(this._timerUpdate)
 
     const eatStatus = bot.utils.needsToEat()
-    if (eatStatus.shouldEat && ['medium', 'high', 'critical'].includes(eatStatus.priority)) {
+    if (eatStatus.shouldEat && eatStatus.priority === 'critical') {
+      console.log(`IdleState: priority - ${eatStatus.priority}`)
       this.fsm.transition(STATES_TYPES.SURVIVAL)
       return
     }
@@ -29,7 +30,7 @@ export class IdleState extends BaseState {
 
     const player = bot.utils.searchNearestPlayer()
     if (player) {
-      bot.lookAt(player.position)
+      bot.lookAt(player.position.offset(0, 1.6, 0))
     }
 
     this._timerUpdate = setTimeout(() => this.update(bot), this._timeout)

@@ -9,11 +9,19 @@ export class BotUtils {
  * @param {number} maxDistance - максимальная дистанция поиска
  * @returns {Object|null} враждебный моб или null
  */
-  findNearestEnemy(maxDistance = 30, filter = null) {
+  findNearestEnemy(maxDistance = 15, filter = null) {
     const baseFilter = (entity) => {
-      return entity?.type === 'hostile' &&
+      if (!entity || entity.type !== 'hostile') return false
+
+      const botY = this._bot.entity.position.y
+      const entityY = entity.position.y
+      const yDiff = Math.abs(botY - entityY)
+
+      // Сначала проверяем высоту (быстрее), потом общую дистанцию
+      return yDiff <= 8 &&
         this._bot.entity.position.distanceTo(entity.position) <= maxDistance
     }
+
     const combined = typeof filter === 'function'
       ? (e) => baseFilter(e) && filter(e)
       : baseFilter
@@ -154,5 +162,24 @@ export class BotUtils {
 
   searchNearestPlayer() {
     return this._bot.nearestEntity(e => e.type === 'player')
+  }
+
+  getAllItems() {
+    const items = this._bot.inventory.items()
+
+    // Добавляем предмет из offhand если он существует
+    const offhandItem = this._bot.inventory.slots[45]
+    if (this._bot.registry.isNewerOrEqualTo('1.9') && offhandItem) {
+      items.push(offhandItem)
+    }
+
+    return items
+  }
+
+  // Функция для поиска еды включая offhand
+  getAllFood() {
+    return this._bot.inventory.items()
+      .filter(item => this._bot.autoEat.foodsByName[item.name])
+      .filter(item => !this._bot.autoEat.opts.bannedFood.includes(item.name))
   }
 }

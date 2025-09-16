@@ -47,6 +47,7 @@ class BotStateMachine extends EventEmitter {
     if (!nextTask) return false
     const currentPriority = PRIORITY_LEVELS[this.state.name] || 7
     if (currentPriority >= nextTask.priority) return false
+    logger.log(`FSM: запускаю задачу ${nextTask.type}`)
 
     this.state.pause() // Пауза состояния
     this.taskManager.setActiveTaskType(nextTask.type)

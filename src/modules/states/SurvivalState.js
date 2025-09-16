@@ -17,14 +17,25 @@ export class SurvivalState extends BaseState {
   update(bot) {
     clearTimeout(this._timerUpdate)
 
+    const eatStatus = bot.utils.needsToEat()
     const enemy = bot.utils.findNearestEnemy(10)
-    if (enemy && (eatStatus.priority === 'high' || eatStatus.priority === 'critical')) {
+    if (enemy && eatStatus.priority === 'critical') {
       // Убегаем от врага во время лечения
       const escapeX = bot.entity.position.x + (bot.entity.position.x - enemy.position.x)
       const escapeZ = bot.entity.position.z + (bot.entity.position.z - enemy.position.z)
+      const distanceToMob = bot.entity.position.distanceTo(enemy.position)
+
+      if (distanceToMob <= 3) {
+        bot.attack(enemy)
+        bot.lookAt(enemy.position)
+      }
 
       bot.pathfinder.setGoal(new GoalNear(escapeX, bot.entity.position.y, escapeZ, 1))
       bot.chat('Убегаю от врага! 🏃‍♂️')
+    }
+
+    if (eatStatus.priority !== 'critical') {
+      this.fsm.transition(this.fsm.previousStateName || STATES_TYPES.IDLE)
     }
 
     this._timerUpdate = setTimeout(() => this.update(bot), this._timeout)
@@ -36,11 +47,13 @@ export class SurvivalState extends BaseState {
     this.status = 'inactive'
   }
 
-  pause() {
+  pause(bot) {
+    this.exit()
     this.status = 'pause'
   }
 
-  resume() {
+  resume(bot) {
     this.status = 'active'
+    this.update(bot)
   }
 }

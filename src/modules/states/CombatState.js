@@ -27,7 +27,7 @@ export class CombatState extends BaseState {
     clearTimeout(this._timerUpdate)
 
     const eatStatus = bot.utils.needsToEat()
-    if (eatStatus.shouldEat && ['medium', 'high', 'critical'].includes(eatStatus.priority)) {
+    if (eatStatus.shouldEat && eatStatus.priority === 'critical') {
       this.fsm.transition(STATES_TYPES.SURVIVAL)
       return
     }
