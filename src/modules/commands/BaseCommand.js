@@ -3,7 +3,7 @@ export class BaseCommand {
     this.name = name
   }
 
-  execute({ bot, username, options }) {
+  execute(bot, { username, options }) {
     throw new Error(`Команда ${this.name} не реализовала execute()`)
   }
 

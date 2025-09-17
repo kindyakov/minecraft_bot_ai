@@ -1,6 +1,7 @@
 import { IdleState } from './IdleState.js'
 import { SurvivalState } from './SurvivalState.js'
 import { CombatState } from './CombatState.js'
+import { FollowState } from './FollowState.js'
 
 export const STATES_TYPES = {
   IDLE: 'idle',
@@ -16,4 +17,5 @@ export const STATES = {
   [STATES_TYPES.IDLE]: IdleState,
   [STATES_TYPES.SURVIVAL]: SurvivalState,
   [STATES_TYPES.COMBAT]: CombatState,
+  [STATES_TYPES.FOLLOW]: FollowState,
 }

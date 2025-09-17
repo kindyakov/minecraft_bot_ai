@@ -18,6 +18,12 @@ export class CombatState extends BaseState {
       bot.equip(weapon, 'hand')
     }
 
+    if (bot.movements) {
+      bot.movements.allowParkour = true
+      bot.movements.allow1by1towers = true
+      bot.movements.allowSprinting = false // Разрешаем боту бежать
+    }
+
     bot.armorManager.equipAll() // Бот при наличии брони в инвенторе наденет её
     this.status = 'active'
     this.update(bot, enemy)

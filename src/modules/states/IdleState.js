@@ -28,7 +28,7 @@ export class IdleState extends BaseState {
       return
     }
 
-    const player = bot.utils.searchNearestPlayer()
+    const player = bot.utils.searchPlayer()
     if (player) {
       bot.lookAt(player.position.offset(0, 1.6, 0))
     }

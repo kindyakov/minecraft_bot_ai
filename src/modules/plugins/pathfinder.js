@@ -7,7 +7,7 @@ export const loadPathfinder = (bot) => {
 
 export const initPathfinder = (bot) => {
   const movements = new Movements(bot)
-  movements.canDig = false // Запрещаем ломать блоки
+  // movements.canDig = false // Запрещаем ломать блоки
   bot.pathfinder.setMovements(movements)
   bot.movements = movements
 }

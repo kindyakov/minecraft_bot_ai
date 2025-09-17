@@ -2,8 +2,9 @@ import logger from "../../config/logger.js"
 import { commands } from "./index.commands.js"
 
 export class CommandHandler {
-  constructor(bot) {
+  constructor(bot, fsm) {
     this.bot = bot
+    this.fsm = fsm
     this.init()
   }
 
@@ -24,24 +25,12 @@ export class CommandHandler {
 
     const [command, options] = parsed
 
+    logger.playerCommand(username, command, options)
+
     if (commands[command]) {
-      this.bot.fsm.emit('PLAYER_COMMAND', {
-        command,
-        options,
-        username,
-        timestamp: Date.now()
-      })
-
-      // commands[command].execute({
-      //   bot: this.bot,
-      //   options,
-      //   username,
-      //   availableCommands: Object.keys(commands),
-      // })
-
-      logger.playerCommand(`Команда от ${username}: ${command}`, options)
+      commands[command].execute(this.bot, { username, ...options })
     } else {
-      this.bot.chat(`Неизвестная команда: ${command}`)
+      this.fsm.emit('player-command', command, { username, ...options })
     }
   }
 

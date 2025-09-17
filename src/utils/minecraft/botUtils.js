@@ -71,7 +71,23 @@ export class BotUtils {
  * @returns {boolean} true если застревание обнаружено
  */
   isStuck(timeout = 3000) {
-    return !this._bot.pathfinder.isMoving() && Date.now() - this.lastMovingAt > timeout
+    if (this._bot.pathfinder.isMoving()) {
+      this.lastMovingAt = Date.now()
+      this.lastPosition = this._bot.entity.position.clone()
+      return false
+    }
+
+    // Если недавно двигался - не застрял
+    if (Date.now() - this.lastMovingAt < timeout) return false
+
+    // Проверка изменения позиции
+    if (!this.lastPosition) {
+      this.lastPosition = this._bot.entity.position.clone()
+      return false
+    }
+
+    const moved = this._bot.entity.position.distanceTo(this.lastPosition)
+    return moved < 0.5 // застрял если сдвинулся меньше чем на 0.5 блока
   }
 
   /**
@@ -160,8 +176,8 @@ export class BotUtils {
     return weapon
   }
 
-  searchNearestPlayer() {
-    return this._bot.nearestEntity(e => e.type === 'player')
+  searchPlayer(playerName = '') {
+    return this._bot.nearestEntity(e => e.name === playerName || e.type === 'player')
   }
 
   getAllItems() {

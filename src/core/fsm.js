@@ -19,7 +19,7 @@ class BotStateMachine extends EventEmitter {
     this.transition(STATES_TYPES.IDLE)
   }
 
-  transition(newStateName, data = {}) {
+  transition(newStateName = this.previousStateName || STATES_TYPES.IDLE, data = {}) {
     if (this.state?.name === newStateName) {
       logger.info(`Бот уже в состоянии ${newStateName}`)
       return
@@ -93,12 +93,16 @@ class BotStateMachine extends EventEmitter {
       this.resumeState(type)
     })
 
-    this.on('command', commandName => {
+    this.on('player-command', (commandName, options) => {
       if (this.taskManager.activeTaskType) {
         this.taskManager.stopTask() // прервать текущую задачу
       }
 
-      // запук команды
+      if (commandName === 'stop') {
+        this.transition(STATES_TYPES.IDLE)
+      } else {
+        this.transition(commandName, options)
+      }
     })
 
     this.on('death', () => {
