@@ -2,19 +2,14 @@ import logger from '../config/logger.js'
 import { TASK_TYPES } from '../modules/tasks/index.tasks.js'
 
 class SurvivalSystem {
-  constructor(bot, taskManager) {
+  constructor(bot, taskManager, fsm) {
     this.bot = bot
     this.taskManager = taskManager
+    this.fsm = fsm
     this._timerArmor = null
     this._timerTools = null
     this._timerFood = null
     this.init()
-  }
-
-  optionsAutoEat = {
-    equipOldItem: true,      // вернуть предмет после еды
-    priority: 'saturation',   // бот выбирает еду, которая даёт максимальное насыщение
-    // offhand: true, // бот будет использовать вторую руку
   }
 
   init() {
@@ -49,6 +44,7 @@ class SurvivalSystem {
   handleDeath() {
     this.bot.chat('Я умер 😢')
     logger.info('Бот умер')
+    this.fsm.emit('death')
   }
 
   checkInventoryChanges(collector, collected) {
@@ -63,38 +59,37 @@ class SurvivalSystem {
     const foodInInventory = this.bot.utils.getAllFood()
 
     if (!foodInInventory.length) {
+      console.log('SurvivalSystem: checkHealth() "Нет еды в инвентаре"')
+
       if (this.bot.utils.needsHealing(5)) {
         this.bot.chat('Я вот-вот умру! 🤕')
-        // this.taskManager.addTask(TASK_TYPES.NEED_FOOD, { priority: 8 })
+        this.taskManager.addTask(TASK_TYPES.NEED_FOOD, { priority: 8 })
         return
       } else {
-        // this.taskManager.addTask(TASK_TYPES.NEED_FOOD, { priority: 5 })
+        this.taskManager.addTask(TASK_TYPES.NEED_FOOD, { priority: 5 })
         return
       }
     }
 
     if (!this.bot.autoEat.isEating && this.bot.utils.needsHealing(17)) {
       console.log(`SyrvivalSystem: checkHealth() кушаю`)
-      this.bot.autoEat.eat(this.optionsAutoEat).catch(err => {
+      this.bot.autoEat.eat().catch(err => {
         logger.error(`SyrvivalSystem: checkHealth() Ошибка при еде: ${err.message}`)
       })
     }
   }
 
   checkFood() {
-    const foodInInventory = this.bot.inventory.items().filter(item =>
-      this.bot.autoEat.foodsByName[item.name]
-    )
+    const foodInInventory = this.bot.utils.getAllFood()
 
     if (!foodInInventory.length) {
-      // добавить задачу
+      this.taskManager.addTask(TASK_TYPES.NEED_FOOD, { priority: 5 })
       return
     }
 
     if (!this.bot.autoEat.isEating && this.bot.utils.needsFood(17)) {
-      logger.info(`SurvivalSystem: checkFood голод ${this.bot.food}`)
       console.log(`SyrvivalSystem: checkFood() кушаю`)
-      this.bot.autoEat.eat(this.optionsAutoEat).catch(err => {
+      this.bot.autoEat.eat().catch(err => {
         logger.error(`Ошибка при еде: ${err.message}`)
       })
     }

@@ -1,5 +1,6 @@
 import { BaseState } from "./BaseState.js";
 import { STATES_TYPES } from "./index.states.js";
+import logger from '../../config/logger.js'
 
 export class IdleState extends BaseState {
   constructor(fsm) {
@@ -17,7 +18,6 @@ export class IdleState extends BaseState {
 
     const eatStatus = bot.utils.needsToEat()
     if (eatStatus.shouldEat && eatStatus.priority === 'critical') {
-      console.log(`IdleState: priority - ${eatStatus.priority}`)
       this.fsm.transition(STATES_TYPES.SURVIVAL)
       return
     }
@@ -38,12 +38,14 @@ export class IdleState extends BaseState {
 
   exit(bot) {
     clearTimeout(this._timerUpdate)
+    bot.look(0, 0, true)
     this._timerUpdate = null
     this.status = 'inactive'
   }
 
-  pause() {
+  pause(bot) {
     this.status = 'pause'
+    bot.look(0, 0, true)
   }
 
   resume() {

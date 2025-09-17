@@ -9,7 +9,7 @@ export class SurvivalState extends BaseState {
   }
 
   enter(bot) {
-    bot.chat(`Режим выживания: ${bot.health.toFixed(0)} - здоровье, ${bot.food} - голод, ${bot.foodSaturation} - сытость`)
+    logger.info(`SurvivalState: enter() Режим выживания: ${bot.health.toFixed(0)} - здоровье, ${bot.food} - голод, ${bot.foodSaturation} - сытость`)
     this.status = 'active'
     this.update(bot)
   }
@@ -31,11 +31,12 @@ export class SurvivalState extends BaseState {
       }
 
       bot.pathfinder.setGoal(new GoalNear(escapeX, bot.entity.position.y, escapeZ, 1))
-      bot.chat('Убегаю от врага! 🏃‍♂️')
+      console.log('Убегаю от врага')
     }
 
     if (eatStatus.priority !== 'critical') {
       this.fsm.transition(this.fsm.previousStateName || STATES_TYPES.IDLE)
+      return
     }
 
     this._timerUpdate = setTimeout(() => this.update(bot), this._timeout)

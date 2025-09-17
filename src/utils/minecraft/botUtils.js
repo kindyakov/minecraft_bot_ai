@@ -178,7 +178,7 @@ export class BotUtils {
 
   // Функция для поиска еды включая offhand
   getAllFood() {
-    return this._bot.inventory.items()
+    return this.getAllItems()
       .filter(item => this._bot.autoEat.foodsByName[item.name])
       .filter(item => !this._bot.autoEat.opts.bannedFood.includes(item.name))
   }

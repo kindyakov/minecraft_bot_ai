@@ -38,7 +38,7 @@ class MinecraftBot extends EventEmitter {
         const taskManager = new TaskManager()
         const fsm = new BotStateMachine(this.bot, taskManager)
         const commandHandler = new CommandHandler(this.bot, fsm)
-        const survivalSystem = new SurvivalSystem(this.bot, taskManager)
+        const survivalSystem = new SurvivalSystem(this.bot, taskManager, fsm)
 
         taskManager.setFsm(fsm)
 

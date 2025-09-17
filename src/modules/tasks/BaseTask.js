@@ -31,6 +31,7 @@ export class BaseTask {
   stop() {
     this.isRunning = false
     this.abortController.abort()
+    this.abortController = new AbortController()
     this.progress = { stage: 'stopped', completion: 0 }
   }
 

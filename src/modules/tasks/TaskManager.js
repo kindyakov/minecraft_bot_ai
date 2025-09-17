@@ -9,6 +9,12 @@ export class TaskManager {
     this.activeTaskType = null
   }
 
+  clear() {
+    this.tasks = []
+    this.activeTasks.clear()
+    this.activeTaskType = null
+  }
+
   setFsm(fsm) {
     this.fsm = fsm
   }

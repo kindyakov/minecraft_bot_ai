@@ -42,42 +42,55 @@ class BotStateMachine extends EventEmitter {
     this.state.enter(this.bot, data)
   }
 
+  resumeState(type) {
+    this.taskManager.removeTask(type)
+    this.taskManager.setActiveTaskType(null)
+
+    if (this.state?.status === 'pause') {
+      logger.info(`FSM: ${this.state.name}`);
+      this.state.resume()
+    } else {
+      this.transition(STATES_TYPES.IDLE)
+    }
+  }
+
   processTaskQueue() {
     const nextTask = this.taskManager.getNextTask()
     if (!nextTask) return false
     const currentPriority = PRIORITY_LEVELS[this.state.name] || 7
-    if (currentPriority >= nextTask.priority) return false
-    logger.log(`FSM: запускаю задачу ${nextTask.type}`)
 
-    this.state.pause() // Пауза состояния
-    this.taskManager.setActiveTaskType(nextTask.type)
-    this.taskManager.startTask(nextTask.type, this.bot)
-    return true
+    if (nextTask.priority > currentPriority) {
+      this._startTask(nextTask.type)
+      return true
+    } else {
+      return false
+    }
+  }
+
+  _startTask(taskType) {
+    console.log(`FSM: запускаю задачу ${taskType}`)
+    this.state.pause(this.bot)
+    this.taskManager.setActiveTaskType(taskType)
+    this.taskManager.startTask(taskType, this.bot)
   }
 
   handlers() {
     this.on('task-added', (type, priority) => {
       logger.info(`FSM: Добавлена задача '${type}'`)
       const currentPriority = PRIORITY_LEVELS[this.state.name] || 7
-      if (currentPriority < priority) {
-        this.state.pause() // Пауза состояния
-        this.taskManager.setActiveTaskType(type)
-        this.taskManager.startTask(type, this.bot)
+      if (priority > currentPriority) {
+        this._startTask(type)
       }
     })
 
     this.on('task-completed', type => {
-      this.taskManager.removeTask(type)
-      this.taskManager.setActiveTaskType(null)
-
       logger.info(`FSM: Выполнена задача '${type}'`)
+      this.resumeState(type)
+    })
 
-      if (this.state?.status === 'pause') {
-        logger.info(`FSM: ${this.state.name}`);
-        this.state.resume()
-      } else {
-        this.transition(STATES_TYPES.IDLE)
-      }
+    this.on('task-failed', type => {
+      logger.info(`FSM: Задача '${type}' не выполнена`)
+      this.resumeState(type)
     })
 
     this.on('command', commandName => {
@@ -86,6 +99,13 @@ class BotStateMachine extends EventEmitter {
       }
 
       // запук команды
+    })
+
+    this.on('death', () => {
+      this.taskManager.clear()
+      this.state?.exit(this.bot)
+      this.state = null
+      this.transition(STATES_TYPES.IDLE)
     })
   }
 }

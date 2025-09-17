@@ -21,5 +21,5 @@ export const initPlugins = (bot) => {
   initPathfinder(bot)
   // initArmorManager(bot)
   // initViewer(bot)
-  // initAutoEat(bot)
+  initAutoEat(bot)
 }

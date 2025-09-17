@@ -38,13 +38,13 @@ export class CombatState extends BaseState {
     )
 
     if (!this.currentEnemy) {
-      this.fsm.transition(STATES_TYPES.IDLE)
+      this.fsm.transition(this.fsm.previousStateName || STATES_TYPES.IDLE)
       return
     }
 
     bot.utils.lastMovingAt = Date.now()
-    bot.lookAt(this.currentEnemy.position)
-    bot.pathfinder.setGoal(new GoalFollow(this.currentEnemy, 2), true)
+    bot.lookAt(this.currentEnemy.position, true)
+    bot.pathfinder.setGoal(new GoalFollow(this.currentEnemy, 3), true)
 
     this.attack(bot)
   }
