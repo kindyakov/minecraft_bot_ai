@@ -2,9 +2,9 @@ import logger from "../../config/logger.js"
 import { commands } from "./index.commands.js"
 
 export class CommandHandler {
-  constructor(bot, fsm) {
+  constructor(bot, hsm) {
     this.bot = bot
-    this.fsm = fsm
+    this.hsm = hsm
     this.init()
   }
 
@@ -30,7 +30,7 @@ export class CommandHandler {
     if (commands[command]) {
       commands[command].execute(this.bot, { username, ...options })
     } else {
-      this.fsm.emit('player-command', command, { username, ...options })
+      this.hsm.emit('player-command', command, { username, ...options })
     }
   }
 

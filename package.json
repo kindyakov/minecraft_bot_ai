@@ -31,7 +31,8 @@
     "mineflayer-tool": "^1.2.0",
     "mineflayer-web-inventory": "^1.8.5",
     "prismarine-viewer": "^1.33.0",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "xstate": "^5.22.0"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
