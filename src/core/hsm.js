@@ -4,21 +4,32 @@ import { createBrowserInspector } from '@statelyai/inspect';
 import { machine } from '../hsm/machine.js';
 import logger from '../config/logger.js';
 
+import { actions } from '../hsm/actions/index.actions.js'
+import { services } from "../hsm/services/index.services.js"
+import { guards } from '../hsm/guards/index.guards.js'
+
 const inspector = createBrowserInspector();
 
 class BotStateMachine extends EventEmitter {
   constructor(bot) {
     super()
     this.bot = bot
-    this.machine = createMachine(machine)
+    this.machine = createMachine(machine, {
+      actions,
+      services,
+      guards,
+      delays: {}
+    })
     this.init()
   }
 
   init() {
     console.log('HSM...')
+
     this.actor = createActor(this.machine, {
       inspect: inspector.inspect
     })
+
     console.log('HSM машина создана')
 
     this.setupBotEvents()

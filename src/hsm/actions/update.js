@@ -1,19 +1,19 @@
 import { assign } from 'xstate';
 
 const updateHealth = assign({
-  health: (context, event) => event.health
+  health: ({ context, event }) => event.health
 })
 
 const updateFood = assign({
-  food: (context, event) => event.food
+  food: ({ context, event }) => event.food
 })
 
 const updateEntities = assign({
-  entities: (context, event) => event.entities
+  entities: ({ context, event }) => event.entities
 })
 
 const updatePosition = assign({
-  position: (context, event) => event.position
+  position: ({ context, event }) => event.position
 })
 
 export default {

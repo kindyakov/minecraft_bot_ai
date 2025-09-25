@@ -154,7 +154,7 @@ export const MAIN_ACTIVITY = {
           },
           "always": {
             "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.PEACEFUL.hist",
-            "cond": "isFoodRestored",
+            "guard": "isFoodRestored",
             "actions": []
           }
         },
@@ -164,7 +164,7 @@ export const MAIN_ACTIVITY = {
           },
           "always": {
             "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.PEACEFUL.hist",
-            "cond": "isHealthRestored",
+            "guard": "isHealthRestored",
             "actions": []
           }
         }
@@ -197,7 +197,7 @@ export const MAIN_ACTIVITY = {
         },
         "DEFENDING": {
           "on": {
-            "Event 1": [
+            "LOW_HEALTH": [
               {
                 "target": "FLEEING",
                 "actions": []
@@ -228,7 +228,7 @@ export const MAIN_ACTIVITY = {
       },
       "always": {
         "target": "hist",
-        "cond": "noEnemies",
+        "guard": "noEnemies",
         "actions": []
       },
       "on": {
@@ -287,7 +287,7 @@ export const MAIN_ACTIVITY = {
       },
       "always": {
         "target": "hist",
-        "cond": "noTasks",
+        "guard": "noTasks",
         "actions": []
       }
     },

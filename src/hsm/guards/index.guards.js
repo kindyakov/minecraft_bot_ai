@@ -6,18 +6,13 @@ const isHungerCritical = and([
   ({ context, event }) => context.food < 5
 ])
 
-// const isHealthCritical = and([
-//   ({ context, event, state }) => isHigherPriority(state, 'EMERGENCY_HEALING'),
-//   ({ context, event }) => {
-//     console.log('Здоровье:', context.food)
-//     context.health < 5
-//   }
-// ])
-
-const isHealthCritical = ({ context, event }) => {
-  console.log('Здоровье:', context.food)
-  return context.health < 5
-}
+const isHealthCritical = and([
+  ({ context, event, state }) => isHigherPriority(state, 'EMERGENCY_HEALING'),
+  ({ context, event }) => {
+    console.log('Здоровье:', context.health)
+    context.health < 5
+  }
+])
 
 const isEnemyNearby = and([
   ({ context, event, state }) => isHigherPriority(state, 'COMBAT'),

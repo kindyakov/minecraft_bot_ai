@@ -18,7 +18,7 @@ export const MONITORING = {
       },
       always: {
         target: "#MINECRAFT_BOT.MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING",
-        cond: "isHealthCritical",
+        guard: "isHealthCritical",
         actions: [],
         description: "Переход выполнится если \\\nтекущий приоритет состояния \\\nниже HEALTH_MONITOR ",
         meta: {}
@@ -41,7 +41,7 @@ export const MONITORING = {
     //   },
     //   always: {
     //     target: "#MINECRAFT_BOT.MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING",
-    //     cond: "isHungerCritical",
+    //     guard: "isHungerCritical",
     //     actions: [],
     //     description: "Переход выполнится если \\\nтекущий приоритет состояния \\\nниже HUNGER_MONITOR",
     //     meta: {}
@@ -64,7 +64,7 @@ export const MONITORING = {
     //   },
     //   always: {
     //     target: "#MINECRAFT_BOT.MAIN_ACTIVITY.COMBAT",
-    //     cond: "isEnemyNearby",
+    //     guard: "isEnemyNearby",
     //     actions: []
     //   }
     // },
@@ -74,7 +74,7 @@ export const MONITORING = {
     //   },
     //   always: {
     //     target: "#MINECRAFT_BOT.MAIN_ACTIVITY.TASKS.DEPOSIT_ITEMS",
-    //     cond: "isInventoryFull",
+    //     guard: "isInventoryFull",
     //     actions: []
     //   }
     // },
@@ -128,7 +128,7 @@ export const MONITORING = {
     //   },
     //   always: {
     //     target: "#MINECRAFT_BOT.MAIN_ACTIVITY.TASKS.REPAIR_ARMOR_TOOLS",
-    //     cond: "isBrokenArmorOrTools",
+    //     guard: "isBrokenArmorOrTools",
     //     actions: []
     //   }
     // },
