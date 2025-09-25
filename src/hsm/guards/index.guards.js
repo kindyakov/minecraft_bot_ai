@@ -1,13 +1,15 @@
-import { and } from 'xstate';
+import { and, stateIn, not, } from 'xstate';
 import { isHigherPriority } from '../utils/getPriority.js';
 
 const isHungerCritical = and([
-  ({ context, event }) => isHigherPriority('HUNGER_MONITOR', 'EMERGENCY_EATING'),
+  not(stateIn('EMERGENCY_EATING')),
+  ({ context, event }) => isHigherPriority(state, 'EMERGENCY_EATING'),
   ({ context, event }) => context.food < 5
 ])
 
 const isHealthCritical = and([
-  ({ context, event }) => isHigherPriority('HEALTH_MONITOR', 'EMERGENCY_HEALING'),
+  not(stateIn('EMERGENCY_HEALING')),
+  // ({ context, event }) => isHigherPriority(state, 'EMERGENCY_HEALING'),
   ({ context, event }) => context.health < 5
 ])
 
@@ -20,11 +22,13 @@ const isEnemyNearby = and([
 ])
 
 const isInventoryFull = and([
+  not(stateIn('DEPOSIT_ITEMS')),
   ({ context, event }) => isHigherPriority('INVENTORY_MONITOR', 'DEPOSIT_ITEMS'),
   ({ context, event }) => context.inventory.length >= 45
 ])
 
 const isBrokenArmorOrTools = and([
+  not(stateIn('REPAIR_ARMOR_TOOLS')),
   ({ context, event }) => isHigherPriority('ARMOR_TOOLS_MONITOR', 'REPAIR_ARMOR_TOOLS'),
   ({ context, event }) =>
     Object.values({ ...context.toolDurability, ...context.armorDurability }).some(durability => durability <= 10)

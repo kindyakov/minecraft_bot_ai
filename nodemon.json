@@ -9,7 +9,9 @@
     "tests/",
     "docs/",
     "*.log",
-    "*.tmp"
+    "*.tmp",
+    ".continue",
+    ".git"
   ],
   "env": {
     "NODE_ENV": "development"
