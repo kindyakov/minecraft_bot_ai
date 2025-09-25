@@ -6,10 +6,18 @@ const isHungerCritical = and([
   ({ context, event }) => context.food < 5
 ])
 
-const isHealthCritical = and([
-  ({ context, event, state }) => isHigherPriority(state, 'EMERGENCY_HEALING'),
-  ({ context, event }) => context.health < 5
-])
+// const isHealthCritical = and([
+//   ({ context, event, state }) => isHigherPriority(state, 'EMERGENCY_HEALING'),
+//   ({ context, event }) => {
+//     console.log('Здоровье:', context.food)
+//     context.health < 5
+//   }
+// ])
+
+const isHealthCritical = ({ context, event }) => {
+  console.log('Здоровье:', context.food)
+  return context.health < 5
+}
 
 const isEnemyNearby = and([
   ({ context, event, state }) => isHigherPriority(state, 'COMBAT'),
@@ -34,7 +42,7 @@ const noEnemies = ({ context, event }) => context.entities
   .filter(entity => entity.type === 'hostile')
   .every(entity => entity.position.distanceTo(context.position) > context.preferences.maxDistToEnemy); // проверяем что все враги дальге 15 блокгов от бота
 
-const isFoodRestored = (context, event) => context.food === 20
+const isFoodRestored = ({ context, event }) => context.food === 20
 const isHealthRestored = ({ context, event }) => context.health === 20
 
 export const guards = {

@@ -15,12 +15,18 @@ class BotStateMachine extends EventEmitter {
   }
 
   init() {
+    console.log('HSM...')
     this.actor = createActor(this.machine, {
       inspect: inspector.inspect
     })
-    this.actor.start()
+    console.log('HSM машина создана')
+
     this.setupBotEvents()
     this.handlers()
+
+    this.actor.start()
+    console.log('HSM актор запущен')
+    console.log('Активные состояния', this.actor.getSnapshot().value)
   }
 
   handlers() {
@@ -33,6 +39,7 @@ class BotStateMachine extends EventEmitter {
       }
     })
   }
+
   setupBotEvents() {
     // Обновление здоровья
     this.bot.on('health', () => {

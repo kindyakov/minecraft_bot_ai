@@ -1,3 +1,4 @@
+// PEACEFUL
 const entryMining = (context, event) => { }
 
 const entryFarming = (context, event) => { }
@@ -10,15 +11,22 @@ const entryFollowing = (context, event) => { }
 
 const entrySheltering = (context, event) => { }
 
+// COMBAT
 const entryMeleeAttacking = (context, event) => { }
-
 const entryRangedAttacking = (context, event) => { }
 
-const entryChatMonitoring = (context, event) => { }
+// URGENT_NEEDS
+const entryEmergencyEating = (context, event) => {
+  console.log('Нужно поесть', context)
+}
 
-const entryInventoryMonitoring = (context, event) => { }
+const entryEmergencyHealing = (context, event) => {
+  console.log('Нужно полечится', context)
+}
 
-const entryArmorToolsMonitoring = (context, event) => { }
+const saveMiningProgress = (context, event) => { }
+const saveBuildingProgress = (context, event) => { }
+const saveFarmingProgress = (context, event) => { }
 
 export default {
   entryMining,
@@ -27,10 +35,13 @@ export default {
   entrySleeping,
   entryFollowing,
   entrySheltering,
+
   entryMeleeAttacking,
   entryRangedAttacking,
+  entryEmergencyEating,
+  entryEmergencyHealing,
 
-  entryChatMonitoring,
-  entryInventoryMonitoring,
-  entryArmorToolsMonitoring
+  saveMiningProgress,
+  saveBuildingProgress,
+  saveFarmingProgress
 }

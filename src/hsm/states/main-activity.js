@@ -149,6 +149,9 @@ export const MAIN_ACTIVITY = {
       "initial": "EMERGENCY_EATING",
       "states": {
         "EMERGENCY_EATING": {
+          "entry": {
+            "type": "entryEmergencyEating"
+          },
           "always": {
             "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.PEACEFUL.hist",
             "cond": "isFoodRestored",
@@ -156,6 +159,9 @@ export const MAIN_ACTIVITY = {
           }
         },
         "EMERGENCY_HEALING": {
+          "entry": {
+            "type": "entryEmergencyHealing"
+          },
           "always": {
             "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.PEACEFUL.hist",
             "cond": "isHealthRestored",
