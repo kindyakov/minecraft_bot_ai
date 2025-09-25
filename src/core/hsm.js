@@ -1,12 +1,7 @@
 import EventEmitter from 'node:events';
 import { createMachine, createActor } from 'xstate';
 import { createBrowserInspector } from '@statelyai/inspect';
-import { machine } from '../hsm/machine.js';
-import logger from '../config/logger.js';
-
-import { actions } from '../hsm/actions/index.actions.js'
-import { services } from "../hsm/services/index.services.js"
-import { guards } from '../hsm/guards/index.guards.js'
+import { machine, optionsMachine } from '../hsm/machine.js';
 
 const inspector = createBrowserInspector();
 
@@ -14,12 +9,8 @@ class BotStateMachine extends EventEmitter {
   constructor(bot) {
     super()
     this.bot = bot
-    this.machine = createMachine(machine, {
-      actions,
-      services,
-      guards,
-      delays: {}
-    })
+
+    this.machine = createMachine(machine, optionsMachine)
     this.init()
   }
 
@@ -36,6 +27,12 @@ class BotStateMachine extends EventEmitter {
     this.handlers()
 
     this.actor.start()
+
+    this.actor.send({
+      type: 'SET_BOT',
+      bot: this.bot
+    });
+
     console.log('HSM актор запущен')
     console.log('Активные состояния', this.actor.getSnapshot().value)
   }
@@ -44,7 +41,7 @@ class BotStateMachine extends EventEmitter {
     this.on('player-command', (commandName, options) => {
 
       if (commandName === 'stop') {
-        this.actor.send({ type: 'IDLE' });
+        this.actor.send({ type: 'PLAYER_STOP' });
       } else {
         this.actor.send({ type: commandName });
       }
@@ -68,18 +65,29 @@ class BotStateMachine extends EventEmitter {
       })
     })
 
+    // Обновление кислорода  
+    this.bot.on('breath', () => {
+      this.actor.send({
+        type: 'UPDATE_OXYGEN',
+        food: this.bot.oxygenLevel
+      })
+    })
+
     // Обновление сущностей
     this.bot.on('entitySpawn', (entity) => {
       this.actor.send({
         type: 'UPDATE_ENTITIES',
-        entities: this.getEntitiesData()
+        entities: Object.values(this.bot.entities).filter(e => e.type === 'hostile')
       })
     })
-  }
 
-  getEntitiesData() {
-    return Object.values(this.bot.entities)
-      .filter(e => e.type === 'hostile')
+    this.bot.on('weatherUpdate', (weather) => {
+      console.log('Изменилась погода', weather)
+      // this.actor.send({
+      //   type: 'UPDATA_WEATHER',
+      //   weather
+      // })
+    })
   }
 }
 

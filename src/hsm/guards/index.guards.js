@@ -1,20 +1,29 @@
 import { and, stateIn, not, } from 'xstate';
-import { isHigherPriority } from '../utils/getPriority.js';
+import { PRIORITIES } from '../config/priorities.js';
+
+function getHigherPriorityConditions(currentPriority) {
+  return Object.entries(PRIORITIES)
+    .filter(([key, priority]) => priority > currentPriority)
+    .map(([key]) => not(stateIn(key)));
+}
 
 const isHungerCritical = and([
   not(stateIn('EMERGENCY_EATING')),
-  ({ context, event }) => isHigherPriority(state, 'EMERGENCY_EATING'),
+  not(stateIn('EMERGENCY_HEALING')),
+  ...getHigherPriorityConditions(PRIORITIES.EMERGENCY_EATING),
   ({ context, event }) => context.food < 5
 ])
 
 const isHealthCritical = and([
   not(stateIn('EMERGENCY_HEALING')),
-  // ({ context, event }) => isHigherPriority(state, 'EMERGENCY_HEALING'),
+  not(stateIn('EMERGENCY_EATING')),
+  ...getHigherPriorityConditions(PRIORITIES.EMERGENCY_HEALING),
   ({ context, event }) => context.health < 5
 ])
 
 const isEnemyNearby = and([
-  ({ context, event }) => isHigherPriority('ENTITIES_MONITOR', 'COMBAT'),
+  not(stateIn({ MAIN_ACTIVITY: 'COMBAT' })),
+  ...getHigherPriorityConditions(PRIORITIES.COMBAT),
   ({ context, event }) => {
     const enemies = context.entities.filter(entity => entity.type === 'hostile');
     return enemies.some(enemy => enemy.position.distanceTo(context.position) <= context.preferences.maxDistToEnemy);
@@ -23,13 +32,13 @@ const isEnemyNearby = and([
 
 const isInventoryFull = and([
   not(stateIn('DEPOSIT_ITEMS')),
-  ({ context, event }) => isHigherPriority('INVENTORY_MONITOR', 'DEPOSIT_ITEMS'),
+  ...getHigherPriorityConditions(PRIORITIES.DEPOSIT_ITEMS),
   ({ context, event }) => context.inventory.length >= 45
 ])
 
 const isBrokenArmorOrTools = and([
   not(stateIn('REPAIR_ARMOR_TOOLS')),
-  ({ context, event }) => isHigherPriority('ARMOR_TOOLS_MONITOR', 'REPAIR_ARMOR_TOOLS'),
+  ...getHigherPriorityConditions(PRIORITIES.REPAIR_ARMOR_TOOLS),
   ({ context, event }) =>
     Object.values({ ...context.toolDurability, ...context.armorDurability }).some(durability => durability <= 10)
 ])

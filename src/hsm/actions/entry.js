@@ -1,32 +1,36 @@
 // PEACEFUL
-const entryMining = (context, event) => { }
+const entryIdle = ({ context, event }) => {
 
-const entryFarming = (context, event) => { }
+}
 
-const entryBuilding = (context, event) => { }
+const entryMining = ({ context, event }) => { }
 
-const entrySleeping = (context, event) => { }
+const entryFarming = ({ context, event }) => { }
 
-const entryFollowing = (context, event) => { }
+const entryBuilding = ({ context, event }) => { }
 
-const entrySheltering = (context, event) => { }
+const entrySleeping = ({ context, event }) => { }
+
+const entryFollowing = ({ context, event }) => { }
+
+const entrySheltering = ({ context, event }) => { }
 
 // COMBAT
-const entryMeleeAttacking = (context, event) => { }
-const entryRangedAttacking = (context, event) => { }
+const entryMeleeAttacking = ({ context, event }) => { }
+const entryRangedAttacking = ({ context, event }) => { }
 
 // URGENT_NEEDS
-const entryEmergencyEating = (context, event) => {
+const entryEmergencyEating = ({ context, event }) => {
   console.log('Нужно поесть')
 }
 
-const entryEmergencyHealing = (context, event) => {
+const entryEmergencyHealing = ({ context, event }) => {
   console.log('Нужно полечится')
 }
 
-const saveMiningProgress = (context, event) => { }
-const saveBuildingProgress = (context, event) => { }
-const saveFarmingProgress = (context, event) => { }
+const saveMiningProgress = ({ context, event }) => { }
+const saveBuildingProgress = ({ context, event }) => { }
+const saveFarmingProgress = ({ context, event }) => { }
 
 export default {
   entryMining,

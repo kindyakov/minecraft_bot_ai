@@ -1,13 +1,9 @@
 import { PRIORITIES } from "../config/priorities.js";
 
-export const isHigherPriority = (state, priorityType) => {
-  return getStatePriority(priorityType) > getCurrentPriority(state);
-}
-
 export const getStatePriority = (stateName) => PRIORITIES[stateName] || 1
 
-export const getCurrentPriority = (state) => {
-  const activeStates = extractActiveStates(state.value);
+export const getCurrentPriority = (stateValue) => {
+  const activeStates = extractActiveStates(stateValue);
   const priorities = activeStates
     .map(stateName => getStatePriority(stateName))
     .filter(p => p > 0);

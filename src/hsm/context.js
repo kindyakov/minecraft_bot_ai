@@ -1,4 +1,5 @@
 export const context = {
+  bot: null,
   // Жизненные показатели
   health: 20,
   food: 20,
