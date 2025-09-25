@@ -22,7 +22,6 @@
     "axios": "^1.11.0",
     "canvas": "^3.2.0",
     "dotenv": "^17.2.1",
-    "minecraft-data": "^3.97.0",
     "mineflayer": "^4.33.0",
     "mineflayer-armor-manager": "^2.0.1",
     "mineflayer-auto-eat": "^5.0.3",
@@ -35,6 +34,7 @@
     "xstate": "^5.22.0"
   },
   "devDependencies": {
+    "@statelyai/inspect": "^0.4.0",
     "concurrently": "^9.2.1",
     "nodemon": "^3.1.10",
     "prettier": "^3.6.2"

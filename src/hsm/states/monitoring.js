@@ -5,6 +5,11 @@ export const MONITORING = {
       "entry": {
         "type": "entryHealthMonitoring"
       },
+      on: {
+        UPDATE_HEALTH: {
+          actions: "updateHealth"
+        }
+      },
       "always": {
         "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING",
         "cond": "isHealthCritical",
