@@ -17,11 +17,11 @@ const entryRangedAttacking = (context, event) => { }
 
 // URGENT_NEEDS
 const entryEmergencyEating = (context, event) => {
-  console.log('Нужно поесть', context)
+  console.log('Нужно поесть')
 }
 
 const entryEmergencyHealing = (context, event) => {
-  console.log('Нужно полечится', context)
+  console.log('Нужно полечится')
 }
 
 const saveMiningProgress = (context, event) => { }
