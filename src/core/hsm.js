@@ -1,24 +1,20 @@
 import EventEmitter from 'node:events';
-import { createMachine, createActor } from 'xstate';
+import { createActor } from 'xstate';
 import { createBrowserInspector } from '@statelyai/inspect';
-import { machine, optionsMachine } from '../hsm/machine.js';
-
-const inspector = createBrowserInspector();
+import { machine } from '../hsm/machine.js';
 
 class BotStateMachine extends EventEmitter {
   constructor(bot) {
     super()
     this.bot = bot
 
-    this.machine = createMachine(machine, optionsMachine)
+    this.machine = machine
     this.init()
   }
 
   init() {
-    console.log('HSM...')
-
     this.actor = createActor(this.machine, {
-      // inspect: inspector.inspect
+      inspect: createBrowserInspector().inspect
     })
 
     console.log('HSM машина создана')
@@ -51,7 +47,7 @@ class BotStateMachine extends EventEmitter {
   setupBotEvents() {
     // Обновление здоровья
     this.bot.on('health', () => {
-      console.log("health: ", this.bot.health)
+      console.log("Здоровье:", this.bot.health)
       this.actor.send({
         type: 'UPDATE_HEALTH',
         health: this.bot.health
@@ -60,6 +56,7 @@ class BotStateMachine extends EventEmitter {
 
     // Обновление голода  
     this.bot.on('food', () => {
+      console.log("Голод:", this.bot.food)
       this.actor.send({
         type: 'UPDATE_FOOD',
         food: this.bot.food
@@ -78,14 +75,8 @@ class BotStateMachine extends EventEmitter {
     this.bot.on('entitySpawn', (entity) => {
       this.actor.send({
         type: 'UPDATE_ENTITIES',
-        entities: Object.values(this.bot.entities).filter(e => e.type === 'hostile')
+        enemies: enemies.filter(e => e.type === 'hostile')
       })
-    })
-
-    this.bot.on('weatherUpdate', () => {
-      // this.actor.send({
-      //   type: 'UPDATA_WEATHER',
-      // })
     })
   }
 }

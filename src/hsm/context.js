@@ -9,6 +9,7 @@ export const context = {
   weather: null,
   timeOfDay: null,
   entities: [],
+  enemies: [],
   players: [],
 
   // Инвентарь и экипировка
@@ -30,6 +31,8 @@ export const context = {
   position: null,
   spawn: null,
   home: null,
+
+  tasks: [],
 
   // Настройки поведения
   preferences: {
