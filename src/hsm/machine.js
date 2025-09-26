@@ -10,6 +10,11 @@ export const machine = {
   predictableActionArguments: true,
   preserveActionOrder: true,
   context,
+  on: {
+    SET_BOT: {
+      actions: [{ type: "setBot" }]
+    }
+  },
   states,
 }
 

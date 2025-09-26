@@ -18,7 +18,7 @@ class BotStateMachine extends EventEmitter {
     console.log('HSM...')
 
     this.actor = createActor(this.machine, {
-      inspect: inspector.inspect
+      // inspect: inspector.inspect
     })
 
     console.log('HSM машина создана')
@@ -51,6 +51,7 @@ class BotStateMachine extends EventEmitter {
   setupBotEvents() {
     // Обновление здоровья
     this.bot.on('health', () => {
+      console.log("health: ", this.bot.health)
       this.actor.send({
         type: 'UPDATE_HEALTH',
         health: this.bot.health
@@ -81,11 +82,9 @@ class BotStateMachine extends EventEmitter {
       })
     })
 
-    this.bot.on('weatherUpdate', (weather) => {
-      console.log('Изменилась погода', weather)
+    this.bot.on('weatherUpdate', () => {
       // this.actor.send({
       //   type: 'UPDATA_WEATHER',
-      //   weather
       // })
     })
   }

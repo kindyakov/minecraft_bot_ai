@@ -1,33 +1,33 @@
 export const MAIN_ACTIVITY = {
-  "initial": "PEACEFUL",
-  "states": {
+  initial: "PEACEFUL",
+  states: {
     "PEACEFUL": {
-      "description": "Переход в эти состояния по командам игрока (приоритеты 7 - 9)",
-      "initial": "IDLE",
-      "states": {
+      description: "Переход в эти состояния по командам игрока (приоритеты 7 - 9)",
+      initial: "IDLE",
+      states: {
         "IDLE": {
-          "description": "Приоритет 1"
+          description: "Приоритет 1"
         },
         "MINING": {
-          "description": "Приоритет 7",
-          "entry": {
-            "type": "entryMining"
+          description: "Приоритет 7",
+          entry: {
+            type: "entryMining"
           },
-          "exit": [
+          exit: [
             {
-              "type": "exitMining"
+              type: "exitMining"
             },
             {
-              "type": "saveMiningProgress"
+              type: "saveMiningProgress"
             }
           ],
-          "on": {
+          on: {
             "PLAYER_STOP": [
               {
-                "target": "IDLE",
-                "actions": [
+                targe: "IDLE",
+                actions: [
                   {
-                    "type": "saveMiningProgress"
+                    type: "saveMiningProgress"
                   }
                 ]
               }
@@ -35,25 +35,25 @@ export const MAIN_ACTIVITY = {
           }
         },
         "BUILDING": {
-          "description": "Приоритет 7",
-          "entry": {
-            "type": "entryBuilding"
+          description: "Приоритет 7",
+          entry: {
+            type: "entryBuilding"
           },
-          "exit": [
+          exit: [
             {
-              "type": "exitBuilding"
+              type: "exitBuilding"
             },
             {
-              "type": "saveBuildingProgress"
+              type: "saveBuildingProgress"
             }
           ],
-          "on": {
+          on: {
             "PLAYER_STOP": [
               {
-                "target": "IDLE",
-                "actions": [
+                targe: "IDLE",
+                actions: [
                   {
-                    "type": "saveBuildingProgress"
+                    type: "saveBuildingProgress"
                   }
                 ],
                 "meta": {}
@@ -62,42 +62,42 @@ export const MAIN_ACTIVITY = {
           }
         },
         "SLEEPING": {
-          "description": "Приоритет 7",
-          "entry": {
-            "type": "entrySleeping"
+          description: "Приоритет 7",
+          entry: {
+            type: "entrySleeping"
           },
-          "exit": {
-            "type": "exitSleeping"
+          exit: {
+            type: "exitSleeping"
           },
-          "on": {
+          on: {
             "PLAYER_STOP": [
               {
-                "target": "IDLE",
-                "actions": []
+                targe: "IDLE",
+                actions: []
               }
             ]
           }
         },
         "FARMING": {
-          "description": "Приоритет 7",
-          "entry": {
-            "type": "entryFarming"
+          description: "Приоритет 7",
+          entry: {
+            type: "entryFarming"
           },
-          "exit": [
+          exit: [
             {
-              "type": "exitFarming"
+              type: "exitFarming"
             },
             {
-              "type": "saveFarmingProgress"
+              type: "saveFarmingProgress"
             }
           ],
-          "on": {
+          on: {
             "PLAYER_STOP": [
               {
-                "target": "IDLE",
-                "actions": [
+                targe: "IDLE",
+                actions: [
                   {
-                    "type": "saveFarmingProgress"
+                    type: "saveFarmingProgress"
                   }
                 ]
               }
@@ -105,195 +105,225 @@ export const MAIN_ACTIVITY = {
           }
         },
         "FOLLOWING": {
-          "description": "Приоритет 9",
-          "entry": {
-            "type": "entryFollowing"
+          description: "Приоритет 9",
+          entry: {
+            type: "entryFollowing"
           },
-          "exit": {
-            "type": "exitFollowing"
+          exit: {
+            type: "exitFollowing"
           },
-          "on": {
+          on: {
             "PLAYER_STOP": [
               {
-                "target": "IDLE",
-                "actions": []
+                targe: "IDLE",
+                actions: []
               }
             ]
           }
         },
         "SHELTERING": {
-          "description": "Приоритет 7",
-          "entry": {
-            "type": "entrySheltering"
+          description: "Приоритет 7",
+          entry: {
+            type: "entrySheltering"
           },
-          "exit": {
-            "type": "exitSheltering"
+          exit: {
+            type: "exitSheltering"
           },
-          "on": {
+          on: {
             "PLAYER_STOP": [
               {
-                "target": "IDLE",
-                "actions": []
+                targe: "IDLE",
+                actions: []
               }
             ]
           }
         },
-        "hist": {
-          "history": "shallow",
-          "type": "history"
+        hist: {
+          history: "shallow",
+          type: "history"
         }
       }
     },
     "URGENT_NEEDS": {
-      "description": "Срочные потребности (приоритет 8)",
-      "initial": "EMERGENCY_EATING",
-      "states": {
+      description: "Срочные потребности (приоритет 8)",
+      initial: "EMERGENCY_EATING",
+      states: {
         "EMERGENCY_EATING": {
-          "entry": {
-            "type": "entryEmergencyEating"
+          entry: {
+            type: "entryEmergencyEating"
           },
-          "always": {
-            "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.PEACEFUL.hist",
-            "guard": "isFoodRestored",
-            "actions": []
+          always: {
+            targe: "#MINECRAFT_BOT.MAIN_ACTIVITY.PEACEFUL.hist",
+            guard: "isFoodRestored",
+            actions: []
+          },
+          on: {
+            FOOD_SEARCH: [
+              {
+                targe: "#MINECRAFT_BOT.MAIN_ACTIVITY.TASKS.FOOD_SEAECH",
+                actions: []
+              }
+            ]
           }
         },
         "EMERGENCY_HEALING": {
-          "entry": {
-            "type": "entryEmergencyHealing"
+          entry: {
+            type: "entryEmergencyHealing"
           },
-          "always": {
-            "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.PEACEFUL.hist",
-            "guard": "isHealthRestored",
-            "actions": []
+          always: {
+            targe: "#MINECRAFT_BOT.MAIN_ACTIVITY.PEACEFUL.hist",
+            guard: "isHealthRestored",
+            actions: []
+          },
+          on: {
+            FOOD_SEARCH: [
+              {
+                targe: "#MINECRAFT_BOT.MAIN_ACTIVITY.TASKS.FOOD_SEAECH",
+                actions: []
+              }
+            ]
           }
         }
       }
     },
     "COMBAT": {
-      "description": "Состояние сражения (приоритет 7.5)",
-      "initial": "FLEEING",
-      "states": {
+      description: "Состояние сражения (приоритет 7.5)",
+      initial: "FLEEING",
+      states: {
         "FLEEING": {},
         "MELEE_ATTACKING": {
-          "description": "Ближний бой",
-          "entry": {
-            "type": "entryMeleeAttacking"
+          description: "Ближний бой",
+          entry: {
+            type: "entryMeleeAttacking"
           },
-          "on": {
+          on: {
             "ENEMY_FAR": [
               {
-                "target": "RANGED_ATTACKING",
-                "actions": []
+                targe: "RANGED_ATTACKING",
+                actions: []
               }
             ],
             "LOW_HEALTH": [
               {
-                "target": "FLEEING",
-                "actions": []
+                targe: "FLEEING",
+                actions: []
               }
             ]
           }
         },
         "DEFENDING": {
-          "on": {
+          on: {
             "LOW_HEALTH": [
               {
-                "target": "FLEEING",
-                "actions": []
+                targe: "FLEEING",
+                actions: []
               }
             ]
           }
         },
         "RANGED_ATTACKING": {
-          "description": "Дальний бой",
-          "entry": {
-            "type": "entryRangedAttacking"
+          description: "Дальний бой",
+          entry: {
+            type: "entryRangedAttacking"
           },
-          "on": {
+          on: {
             "ENEMY_CLOSE": [
               {
-                "target": "MELEE_ATTACKING",
-                "actions": []
+                targe: "MELEE_ATTACKING",
+                actions: []
               }
             ],
             "LOW_HEALTH": [
               {
-                "target": "FLEEING",
-                "actions": []
+                targe: "FLEEING",
+                actions: []
               }
             ]
           }
         }
       },
-      "always": {
-        "target": "hist",
-        "guard": "noEnemies",
-        "actions": []
+      always: {
+        targe: "hist",
+        guard: "noEnemies",
+        actions: []
       },
-      "on": {
+      on: {
         "ENEMY_CLOSE": [
           {
-            "target": ".MELEE_ATTACKING",
-            "actions": []
+            targe: ".MELEE_ATTACKING",
+            actions: []
           }
         ],
         "ENEMY_FAR": [
           {
-            "target": ".RANGED_ATTACKING",
-            "actions": []
+            targe: ".RANGED_ATTACKING",
+            actions: []
           }
         ],
         "SURROUNDED": [
           {
-            "target": ".DEFENDING",
-            "actions": []
+            targe: ".DEFENDING",
+            actions: []
           }
         ],
         "LOW_HEALTH": [
           {
-            "target": ".FLEEING",
-            "actions": []
+            targe: ".FLEEING",
+            actions: []
           }
         ]
       }
     },
     "TASKS": {
-      "description": "Задачи бота",
-      "initial": "DEPOSIT_ITEMS",
-      "states": {
+      description: "Задачи бота",
+      initial: "DEPOSIT_ITEMS",
+      states: {
         "DEPOSIT_ITEMS": {
-          "description": "Выкладывание вещей в сундук",
-          "on": {
+          description: "Выкладывание вещей в сундук",
+          on: {
             "ITEMS_DEPOSITED": [
               {
-                "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.hist",
-                "actions": []
+                targe: "#MINECRAFT_BOT.MAIN_ACTIVITY.hist",
+                actions: []
               }
             ]
           }
         },
         "REPAIR_ARMOR_TOOLS": {
-          "description": "Починка брони и инструментов",
-          "on": {
+          description: "Починка брони и инструментов",
+          on: {
             "REPAIR_COMPLETE": [
               {
-                "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.hist",
-                "actions": []
+                targe: "#MINECRAFT_BOT.MAIN_ACTIVITY.hist",
+                actions: []
+              }
+            ]
+          }
+        },
+        FOOD_SEAECH: {
+          description: "Поиск еды",
+          entry: {
+            type: "entrySearchFood"
+          },
+          on: {
+            FOUND_FOOD: [
+              {
+                target: "#MINECRAFT_BOT.MAIN_ACTIVITY.hist",
+                actions: []
               }
             ]
           }
         }
       },
-      "always": {
-        "target": "hist",
-        "guard": "noTasks",
-        "actions": []
+      always: {
+        targe: "hist",
+        guard: "noTasks",
+        actions: []
       }
     },
-    "hist": {
-      "history": "shallow",
-      "type": "history"
+    hist: {
+      history: "shallow",
+      type: "history"
     }
   }
 }
