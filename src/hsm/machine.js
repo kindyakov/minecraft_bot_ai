@@ -217,7 +217,7 @@ export const machine = createMachine(
           },
           "COMBAT": {
             "description": "Состояние сражения (приоритет 7.5)",
-            "initial": "FLEEING",
+            "initial": "DEFENDING",
             "entry": {
               "type": "entryCombat"
             },
