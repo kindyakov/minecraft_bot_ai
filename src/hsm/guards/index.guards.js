@@ -52,8 +52,7 @@ const isEnemyNearby = and([
   not(stateIn({ MAIN_ACTIVITY: 'COMBAT' })),
   ...getHigherPriorityConditions(PRIORITIES.COMBAT),
   ({ context, event }) => {
-    const enemies = context.entities.filter(entity => entity.type === 'hostile');
-    return enemies.some(enemy => enemy.position.distanceTo(context.position) <= context.preferences.maxDistToEnemy);
+    return context.enemies.some(enemy => enemy.position.distanceTo(context.position) <= context.preferences.maxDistToEnemy);
   }
 ])
 
@@ -70,9 +69,11 @@ const isBrokenArmorOrTools = and([
     Object.values({ ...context.toolDurability, ...context.armorDurability }).some(durability => durability <= 10)
 ])
 
-const noEnemies = ({ context, event }) => context.entities
-  .filter(entity => entity.type === 'hostile')
-  .every(entity => entity.position.distanceTo(context.position) > context.preferences.maxDistToEnemy); // проверяем что все враги дальге 15 блокгов от бота
+const noEnemies = and([
+  stateIn({ MAIN_ACTIVITY: 'COMBAT' }),
+  ({ context }) => context.enemies
+    .every(enemy => enemy.position.distanceTo(context.position) > context.preferences.maxDistToEnemy) // проверяем что все враги дальше 15 блоков от бота
+])
 
 const isFoodRestored = and([
   not(stateIn({ MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_EATING' } })),
