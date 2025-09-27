@@ -9,20 +9,16 @@ const updateFood = assign({
   food: ({ context, event }) => event.food
 })
 
-const addEntities = assign(({ context, event: { entity } }) => {
-  const key = isEntityOfType(entity) ? 'enemies' : 'entities'
-
-  const mobs = [...context[key]]
-  if (!mobs.some(mob => mob.id === entity.id)) {
-    mobs.push(entity)
-  }
-
-  return { [key]: mobs }
-})
-
 const updateEntities = assign(({ context, event: { entity } }) => {
   const key = isEntityOfType(entity) ? 'enemies' : 'entities'
-  const mobs = context[key].map(mob => (mob.id === entity.id ? entity : mob));
+
+  let mobs = [...context[key]]
+
+  if (mobs.some(mob => mob.id === entity.id)) {
+    mobs = mobs.map(mob => (mob.id === entity.id ? entity : mob));
+  } else {
+    mobs.push(entity)
+  }
 
   return { [key]: mobs }
 })
@@ -31,7 +27,7 @@ const removeEntity = assign(({ context, event: { entity } }) => {
   const key = isEntityOfType(entity) ? 'enemies' : 'entities'
 
   return {
-    [key]: () => context[key].filter(mob => mob.id !== entity.id)
+    [key]: context[key].filter(mob => mob.id !== entity.id)
   }
 })
 

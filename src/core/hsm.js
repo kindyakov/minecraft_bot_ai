@@ -87,6 +87,15 @@ class BotStateMachine extends EventEmitter {
       })
     })
 
+    this.bot.on('entityMoved', (entity) => {
+      if (isEntityOfType(entity)) {
+        this.actor.send({
+          type: 'UPDATE_ENTITIES',
+          entity,
+        })
+      }
+    })
+
     this.bot.on('entityGone', (entity) => {
       this.actor.send({
         type: 'REMOVE_ENTITY',
@@ -99,16 +108,6 @@ class BotStateMachine extends EventEmitter {
         type: 'REMOVE_ENTITY',
         entity
       })
-    })
-
-    this.bot.on('entityMoved', (entity) => {
-      if (isEntityOfType(entity)) {
-        this.actor.send({
-          type: 'ENEMY_MOVED',
-          entity,
-          distance: entity.position.distanceTo(this.bot.entity.position)
-        })
-      }
     })
   }
 }
