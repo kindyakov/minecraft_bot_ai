@@ -13,8 +13,8 @@ export const loadPlugins = (bot) => {
   loadWebInventory(bot)
   loadAutoEat(bot)
   // loadDashboard(bot)
-  // loadTool(bot) // походу тоже ну совместим
-  // loadPvp(bot) // не совместим с текущей версией mineflayer
+  // loadTool(bot) // походу не совместим
+  loadPvp(bot)
 }
 
 export const initPlugins = (bot) => {

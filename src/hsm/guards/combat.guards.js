@@ -11,7 +11,7 @@ const isSurrounded = ({ context, event }) => false
 
 const isEnemyFar = ({ context, event }) => {
   const enemy = context.nearestEnemy
-  return enemy && enemy.distance >= 4
+  return enemy && enemy.distance > 4
 }
 
 const isEnemyClose = ({ context, event }) => {

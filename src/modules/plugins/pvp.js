@@ -1,4 +1,6 @@
-import pvp from "@nxg-org/mineflayer-custom-pvp"
+import pgk from "mineflayer-pvp"
+
+const { pvp } = pgk
 
 export const loadPvp = (bot) => {
   bot.loadPlugin(pvp)
