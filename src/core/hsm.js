@@ -74,7 +74,7 @@ class BotStateMachine extends EventEmitter {
 
     this.bot.on('move', () => {
       this.actor.send({
-        type: 'UPDATE_POSITION',
+        type: 'UPDATE_POSITION_BOT',
         position: this.bot.entity.position
       })
     })

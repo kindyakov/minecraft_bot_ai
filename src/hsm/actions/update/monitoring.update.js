@@ -11,11 +11,12 @@ const updateFood = assign({
 
 const updateEntities = assign(({ context, event: { entity } }) => {
   const key = isEntityOfType(entity) ? 'enemies' : 'entities'
+  const mobs = [...context[key]]
 
-  let mobs = [...context[key]]
+  const existingIndex = mobs.findIndex(mob => mob.id === entity.id)
 
-  if (mobs.some(mob => mob.id === entity.id)) {
-    mobs = mobs.map(mob => (mob.id === entity.id ? entity : mob));
+  if (existingIndex >= 0) {
+    mobs[existingIndex] = entity
   } else {
     mobs.push(entity)
   }
@@ -34,7 +35,6 @@ const removeEntity = assign(({ context, event: { entity } }) => {
 export default {
   updateHealth,
   updateFood,
-  addEntities,
   updateEntities,
   removeEntity,
 }

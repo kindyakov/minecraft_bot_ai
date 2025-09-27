@@ -17,7 +17,7 @@ export const machine = createMachine(
       SET_BOT: {
         actions: [{ type: "setBot" }]
       },
-      UPDATE_POSITION: {
+      UPDATE_POSITION_BOT: {
         actions: [{ type: "updatePosition" }]
       },
     },
@@ -362,15 +362,9 @@ export const machine = createMachine(
               "meta": {}
             },
             "on": {
-              "UPDATE_HEALTH": [
-                {
-                  "actions": [
-                    {
-                      "type": "updateHealth"
-                    }
-                  ]
-                }
-              ]
+              "UPDATE_HEALTH": {
+                actions: ["updateHealth"]
+              }
             }
           },
           "HUNGER_MONITOR": {
@@ -385,15 +379,9 @@ export const machine = createMachine(
               "meta": {}
             },
             "on": {
-              "UPDATE_FOOD": [
-                {
-                  "actions": [
-                    {
-                      "type": "updateFood"
-                    }
-                  ]
-                }
-              ]
+              "UPDATE_FOOD": {
+                actions: ["updateFood"]
+              }
             }
           },
           "ENTITIES_MONITOR": {
