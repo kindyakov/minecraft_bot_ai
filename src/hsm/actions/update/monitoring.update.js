@@ -1,13 +1,5 @@
 import { assign } from 'xstate';
 
-const setBot = assign({
-  bot: ({ context, event }) => event.bot
-});
-
-const updatePosition = assign({
-  position: ({ context, event }) => event.position
-})
-
 const updateHealth = assign({
   health: ({ context, event }) => event.health
 })
@@ -28,11 +20,8 @@ const updateEntities = assign({
   }
 })
 
-
 export default {
-  setBot,
   updateHealth,
   updateFood,
   updateEntities,
-  updatePosition,
 }
