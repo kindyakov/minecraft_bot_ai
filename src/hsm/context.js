@@ -41,5 +41,8 @@ export const context = {
     followDistance: 3,
     maxDistToEnemy: 15,
     combatMode: 'defensive'
-  }
+  },
+
+  combatContextChanged: false,
+  currentEnemy: null,
 }

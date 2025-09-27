@@ -1,9 +1,11 @@
 const noEnemiesNearby = ({ context }) => !context.enemies
-  .some(enemy => enemy.position.distanceTo(context.position) <= context.preferences.maxDistToEnemy)
+  .some(enemy => context.bot.entity.position.distanceTo(enemy.position) <= context.preferences.maxDistToEnemy)
+
+const isFleeing = ({ context, event }) => context.health <= 8
+
+const hasContextCombatChanged = ({ context, event }) => context.combatContextChanged
 
 const isLowLealth = ({ context, event }) => context.health <= 8
-
-const isDeciding = ({ context, event }) => context.combatContextChanged === true
 
 const isSurrounded = ({ context, event }) => false
 
@@ -19,8 +21,9 @@ const isEnemyClose = ({ context, event }) => {
 
 export default {
   noEnemiesNearby,
+  isFleeing,
   isLowLealth,
-  isDeciding,
+  hasContextCombatChanged,
   isSurrounded,
   isEnemyFar,
   isEnemyClose,
