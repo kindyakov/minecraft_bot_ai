@@ -1,19 +1,29 @@
 import { assign } from "xstate"
 
-const updateCombatContext = assign({
-  nearestEnemy: ({ context }) => {
-    const enemy = context.bot.utils.findNearestEnemy(context.preferences.maxDistToEnemy)
-    return enemy ? {
-      entity: enemy,
-      distance: enemy.position.distanceTo(context.position)
-    } : null
-  },
-  combatContextChanged: ({ context }, event) => {
-    const newEnemy = context.bot.utils.findNearestEnemy(context.preferences.maxDistToEnemy)
-    const oldEnemy = context.nearestEnemy?.entity
+const updateCombatContext = assign(({ context }) => {
+  // Фильтруем врагов в радиусе
+  const nearbyEnemies = context.enemies.filter(enemy =>
+    enemy.position.distanceTo(context.position) <= context.preferences.maxDistToEnemy
+  )
 
-    // Изменился ли ближайший враг?
-    return newEnemy?.id !== oldEnemy?.id
+  // Находим ближайшего
+  const newNearestEnemy = nearbyEnemies.reduce((closest, enemy) => {
+    if (!closest) return enemy
+
+    const currentDistance = enemy.position.distanceTo(context.position)
+    const closestDistance = closest.position.distanceTo(context.position)
+
+    return currentDistance < closestDistance ? enemy : closest
+  }, null)
+
+  const oldNearestId = context.nearestEnemy?.entity?.id
+
+  return {
+    nearestEnemy: newNearestEnemy ? {
+      entity: newNearestEnemy,
+      distance: newNearestEnemy.position.distanceTo(context.position)
+    } : null,
+    combatContextChanged: newNearestEnemy?.id !== oldNearestId
   }
 })
 

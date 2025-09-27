@@ -44,5 +44,5 @@ export const context = {
   },
 
   combatContextChanged: false,
-  currentEnemy: null,
+  nearestEnemy: null,
 }

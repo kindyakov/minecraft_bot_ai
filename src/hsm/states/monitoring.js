@@ -56,7 +56,7 @@ export const MONITORING = {
     //       {
     //         actions: [
     //           {
-    //             type: "updateEntities"
+    //             type: "addEntities"
     //           }
     //         ]
     //       }

@@ -2,6 +2,7 @@ import EventEmitter from 'node:events';
 import { createActor } from 'xstate';
 import { createBrowserInspector } from '@statelyai/inspect';
 import { machine } from '../hsm/machine.js';
+import { isEntityOfType } from '../hsm/utils/isEnemyEntity.js';
 
 class BotStateMachine extends EventEmitter {
   constructor(bot) {
@@ -71,6 +72,13 @@ class BotStateMachine extends EventEmitter {
       })
     })
 
+    this.bot.on('move', () => {
+      this.actor.send({
+        type: 'UPDATE_POSITION',
+        position: this.bot.entity.position
+      })
+    })
+
     // Обновление сущностей
     this.bot.on('entitySpawn', (entity) => {
       this.actor.send({
@@ -79,18 +87,25 @@ class BotStateMachine extends EventEmitter {
       })
     })
 
-    this.bot.on('move', () => {
+    this.bot.on('entityGone', (entity) => {
       this.actor.send({
-        type: 'UPDATE_POSITION',
-        position: this.bot.entity.position
+        type: 'REMOVE_ENTITY',
+        entity
+      })
+    })
+
+    this.bot.on('entityDead', (entity) => {
+      this.actor.send({
+        type: 'REMOVE_ENTITY',
+        entity
       })
     })
 
     this.bot.on('entityMoved', (entity) => {
-      if (isEnemy(entity)) {
+      if (isEntityOfType(entity)) {
         this.actor.send({
           type: 'ENEMY_MOVED',
-          enemy: entity,
+          entity,
           distance: entity.position.distanceTo(this.bot.entity.position)
         })
       }

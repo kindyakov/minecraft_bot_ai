@@ -1,5 +1,5 @@
 const noEnemiesNearby = ({ context }) => !context.enemies
-  .some(enemy => context.bot.entity.position.distanceTo(enemy.position) <= context.preferences.maxDistToEnemy)
+  .some(enemy => enemy.position.distanceTo(context.position) <= context.preferences.maxDistToEnemy)
 
 const isFleeing = ({ context, event }) => context.health <= 8
 

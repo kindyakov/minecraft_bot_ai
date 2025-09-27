@@ -2,7 +2,7 @@ import { assign } from "xstate"
 
 const entryCombat = assign({
   combatContextChanged: false,
-  currentEnemy: null
+  nearestEnemy: null
 })
 
 const entryDeciding = assign({
