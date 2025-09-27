@@ -7,7 +7,7 @@ import { guards } from './guards/index.guards.js'
 
 export const machine = createMachine(
   {
-    /** @xstate-layout N4IgpgJg5mDOIC5QFkCSA5AogYQEoEEAxAFQH0AhAeWIGIBlTMq4gbQAYBdRUABwHtYASwAugvgDtuIAB6IAtAEYArABYA7ADoAbAGYdATjYAmABxsDOo0YA0IAJ6JdSjUYVGdKvSaVb1RgL7+tmhYeERM1DQAqgAKACL4xJikMZR0qMSolOjsXEgg-EKiElKyCIo6ajoaJiZaako6WloKCuoqtg4Ivioaqj5q9Qom+mZKgcEYOAQkFNQayPgYpPjYmQBqGQCaGjGYq5iEUQAyCxgYAOI0Mcf4W5i4pHTElDG5UoUiYpL5ZV59XkabBUpkqVU6iCM+l6RjYJihSiUULMcK0ExAIWm4TmxAWS3QKzWqE2xB2ewOR1O5CiqGOcUu11u90ez1e73yn2KP1AZQavRUWjY+kFClGPhaEIQw2qlRU0P0DQVgzYaKCGKmYVmzDxy1WG22u322EOJw0dGOmEwMQZNzuDyeLzenA+Ai+JV+iCUJmqApaKgFbCUanMCklRi0+hqSmUOmMVgVOhM6MxmoiuMWuqJJLJRpNp0I+FwISutuZDrZzo5rq5pUQfI0CjUwwVWhMVTaNns8jUJg0lSUgaMPbYrQUvmTGpmaZ1BL1xIN5ONlI0hEox2OlAA6jamfbWU68rxq99awhE70e+f9EZVEK4Uow60NIGxQO5QLBgoJ6EpziZ4T9VJQ0KVNOgAAlMGOJJcB3O0WUddkjyKE8PQQYMLyqf05QMNRcI6Lsz0qPphlFEcQURCNvyxLV5gzWcswNKJcAuTB0DILBMDiOgNEwZAHhY9BsC2Uh9kydArlXSg4iefZcGwMDEIKY93R5eQ9GcXCPF8NgRzUKw1Hwro5DYDR9DHZolDMlpY2DRMqNTP86IA+cgKYgT2MtLieL45jWKEkTEgZRTORQ1TynUmo3CRLQB0sTxOyMtotG0Zp6kMXRXHcFR7N-bUnLnbMNDc1iPM47jeP4vzhIg-BjgZSTpIYQt5OC5TuRkNSIwbFU1AVbwVBVIxDLrBQG1SnxSKwnscuxPL8WcwrirY0gOK8irfME6r9jq8SaFa5CVI68KqhqFQRm8Ro6lUHRJQUDxTP0R6zLMtw2FwmaaPTeaCoNbBKGQchEj2yskLddqyiMFLmjlKFeqaFpVFunRGz7PQDCG8wEw+6d8oYoC-oBxINDiHBUHpXb9rB085CG0aWj05R6k-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-ovCuJQFJAwkwqfnIE2lOnfE-AYMKPCGoLdLgjUPlqJjhI-jvkBFNjNqfm0L0C0rhNGCRENDAS4h4k2IKEiAqCqnohbiHo0pZJDC8jOu8kkp8kZOFi4Mtk9vDigeGsMiIUEiYloucvgW4IMIoQ5tCIMAqD4E4pYDUMQr1o2P2KoV7gSnmkUuMhnmUgUroUOL2K8tkkYRGA0JzkZPGFtkodes9sIaMocmxMcqcg6gEm4bhAYSqN4SYX4WIkag9I9Bvl6IiDZKEWClHAWtEWAm4V1FlFhGhkkSarGM+N6BamjL2v4EAA */
+    /** @xstate-layout N4IgpgJg5mDOIC5QFkCSA5AogYQEoEEAxAFQH0AhAeWIGIBlTMq4gbQAYBdRUABwHtYASwAugvgDtuIAB6IAtAEYArABYA7ADoAbAGYdATjYAmABxsDOo0YA0IAJ6JdSjUYVGdKvSaVb1RgL7+tmhYeERM1DQAqgAKACL4xJikMZR0qMSolOjsXEgg-EKiElKyCIo6ajoaJiZaako6WloKCuoqtg4Ivioaqj5q9Qom+mZKgcEYOAQkFNQayPgYpPjYmQBqGQCaGjGYq5iEUQAyCxgYAOI0Mcf4W5i4pHTElDG5UoUiYpL5ZV59XkabBUpkqVU6iCM+l6RjYJihSiUULMcK0ExAIWm4TmxAWS3QKzWqE2xB2ewOR1O5CiqGOcUu11u90ez1e73yn2KP1AZQavRUWjY+kFClGPhaEIQw2qlRU0P0DQVgzYaKCGKmYVmzDxy1WG22u322EOJw0dGOmEwMQZNzuDyeLzenA+Ai+JV+iCUJmqApaKgFbCUanMCklRi0+hqSmUOmMVgVOhM6MxmoiuMWuqJJLJRpNp0I+FwISutuZDrZzo5rq5pUQfI0CjUwwVWhMVTaNns8jUJg0lSUgaMPbYrQUvmTGpmaZ1BL1xIN5ONlI0hEox2OlAA6jamfbWU68rxq99awhE70e+f9EZVEK4Uow60NIGxQO5QLBgoJ6EpziZ4T9VJQ0KVNOgAAlMGOJJcB3O0WUddkjyKE8PQQYMLyqf05QMNRcI6Lsz0qPphlFEcQURCNvyxLV5gzWcswNKJcAuTB0DILBMDiOgNEwZAHhY9BsC2Uh9kydArlXSg4iefZcGwMDEIKY93R5eQ9GcXCPF8NgRzUKw1Hwro5DYDR9DHZolDMlpY2DRMqNTP86IA+cgKYgT2MtLieL45jWKEkTEgZRTORQ1TynUmo3CRLQB0sTxOyMtotG0Zp6kMXRXHcFR7N-bUnLnbMNDc1iPM47jeP4vzhIg-BjgZSTpIYQt5OC5TuRkNSIwbFU1AVbwVBVIxDLrBQG1SnxSKwnscuxPL8WcwrirY0gOK8irfME6r9jq8SaFa5CVI68KqhqFQRm8Ro6lUHRJQUDxTP0R6zLMtw2FwmaaPTeaCoNbBKGQchEj2yskLddqylFZLUt8YY22aWMHwIhRjE0HSdN8aNVB6D7p3yhigL+gGgZYBRDyUg7wfkZRI1FIcVQMLCVCDSVhV6PQ9DcTxA2GVVJh-WbaO+-GdkJwHaBYIwyZCw6ykUVRTNaJndGhLDmaRuEjD7dm7pV-1GhxxyhcAkX-rFjQ4hwVB6V2-awdPOQdCDbRG1cRovRGIbbpVZwRksMd4ThOy1RTXLBczY2NFFxJzct62rhJqW2vtyznDe8wBuBXS3C9mKan0P3W1hb0k2DycBa+8OXJNoncQt7AraCyWXQp5ORg0Js21w29G2zpHlGcdmbwaIUBWhA25srwqo9r2Ogp0ROW9QuQBs171LJix3amvYapRvXtY0e1x4beuVx7D+iI+IfA6AAaToYGF7t1CM9MqwkSaJETH9R3bu8TXUuDJpRMJg2hnwrhfKuGgr6324hbVI6QyAZF4vfJByA6CkDgWkJBcRbY1mfq4FKK9wyuHiqoW6ZlNDsw8OhFUngwH-h+kBaBd8NC4CtEsR4hZkCUEeC8Nc982ExA4aQQmNxGCYFwaFI6Q5qj1HQhlOUf8ww6X-qlEBaMmweHoXjS+18WENRkvgHAYEaCriiOgaSDVJEy09DpGoZgxy9ShEKAyahyEtBcHKYU+gBwGS-to7IGQeGXA0DVKCYFSDcPQEE3A0R4iJGSGE4gCkQbkyfmFOWA0XAhhvB4RotNJQO0jC2IMqh+5ImRuMUu-NPoLECS8GC4lQnbWSZE+pPCH7N3SUdOQj1kpozRnknQopQwESRFrdmj14ogJ8bzdUNTcbtMaRcUJ5iWKPCiTEuJCQkikCsak6WlNygxk1gMnSQyCkETkFYXsJS+TlNcAE6JDSQlgTWfaTZDTOlVkXhkvpz4zkXLMoUu6-S0ZuDMoiCpTyYkhJKhkVAmB0GfI6bEHZyR4WZCRdYo5mTeitA7j2Jmwzry3ROtCEcrQERaFcIMGFLymmYsRcipZ3zQZ4L+fLWybhKiVBAd6MMXUqGWD9PFHQ9LglNPkokNpzyOkAFtBDiDADi08bBJQqGGClaGOr6gSuWZHMCMqUWxIAGZ8AADYWr4AAd1VUvfF2kaWIy6ENKGurdX6H1SE6VZATU0FgBasAYAeD2oyaNfODRJRNEjMKuNehvVSqNX61lsAAAWYALXCDAAAJzDT0zQGUQE3g1a2AFZyK1zJDuXOpcqDW+tlVs01ABDHN8r80Q3Ib0D1nrE0rIbf6gARgAV0EBaiAHb5AmVcG2LxT150Y2jW9BsX86iOx8DZMcgQ1TiD4BAOAUhq2fS6RynpY4skEuGES-JpKrmasjAMiFDy7raKNlXE9UjZYgOqN6PQcphieHzqMoyHM+jgqhM+8V1TqK4zfYVRceYP02KlERPWwz-YNAMo9Qp7hNDuEbH0qEuEhyvsnguXMy4rYWiQ0coM3aeoRnDHCdQWgwz4tXRYYUiIew0tIxA+DFHTQhEuDR08Vh8WtCVI2HSUKEqIE1b2ADX8oqwhVMCPjC1yMgSpDSOkImfndLKAqSMaH-ZD0TKxpGWTvDKGRoKYlb0AjQYchPfjWmlygQtFafT7LP2enUGNNoAxBRf0GBq4ZK6zqapvKp+zGnGE5m0yuLhPm0mnqM71Z8ygaX5zvG4EwILAwuGGb1YURG9Ktni8LYCHn8xrg3NucSonULDGcKZjDdHsMEQi80HWL0hpVCqFViOCHlzgUgtBVLhzTxmE1uoO6G7wzigKwRTwo0lPRaROjdTznQ7gM00BUbpo02CFgMIZrYUi4ruHjpPS8IN2FLbjd1675BSPN2zWnRkClqlS4hdgtcoJlNHMFCgVVyhq9EfRB2TX4Pu1K+4tDav3yo+QEv5USU2k5L2DKNKhgp11ehulcql5aRzQ8RO9vmMHDZkdckjlankUeVU2qQMJmPfkFpHED-HoOiddC6nOtszH-S9WG5A6e-3ZaDB9uzf9X8LDAbrP6PsQoRhNnbN6MXU9TbR0IF59nhm1LeHbiGM6jsDDmEs10MyJkD5q8bMMzXcPYO0+rmbPiXmVjECvtgG+Bv0tU0RA2R2Zk6hyihYmW6R8ah6CHgOaEEZsrO5p25gmOuZ6EFYnHSX8gIzJUME0ForZAPDJZsjFXowFQO+lFr366fWH4HEpxL3Pu-dNYMwH8o6uY9-tDyXxXu8xw97jyPRPte081xjvXbPHe-PhU8C4MyQ0zAigjPoW6bRC2kM8HFYEahx87GYXQHP5RE81FMDc2TP8CKuC5xBiM8JCNOapy58+B3D96NgVaLBiCkhoJP3IBjNoD4pqiKK0DhGGO4NUPfqMFCGVs-vMtTq5u-lAp-qwuwqgJwkWDwqQHwscMfrPshoAQKOfvCKYFfi6pCJUCZGUsGMYBRKYAfqgTAiuJQFJIYsYgAcrA9PGG9CMB2Ctq6u+DUFho-pZLUJUEwSdmdifkGMUvOulG9qKLdJUKNLQa4AYP3Jqn2gAdTJrJem2F-DenJuFI2C4AOGTpChTi+snnlEsq8i0hEiaroUOMlDeOjNCIMAqD4IUpYD3n+uhoNvrLYbRPYU0m8k3hsksi4T2O3LDKKCxt4VbvIPGO3BYU+jDn2jxGxAikio2g0jEXhhYYnl4Q0MkVKPnA9I9Jol6IiDZFkQOtEYQbim4F1FlIzKUT4d1rGM+L+vGgmtukAA */
     id: 'MINECRAFT_BOT',
     type: "parallel",
     predictableActionArguments: true,
@@ -223,33 +223,42 @@ export const machine = createMachine(
             },
             "always": [
               { "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.hist", "guard": "noEnemiesNearby" },
-              { "target": ".FLEEING", "guard": "shouldFlee" },
-              { "target": ".DECIDING", "guard": "shouldRecalculateStrategy" }
+              { "target": ".FLEEING", "guard": "isLowLealth" },
+              { "target": ".DECIDING", "guard": "isDeciding" }
             ],
             "states": {
               "FLEEING": {
                 "entry": {
                   "type": "entryFleeing"
+                },
+                exit: {
+                  type: "exitFleeing"
                 }
               },
-
               "MELEE_ATTACKING": {
                 "description": "Ближний бой",
                 "entry": {
                   "type": "entryMeleeAttacking"
+                },
+                exit: {
+                  type: "exitMeleeAttack"
                 }
               },
-
               "DEFENDING": {
                 "entry": {
                   "type": "entryDefenging"
+                },
+                exit: {
+                  type: "exitDefenging"
                 }
               },
-
               "RANGED_ATTACKING": {
                 "description": "Дальний бой",
                 "entry": {
                   "type": "entryRangedAttacking"
+                },
+                exit: {
+                  type: "exitRangedAttacking"
                 }
               },
               DECIDING: {
@@ -259,16 +268,16 @@ export const machine = createMachine(
                     guard: "isLowLealth",
                   },
                   {
+                    target: "DEFENDING",
+                    guard: "isSurrounded"
+                  },
+                  {
                     target: "RANGED_ATTACKING",
                     guard: "isEnemyFar"
                   },
                   {
                     target: "MELEE_ATTACKING",
                     guard: "isEnemyClose"
-                  },
-                  {
-                    target: "DEFENDING",
-                    guard: "isSurrounded"
                   }
                 ],
               }

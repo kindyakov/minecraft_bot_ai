@@ -85,6 +85,16 @@ class BotStateMachine extends EventEmitter {
         position: this.bot.entity.position
       })
     })
+
+    this.bot.on('entityMoved', (entity) => {
+      if (isEnemy(entity)) {
+        this.actor.send({
+          type: 'ENEMY_MOVED',
+          enemy: entity,
+          distance: entity.position.distanceTo(this.bot.entity.position)
+        })
+      }
+    })
   }
 }
 
