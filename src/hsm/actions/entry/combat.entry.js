@@ -1,7 +1,8 @@
 import { assign } from "xstate"
 import { GoalFollow } from "../../../modules/plugins/goals.js";
 
-const entryCombat = assign(({ context: { bot, enemies } }) => {
+const entryCombat = assign(({ context }) => {
+  const bot = context.bot
   console.log('⚔️ Вход в состояние COMBAT')
 
   bot.armorManager.equipAll() // Бот при наличии брони в инвенторе наденет её
@@ -12,13 +13,12 @@ const entryCombat = assign(({ context: { bot, enemies } }) => {
 
   return {
     combatContextChanged: false,
-    nearestEnemy: null
+    nearestEnemy: null,
   }
 })
 
-const entryDeciding = assign(() => {
+const entryDeciding = assign(({ context }) => {
   console.log('⚔️ Вход в состояние DECIDING')
-
   return {
     combatContextChanged: false
   }
@@ -35,8 +35,9 @@ const entryDefenging = ({ context, event }) => {
 
 const entryMeleeAttacking = ({ context: { bot, nearestEnemy }, event }) => {
   console.log('⚔️ Вход в состояние MELEE_ATTACKING')
+  const { entity = null } = nearestEnemy
 
-  if (!enemy || !enemy.isValid) {
+  if (!entity || !entity?.isValid) {
     console.log('⚔️ Нет валидного врага для атаки')
     return
   }
@@ -50,17 +51,19 @@ const entryMeleeAttacking = ({ context: { bot, nearestEnemy }, event }) => {
   console.log(`🗡️ Экипировал оружие: ${weapon.name}`)
   bot.equip(weapon, 'hand')
 
-  console.log(`⚔️ Атакую ${enemy.name || enemy.displayName}`)
-  bot.pvp.attack(enemy)
+  console.log(`⚔️ Атакую ${entity.name || entity.displayName}`)
+  bot.pvp.attack(entity)
 }
 
 const entryRangedAttacking = ({ context: { bot, nearestEnemy }, event }) => {
-  if (!enemy || !enemy.isValid) {
+  const { entity = null } = nearestEnemy
+
+  if (!entity || !entity?.isValid) {
     console.log('🏹 Нет валидного врага для стрельбы')
     return
   }
 
-  console.log(`🏹 Начинаю дальний бой с ${enemy.name || enemy.displayName}`)
+  console.log(`🏹 Начинаю дальний бой с ${entity.name || entity.displayName}`)
 
   // 1. Ищем лук/арбалет
   const rangedWeapon = bot.inventory.items().find(item =>
@@ -80,7 +83,7 @@ const entryRangedAttacking = ({ context: { bot, nearestEnemy }, event }) => {
     }
   }
 
-  bot.pvp.attack(enemy)
+  bot.pvp.attack(entity)
 }
 
 export default {

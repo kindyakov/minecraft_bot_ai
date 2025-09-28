@@ -1,3 +1,5 @@
+import { and, not, stateIn } from "xstate"
+
 const noEnemiesNearby = ({ context }) => {
   if (!context.position || !context.enemies.length) return true
 
@@ -7,11 +9,17 @@ const noEnemiesNearby = ({ context }) => {
   )
 }
 
-const isFleeing = ({ context, event }) => context.health <= 8
+const isFleeing = and([
+  not(stateIn({ MAIN_ACTIVITY: { COMBAT: 'FLEEING' } })),
+  ({ context, event }) => context.health <= 8
+])
 
 const hasContextCombatChanged = ({ context, event }) => context.combatContextChanged
 
-const isLowLealth = ({ context, event }) => context.health <= 8
+const isLowLealth = and([
+  not(stateIn({ MAIN_ACTIVITY: { COMBAT: 'FLEEING' } })),
+  ({ context, event }) => context.health <= 8
+])
 
 const isSurrounded = ({ context, event }) => false
 

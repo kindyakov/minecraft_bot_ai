@@ -1,5 +1,5 @@
 const entryHealthMonitoring = ({ context, event }) => {
-  console.log(`🔍 Мониторинг здоровья: ${context.health}/20`)
+  console.log(`🔍 Мониторинг здоровья: ${context.health.toFixed(0)}/20`)
 }
 
 const entryHungerMonitoring = ({ context, event }) => {

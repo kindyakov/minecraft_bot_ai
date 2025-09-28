@@ -32,9 +32,6 @@ class BotStateMachine extends EventEmitter {
 
     console.log('HSM актор запущен')
     console.log('Активные состояния', this.actor.getSnapshot().value)
-    setInterval(() => {
-      console.log('Активные состояния', this.actor.getSnapshot().value)
-    }, 10000)
   }
 
   handlers() {
@@ -51,7 +48,7 @@ class BotStateMachine extends EventEmitter {
   setupBotEvents() {
     // Обновление здоровья
     this.bot.on('health', () => {
-      console.log("Здоровье:", this.bot.health)
+      console.log("Здоровье:", this.bot.health.toFixed(0))
       this.actor.send({
         type: 'UPDATE_HEALTH',
         health: this.bot.health

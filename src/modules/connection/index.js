@@ -20,7 +20,7 @@ export const initConnection = (bot) => {
     bot.emit('botError', err)
   })
 
-  bot.on('diggingCompleted', (block) => console.log('initConnection: diggingCompleted', block && block.name))
-  bot.on('path_update', (r) => console.log('initConnection: path update:', r && r.status))
-  bot.on('path_reset', (reason) => console.log('initConnection: path reset:', reason))
+  // bot.on('diggingCompleted', (block) => console.log('initConnection: diggingCompleted', block && block.name))
+  // bot.on('path_update', (r) => console.log('initConnection: path update:', r && r.status))
+  // bot.on('path_reset', (reason) => console.log('initConnection: path reset:', reason))
 }

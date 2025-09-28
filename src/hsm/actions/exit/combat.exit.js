@@ -1,4 +1,4 @@
-const exitCombat = () => {
+const exitCombat = ({ context }) => {
   console.log('⚔️ Выход из COMBAT')
 }
 
