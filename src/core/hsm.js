@@ -32,6 +32,9 @@ class BotStateMachine extends EventEmitter {
 
     console.log('HSM актор запущен')
     console.log('Активные состояния', this.actor.getSnapshot().value)
+    setInterval(() => {
+      console.log('Активные состояния', this.actor.getSnapshot().value)
+    }, 10000)
   }
 
   handlers() {
@@ -96,6 +99,7 @@ class BotStateMachine extends EventEmitter {
       }
     })
 
+    // Пропала сужность
     this.bot.on('entityGone', (entity) => {
       this.actor.send({
         type: 'REMOVE_ENTITY',
@@ -108,6 +112,14 @@ class BotStateMachine extends EventEmitter {
         type: 'REMOVE_ENTITY',
         entity
       })
+    })
+
+    // Выпал предмет
+    this.bot.on('itemDrop', (entity) => {
+      // Если элеменнт сломан
+      if (entity.name === 'broken_item') {
+        this.actor.send({ type: 'WEAPON_BROKEN' })
+      }
     })
   }
 }

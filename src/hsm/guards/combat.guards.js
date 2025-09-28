@@ -1,5 +1,11 @@
-const noEnemiesNearby = ({ context }) => !context.enemies
-  .some(enemy => enemy.position.distanceTo(context.position) <= context.preferences.maxDistToEnemy)
+const noEnemiesNearby = ({ context }) => {
+  if (!context.position || !context.enemies.length) return true
+
+  return !context.enemies.some(enemy =>
+    enemy.position &&
+    enemy.position.distanceTo(context.position) <= context.preferences.maxDistToEnemy
+  )
+}
 
 const isFleeing = ({ context, event }) => context.health <= 8
 
@@ -9,14 +15,12 @@ const isLowLealth = ({ context, event }) => context.health <= 8
 
 const isSurrounded = ({ context, event }) => false
 
-const isEnemyFar = ({ context, event }) => {
-  const enemy = context.nearestEnemy
-  return enemy && enemy.distance > 4
+const isEnemyFar = ({ context: { nearestEnemy }, event }) => {
+  return nearestEnemy && nearestEnemy.distance > 4
 }
 
-const isEnemyClose = ({ context, event }) => {
-  const enemy = context.nearestEnemy
-  return enemy && enemy.distance <= 4
+const isEnemyClose = ({ context: { nearestEnemy }, event }) => {
+  return nearestEnemy && nearestEnemy.distance <= 4
 }
 
 export default {

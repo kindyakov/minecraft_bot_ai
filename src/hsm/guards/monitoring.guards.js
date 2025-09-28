@@ -52,7 +52,12 @@ const isEnemyNearby = and([
   not(stateIn({ MAIN_ACTIVITY: 'COMBAT' })),
   ...getHigherPriorityConditions(PRIORITIES.COMBAT),
   ({ context, event }) => {
-    return context.enemies.some(enemy => enemy.position.distanceTo(context.position) <= context.preferences.maxDistToEnemy);
+    if (!context.position || !context.enemies.length) return false
+
+    return context.enemies.some(enemy =>
+      enemy.position &&
+      enemy.position.distanceTo(context.position) <= context.preferences.maxDistToEnemy
+    );
   }
 ])
 

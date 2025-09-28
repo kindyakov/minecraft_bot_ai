@@ -1,7 +1,5 @@
-import pgk from "mineflayer-pvp"
-
-const { pvp } = pgk
+import pvpPackage from "mineflayer-pvp"
 
 export const loadPvp = (bot) => {
-  bot.loadPlugin(pvp)
+  bot.loadPlugin(pvpPackage.plugin)
 }

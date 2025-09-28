@@ -10,7 +10,7 @@ import { loadTool } from "./tool.js"
 export const loadPlugins = (bot) => {
   loadPathfinder(bot)
   loadArmorManager(bot)
-  loadWebInventory(bot)
+  // loadWebInventory(bot)
   loadAutoEat(bot)
   // loadDashboard(bot)
   // loadTool(bot) // походу не совместим

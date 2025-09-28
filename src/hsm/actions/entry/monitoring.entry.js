@@ -8,6 +8,7 @@ const entryHungerMonitoring = ({ context, event }) => {
 
 const entryEntitiesMonitoring = ({ context, event }) => {
   console.log(`🔍 Мониторинг сущностей: ${context.entities.length}`)
+  console.log(`🔍 Мониторинг врагов: ${context.enemies.length}`)
 }
 
 const entryChatMonitoring = ({ context, event }) => { }

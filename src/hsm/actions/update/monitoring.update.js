@@ -10,6 +10,10 @@ const updateFood = assign({
 })
 
 const updateEntities = assign(({ context, event: { entity } }) => {
+  if (!context.position || entity.position.distanceTo(context.position) > 50) {
+    return {}
+  }
+
   const key = isEntityOfType(entity) ? 'enemies' : 'entities'
   const mobs = [...context[key]]
 
