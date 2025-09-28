@@ -21,7 +21,6 @@ const isSurrounded = and([
 ])
 
 const isEnemyFar = and([
-  not(stateIn({ MAIN_ACTIVITY: { COMBAT: 'RANGED_ATTACKING' } })),
   ({ context, event }) => context.health > 8,
   ({ context }) => {
     const rangedWeapon = context.bot.utils.getRangeWeapon() // поиск оружия лук/арбалет
@@ -29,15 +28,14 @@ const isEnemyFar = and([
     return rangedWeapon && arrows
   },
   ({ context: { nearestEnemy }, event }) => {
-    return nearestEnemy && nearestEnemy.distance > 7
+    return nearestEnemy && nearestEnemy.distance >= 9
   }
 ])
 
 const isEnemyClose = and([
-  not(stateIn({ MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' } })),
   ({ context, event }) => context.health > 8,
   ({ context: { nearestEnemy }, event }) => {
-    return nearestEnemy && nearestEnemy.distance <= 7
+    return nearestEnemy && nearestEnemy.distance <= 5
   }])
 
 export default {
