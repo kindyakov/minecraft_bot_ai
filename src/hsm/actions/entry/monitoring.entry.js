@@ -1,14 +1,14 @@
 const entryHealthMonitoring = ({ context, event }) => {
-  console.log(`🔍 Мониторинг здоровья: ${context.health.toFixed(0)}/20`)
+  // console.log(`🔍 Мониторинг здоровья: ${context.health.toFixed(0)}/20`)
 }
 
 const entryHungerMonitoring = ({ context, event }) => {
-  console.log(`🔍 Мониторинг голода: ${context.food}/20`)
+  // console.log(`🔍 Мониторинг голода: ${context.food}/20`)
 }
 
 const entryEntitiesMonitoring = ({ context, event }) => {
-  console.log(`🔍 Мониторинг сущностей: ${context.entities.length}`)
-  console.log(`🔍 Мониторинг врагов: ${context.enemies.length}`)
+  // console.log(`🔍 Мониторинг сущностей: ${context.entities.length}`)
+  // console.log(`🔍 Мониторинг врагов: ${context.enemies.length}`)
 }
 
 const entryChatMonitoring = ({ context, event }) => { }

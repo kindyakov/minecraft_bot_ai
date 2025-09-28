@@ -25,12 +25,12 @@ const isEnemyFar = and([
     return rangedWeapon && arrows
   },
   ({ context: { nearestEnemy }, event }) => {
-    return nearestEnemy && nearestEnemy.distance > 4
+    return nearestEnemy && nearestEnemy.distance > 5
   }
 ])
 
 const isEnemyClose = ({ context: { nearestEnemy }, event }) => {
-  return nearestEnemy && nearestEnemy.distance <= 4
+  return nearestEnemy && nearestEnemy.distance <= 5
 }
 
 export default {

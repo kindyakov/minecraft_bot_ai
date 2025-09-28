@@ -53,7 +53,6 @@ const isEnemyNearby = and([
   ...getHigherPriorityConditions(PRIORITIES.COMBAT),
   ({ context, event }) => {
     if (!context.position || !context.enemies.length) return false
-
     return context.enemies.some(enemy =>
       enemy.position &&
       enemy.position.distanceTo(context.position) <= context.preferences.maxDistToEnemy

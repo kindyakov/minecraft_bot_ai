@@ -1,7 +1,6 @@
 import { assign } from "xstate"
 
-const entryCombat = assign(({ context }) => {
-  const bot = context.bot
+const entryCombat = assign(({ context: { bot } }) => {
   console.log('⚔️ Вход в состояние COMBAT')
 
   bot.armorManager.equipAll() // Бот при наличии брони в инвенторе наденет её
@@ -12,7 +11,6 @@ const entryCombat = assign(({ context }) => {
 
   return {
     combatContextChanged: false,
-    nearestEnemy: null,
   }
 })
 
@@ -53,7 +51,7 @@ const entryMeleeAttacking = ({ context: { bot, nearestEnemy }, event }) => {
   bot.pvp.attack(entity)
 }
 
-const entryRangedAttacking = async ({ context: { bot, nearestEnemy }, event }) => {
+const entryRangedAttacking = ({ context: { bot, nearestEnemy }, event }) => {
   console.log('⚔️ Вход в состояние RANGED_ATTACKING')
   const { entity = null } = nearestEnemy
 

@@ -412,7 +412,11 @@ export const machine = createMachine(
             "always": {
               "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.COMBAT",
               "guard": "isEnemyNearby",
-              "actions": [],
+              "actions": [
+                {
+                  type: "setTargetOnEnemy",
+                },
+              ],
               "meta": {}
             },
             on: {
