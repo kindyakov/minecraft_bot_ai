@@ -1,5 +1,4 @@
 import { assign } from "xstate"
-import { GoalFollow } from "../../../modules/plugins/goals.js";
 
 const entryCombat = assign(({ context }) => {
   const bot = context.bot

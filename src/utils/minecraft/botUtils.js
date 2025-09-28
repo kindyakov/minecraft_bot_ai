@@ -269,33 +269,66 @@ export class BotUtils {
   }
 
   async shoot({ entity, weapon }) {
-    this.stopShoot()
-
     try {
-      if (this._shootAbortController.signal.aborted) return
+      if (this._shootAbortController.signal.aborted) {
+        console.log('🏹 Стрельба отменена')
+        return
+      }
+
+      if (!entity.isValid) {
+        console.log('🏹 Цель больше не валидна')
+        return
+      }
 
       await this._bot.lookAt(entity.position, true) // Прицеливаемся
+
+      if (this._shootAbortController.signal.aborted) return
+
       this._bot.activateItem() // Начинаем натягивать тетиву
 
       // Время натяжения (для лука ~1000ms, для арбалета зависит от чаров)
       const chargeTime = weapon.name.includes('crossbow') ? 1250 : 1000
-      await new Promise(resolve => setTimeout(resolve, chargeTime))
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(resolve, chargeTime)
+
+        // Слушаем сигнал отмены
+        this._shootAbortController.signal.addEventListener('abort', () => {
+          clearTimeout(timeout)
+          this._bot.deactivateItem() // Прерываем натяжение
+          reject(new Error('Shooting aborted'))
+        })
+      })
+
+      if (this._shootAbortController.signal.aborted) return
 
       this._bot.deactivateItem() // Отпускаем = выстрел!
       console.log('🏹 Выстрелил!')
 
-      this._shootTimeoutId = setTimeout(() => this.shoot({ entity, weapon }), 500)
+      this._shootTimeoutId = setTimeout(() => {
+        this._shootTimeoutId = null
+        if (!this._shootAbortController.signal.aborted) {
+          this.shoot({ entity, weapon })
+        }
+      }, 500)
     } catch (error) {
-      console.log(`🏹 Ошибка стрельбы: ${error.message}`)
+      if (error.message === 'Shooting aborted') {
+        console.log('🏹 Стрельба прервана')
+      } else {
+        console.log(`🏹 Ошибка стрельбы: ${error.message}`)
+      }
     }
   }
 
   stopShoot() {
+    console.log('🏹 Останавливаю стрельбу')
+
     this._shootAbortController.abort()
-    this._shootAbortController = new AbortController()
+
     if (this._shootTimeoutId) {
       clearTimeout(this._shootTimeoutId)
       this._shootTimeoutId = null
     }
+
+    this._shootAbortController = new AbortController()
   }
 }
