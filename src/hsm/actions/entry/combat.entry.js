@@ -26,7 +26,6 @@ const entryDeciding = assign(({ context }) => {
 
 const entryFleeing = ({ context, event }) => {
   console.log('⚔️ Вход в состояние FLEEING')
-
 }
 
 const entryDefenging = ({ context, event }) => {
@@ -42,20 +41,21 @@ const entryMeleeAttacking = ({ context: { bot, nearestEnemy }, event }) => {
     return
   }
 
-  const weapon = bot.utils.searchWeapons() // поиск оружия меч/топор
-  if (!weapon) {
+  const meleeWeapon = bot.utils.getMeleeWeapon() // поиск оружия меч/топор
+  if (!meleeWeapon) {
     console.log('❌ Нет оружия!')
     return
   }
 
-  console.log(`🗡️ Экипировал оружие: ${weapon.name}`)
-  bot.equip(weapon, 'hand')
+  console.log(`🗡️ Экипировал оружие: ${meleeWeapon.name}`)
+  bot.equip(meleeWeapon, 'hand')
 
   console.log(`⚔️ Атакую ${entity.name || entity.displayName}`)
   bot.pvp.attack(entity)
 }
 
 const entryRangedAttacking = async ({ context: { bot, nearestEnemy }, event }) => {
+  console.log('⚔️ Вход в состояние RANGED_ATTACKING')
   const { entity = null } = nearestEnemy
 
   if (!entity || !entity?.isValid) {
@@ -65,36 +65,13 @@ const entryRangedAttacking = async ({ context: { bot, nearestEnemy }, event }) =
 
   console.log(`🏹 Начинаю дальний бой с ${entity.name || entity.displayName}`)
 
-  // 1. Ищем лук/арбалет
-  const rangedWeapon = bot.inventory.items().find(item =>
-    item.name.includes('bow') || item.name.includes('crossbow')
-  )
+  const weapon = bot.utils.getRangeWeapon() // поиск оружия лук/арбалет
+  const arrows = bot.utils.getArrow()
 
-  if (rangedWeapon) {
-    bot.equip(rangedWeapon, 'hand')
-    console.log(`🏹 Экипировал: ${rangedWeapon.name}`)
-
-    try {
-      await bot.lookAt(entity.position, true) // Прицеливаемся
-      bot.activateItem() // Начинаем натягивать тетиву
-
-      // Время натяжения (для лука ~1000ms, для арбалета зависит от чаров)
-      const chargeTime = rangedWeapon.name.includes('crossbow') ? 1250 : 1000
-      await new Promise(resolve => setTimeout(resolve, chargeTime))
-
-      bot.deactivateItem() // Отпускаем = выстрел!
-      console.log('🏹 Выстрелил!')
-    } catch (error) {
-      console.log(`🏹 Ошибка стрельбы: ${error.message}`)
-    }
-  } else {
-    console.log('🏹 Нет дальнобойного оружия, переключаюсь на ближний бой')
-
-    const weapon = bot.utils.searchWeapons()
-    if (weapon) {
-      bot.equip(weapon, 'hand')
-      bot.pvp.attack(entity)
-    }
+  if (weapon && arrows) {
+    bot.equip(weapon, 'hand')
+    console.log(`🏹 Экипировал: ${weapon.name}`)
+    bot.utils.shoot({ entity, weapon })
   }
 }
 

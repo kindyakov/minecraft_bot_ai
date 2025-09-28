@@ -12,7 +12,7 @@ const exitMeleeAttack = ({ context: { bot }, event }) => {
 const exitRangedAttacking = ({ context: { bot }, event }) => {
   console.log('🏹 Завершаю дальний бой')
 
-  bot.pvp.stop()
+  bot.utils.stopShoot()
   bot.pathfinder.setGoal(null)
 }
 

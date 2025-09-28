@@ -18,9 +18,16 @@ const isLowLealth = and([
 
 const isSurrounded = ({ context, event }) => false
 
-const isEnemyFar = ({ context: { nearestEnemy }, event }) => {
-  return nearestEnemy && nearestEnemy.distance > 4
-}
+const isEnemyFar = and([
+  ({ context }) => {
+    const rangedWeapon = context.bot.utils.getRangeWeapon() // поиск оружия лук/арбалет
+    const arrows = context.bot.utils.getArrow()
+    return rangedWeapon && arrows
+  },
+  ({ context: { nearestEnemy }, event }) => {
+    return nearestEnemy && nearestEnemy.distance > 4
+  }
+])
 
 const isEnemyClose = ({ context: { nearestEnemy }, event }) => {
   return nearestEnemy && nearestEnemy.distance <= 4

@@ -6,7 +6,7 @@ import { actors } from './actors/index.actors.js';
 
 export const machine = createMachine(
   {
-    /** @xstate-layout N4IgpgJg5mDOIC5QFkCSA5AogYQEoEEAxAFQH0AhAeWIGIBlTMq4gbQAYBdRUABwHtYASwAugvgDtuIAB6IAtAEYArABYA7ADoAbAGYdATjYAmABxsDOo0YA0IAJ6JdSjUYVGdKvSaVb1RgL7+tmhYeERM1DQAqgAKACL4xJikMZR0qMSolOgU1OxcSCD8QqISUg4IcioK+hps9Wxu+spKSq46trIICio+GipabPrVJkZKajomaoHBGDgEJLnEGsj4GKT42JkAahkAmhoxmJuYhFEAMisYGADiNDHn+HuYuKR0xJQx+VLFImKShS6Xg0Si8oLYKlMOjUE1sFSMwxcbFG+laCLMyK0MxAIXm4SWKzWOU2O32h2O2FOFw05CiqHOcVu90ez1e70+30Kv1KANAXTUqn6g30gxq3i0WgUcMQChMOg00JUw30ApVakGWKCOLmYUWzEJ6xJqF2xAORxOZ0udHOmEwMSZDyeLzeHy+nB+Aj+ZUBiCUcqFkpUAzY43MUvsiCMWlq3mUOmMVhVk2xuN1EWWq0NW2NZPNlMtGkI+FwITujtZLo57q5np5Un5goUallKq0Ux0PRsEcqahMCoFIaMvcaCgUvhTOoW6YNxOzJrNFKpl0IlHO50oAHUHSzney3QVeLX-vXEJMVBpe2f9GMVENkUppQhXAo6kp9N4lBDhlp1QoJ6EpwJTNZ1JU1yQtak6AACUwc4klwbcnTZV1OUPEpjx9BA1AhC8JiDJUDBhNQVEfPRNCUWUakaSFWmjf88T1agZw2OcySiXAbkwdAyCwTA4joDRMGQF5OPQbA9lIY5MnQO4V0oOI3mOXBsCg1CiiPb0+XkPRnBhDxfHqJsrGIx85DYDRmglLQ3zHBR42w5MtVTQD9WAljQIOdjRJ421+ME4SOK48TJMSJk1O5DCtMqHSNBMNw2ms8wjE8LsKkUAZtCstRDF0Vx3BUei0yAol3JzMCvK4ny+IEoSRKCiSYPwc4mTkhSGGLFTwo03kZG06MNAUNgfxVbxby0ZLH2bAarJ8Kj8N7QqXKYtyjXnDQKu40heL82rArEhrjmamSaC69DNN66KJlilQTHfVpJmszxHzs899Det6alHIw2BhRb8VckrVrJbBKGQchEmieJEmSEGwcSUgQe4zAAA1WGrNCvR6rpFGRR9br7ZE9H0iZZR0P7GIzQHWLA2HwdoU7MZPboRUyiURimCV4wfbtBqHOoGl8CjVF8AqnMnf7lqpjyNFpiGWAUA91LOrH5EG5waiHIaDHw3o1Ge4xNAaIbemUAYg3J6cVupg5ZfpoxFYi87sdNizR16XRhnw8Z9dGBUibsz2g1BC3iqzaXbY0OIcFQRljoZutMLkHRxm0Iy4z9W6Jp5obnFuywx1GQmTBDgGw7Km3QbpyPo9ju55Yd7qmbkN9nB+8xbwhRpm1SmUc9i-R87bb65WLsWAIlymy7WiOo+wGOwvtj1labv1ambKYYVULu3Gelo-cscZP2-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-AgA */
+    /** @xstate-layout N4IgpgJg5mDOIC5QFkCSA5AogYQEoEEAxAFQH0AhAeWIGIBlTMq4gbQAYBdRUABwHtYASwAugvgDtuIAB6IAtAEYArABYA7ADoAbAGYdATjYAmABxsDOo0YA0IAJ6JdSjUYVGdKvSaVb1RgL7+tmhYeERM1DQAqgAKACL4xJikMZR0qMSolOjsXEgg-EKiElKyCGy2DuWBwRg4BCQUkbEJSaR0iVEEmdm5UoUiYpL5ZRX2iGw1ICH14U3EGsj4GKT42JkAahkAmhoxmGuYhFEAMosYGADiNDEn+NuYuO3ElDF9+QPFw6BlXhpKXgBbBUph0ajUOkqiCM+hULjYJhhSiUMLMCK0UxmYUazEWy3Qq3WqC2xF2+0OxzO5CiqBOcSuNzuDyedBeb04-QEgxKI0QalUGhUWjY+mFCn03i0WgUUIQChMOg0YJUsP0-LVamFGKC0zq2IiCyWKzWmx2ewO2COpw0dBOmEwMQZt3uj2er3evC5X1KiCUCsFUoUKiFbCUanMMvGCCMWn0Gm8yh0xisap0JkxeoaBrxxqJJLJFqtZ0I+FwIWuzuZbvZeU9RSGPoQ-LhCjU8rVWhMEKDNijcjUJiV-NDRgHbAUE98GdCWfmOYJJuJZvJlspGkIlBOJ0oAHUnUzXaz3RyPl6G7yEGm4QOr-ojKoRQilLLXAoNKGJcjgbCtJqFNPZhxah50JU1SXNClrToAAJTATiSXB9xdFk2Q9Aozx5H4+WBDRwQ8YN9AMcE1BUWU9E0JR5XFccQWRWMAP1OcjQXPMzS6S5MHQMgsEwOI6A0TBkEeDj0GwbZSAOTJ0GuDdKDidoDlwbBoLQz5zywhA5D0Zw8KFFQ2HHNQrBI2U5DYDR9AUKUtCUSzpSTcM0wY2dcWY0Cl3A9jOO4+0+IEoTcBEsSJMSBlVIw74ZHkbT4zcFEbPMIxPF7KpFCFbRrLUQxdFcdwVGcuZXPxdz8w0LyuNIHi-ME4TOOC2D8BOBlZPkhhS2U8L60wqLNJ0WMNAUNhfzVbx9K0JLZTbAbrJ8ajg3UdMdSxFzgLcxdSvKnzeP4mrArq8SGqa6SaE67lIrKLSIXjFQTE-AETBszxZQUDwLP0d7LMstw2HBAqgMNYr1rNbBKGQchEmieJEmSEGwcSUgQa4zAAA1WBPOszsbRQEVlW7BwRPQPF-HR5R0P7szW1jwNh8HaFO70L3FLQMqlFR5S7KUk2fKNBtHd8DKGlRKNUXx8qWzNCtWwGqd2GmIZYBRa3QrrzvkQbnHFUchoMeahbUZ7jE0AXBeFvSxdqGdJYB3MwNl0HaZOowlbU7qLuUOEvqF3RYXmsMDcRJVCZen3gwBcmmOl22NDlw04PtVZiGINYAGkwvR5XMYvOQYRbHRbPlXx9GRVRntMZwk3e1xOZ+lVw6Km2PLtuGFgIaTeITpPsFT476fUnq5E8RV+QHfS85MW6Jp5vRzIru8rN0Gv9DrqWG9KmONDiHBUHpHv05d1XerDbRW1cAE-Qn0ieaG5xbssKzEQJxaLcAinI8b6P7cSDet5364FediKWNbLOB+uYfSwJDJuANjZeMhEq4PwVE-XUlt-ogSBtTT+CxN7YG3mFJ2nIVZANurheUxEHytigTzZQ5c9D3mHD+WEy9rYsSjuvbBuCe46AAYQrO+kjADRMKQpMYpYz6FLnoJUIo57VxIkvcWKDX6rzNEnOgyc6AnT3oAi84CLJWBRH1FEJhgx52et4fhmUfoQjTII82yCX4RyUeBFRajv6pHSGQDIgl1GeOQHQUgm83GeLiL3V2iAQRvlZsmcaQZLAlx5pZTQhMPDhjGp4JhaCZYaGcfxXADplhPFLMgSgTwXibnUbkmI+SEag1uIwTAISD6jkVL+FJOUVRmJfAZcx1lBECzbB4dJlMo7ZPXJQOSCl8A4GgjQDcUR0DyRag0xsSgDLxjMFZLKMIRQkX1vE6ULgVSiiLjXIxgzsgZGKVcDQh1iDQVIEU9AFzcCQ1aMkG5KlNE8I0ooEW8ISb3g8ACTWpl7y4RJgqGyE5RS321M-RirlzkvEQtJa5Bx4J3IeU8jR3DM7fPeszY2BlAUk0srKFEgdCbvWSoIousK7HwtWoiy5KLoJzI4k8TFSKXnQ1IIsz5uL+6JnxoS4lwK+yuGvOCgxULOyMPkfYhFjykVXNZW3DlTLnlLKzvi-mxtRWkr7C9AlAs3CWWLq4M5SrmWXAElxDIqBMB+M5cU7lbRvL2sdVq751DzITjbF2IxQK7zPXDAIm6KzxR3m-Jap5Vz3WZEdfcjVNBclFI2MkeN2wvWCtUM4bK94wFBpStCca74qLqE1K4PqAR5UMsNBquNdqE1OuTdmi6RdrwRncBCAcpMXz9SSZYaUxj3AxuVSi5S8NnXPIALaCHEGANtExZRs0HNZddG61BjutdHaCU7k0ADM+AABtj18AAO5Ls0i2XwQ17wvnShup9Uo5FwpWvWq1yKbWTrINOmgsBj1gDADwK9igLJgm5lUPqcZB2wb0Nur9u792fv-QACzAMe4QYAABOoHNA5UEfeqMQphWErI3S5aVtFgNonXu39h6ACG2GZ1XsjFUcUcJn1PtffS991HP1XJ-UmlDAAjAAroIY9EBQPmVcF2Q5H1FO+Eg4gByYaHp5x8A5KygQdTiD4BAOAUhKP-QIQKt2vhmZ+tIYGklxbr3il1eOGE1CUQvUGW-fMZmGbfMEYqBUegVTyk8IRNj0USb-BNS5817na18aGe-FcRZvN9zKC9TQocSb32HockFYIXAkyyqKGE4JRweccQWSCZxt52hS6EhAYZONDU1HeYURjNQPvUxYUUyIBzjXKywxLhY1whCuHVxpSUBpQvBK2Ay5qV3ynU2ze8RgDLClsSZxRg3SpJbXNSWkv9xuNjVHGTL986Fpi0M9fS8ZhaDXW0CIyA2SrLmG1BO0Doxuni+T1VQmgrJBh8JqBE6grvEYi8FoxcVVtDWBM99BlXVzWhLGWL7GMfM9RO2WnwMIK7OZMKZdWBXWz4pK0ZTs8PMm7eR5ubce5pJHcZt4QUQssudhy+9MiET7LvQnElHtZM4tUYSztt7ZwYJwQQmjjOGOyhmH4eoF6WmYw+E7CuiHRiocrbW3DoXqCRevaqxoVDghYDCEZxpVbg5SErIMkZREWnTLEOHM578IYLV662y9zye0KpVToBb-usiKV9XMMXBUILgxOdNa5j3b7heebYr7ra1UApBXEpJaX+8sbhjfEk4Umm-SQkNW4aP0XkRx94wnirZVk+VV8jtNP+1SCHSz1o75ueQ8F-D8Xqo-UFNdhB8GLKlPWGYMDxdTUN9CZBaMRYMLCBiaSIlGqVsUrR-v3XoQD7befsXTTDpCMN084GHMGDqolkZ4ilum2bsCoN9r0wYsOOyREid27pcCfatkQDTzpZB6KoxcaYpcVk8YtCYYKyDCG2Es+uieGCzc38hAnEh2325m8gsYzMhgfU0onYIWJMsol+y+N+a+pMD+wMT+rcHE8kb+Kcu+aBmkt+YBgW-+eBC+bgoBAWdCkBQocq8esBNebCP8dBsu0UWUFkrOo858d4l87G7B2gyUqgtC+k6gZBTi+AqiAeqBIhmksYcIiIiIZcFeJiUYrg44LgdkEoMIxWNafBXuCOWS6hLiASaQGQpAPimh6OqW6BQs2gHaVk44E4REL47gioLmsYiIpONhVe-B22yijhOSeSqABSZYxSpApSJwHhMuXhOh6U+hVg3gRhKm0YYI5kqgs2xgdEpgqhuwIyLUEyUyX+OhBgb0KYP0t0PYBOJhKoehsiERtk48YI1Rxupu5uWh2RYYcYim70Q0worgYiU8U0ZRRkwc1CbMCGwh2RPyEoU2-qI8RapkSYioc2o4+kMqt00BCiTENGNq7ywmTyjRigpg-CBaQ0sILW-I5+asg458wC+kgiihFGMBFM1x1ybKro06DxbgRiJC48HG7xPgIKygkWKIJEAR0KvB0RwJAmKK8aDqLan6kJoILgtuuh8Jnx0YCIByiuxg0S1aFxCqjK2J36dGdxSKhJ-IBWusoOaoCJUY+ESopgP0Vg0GVkQoum-gQAA */
     id: 'MINECRAFT_BOT',
     type: "parallel",
     predictableActionArguments: true,
@@ -242,43 +242,51 @@ export const machine = createMachine(
                 "actions": ["updateCombatContext"]
               }
             },
-            "invoke": {
-              "id": "combatMonitor",
-              "src": "serviceCombatMonitoring"
+            invoke: {
+              id: "combatMonitor",
+              src: "serviceCombatMonitoring"
             },
-            "states": {
-              "FLEEING": {
-                "entry": {
-                  "type": "entryFleeing"
+            states: {
+              FLEEING: {
+                entry: {
+                  type: "entryFleeing"
                 },
                 exit: {
                   type: "exitFleeing"
                 }
               },
-              "MELEE_ATTACKING": {
-                "description": "Ближний бой",
-                "entry": {
-                  "type": "entryMeleeAttacking"
+              MELEE_ATTACKING: {
+                description: "Ближний бой",
+                entry: {
+                  type: "entryMeleeAttacking"
                 },
                 exit: {
                   type: "exitMeleeAttack"
+                },
+                always: {
+                  target: "RANGED_ATTACKING",
+                  guard: "isEnemyFar"
                 }
               },
-              "DEFENDING": {
-                "entry": {
-                  "type": "entryDefenging"
+              DEFENDING: {
+                entry: {
+                  type: "entryDefenging"
                 },
                 exit: {
                   type: "exitDefenging"
                 }
               },
-              "RANGED_ATTACKING": {
-                "description": "Дальний бой",
-                "entry": {
-                  "type": "entryRangedAttacking"
+              RANGED_ATTACKING: {
+                description: "Дальний бой",
+                entry: {
+                  type: "entryRangedAttacking"
                 },
                 exit: {
                   type: "exitRangedAttacking"
+                },
+                always: {
+                  target: "MELEE_ATTACKING",
+                  guard: "isEnemyClose"
                 }
               },
               DECIDING: {

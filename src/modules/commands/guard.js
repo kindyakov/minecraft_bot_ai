@@ -23,7 +23,7 @@ class Guard extends BaseCommand {
       this.stop(bot)
     }
 
-    const weapon = bot.utils.searchWeapons(bot) // поиск оружия меч/топор
+    const weapon = bot.utils.getMeleeWeapon(bot) // поиск оружия меч/топор
     if (weapon) {
       bot.equip(weapon, 'hand')
     }

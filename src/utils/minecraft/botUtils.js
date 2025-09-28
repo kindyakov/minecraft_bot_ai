@@ -2,7 +2,10 @@ export class BotUtils {
   constructor(bot) {
     this._bot = bot // приватная переменная
     this.lastMovingAt = Date.now()
-    this._eatingTimeoutId = null
+    this._eatingTimeoutId = null // таймер для кушания
+
+    this._shootTimeoutId = null // таймер для стрельбы
+    this._shootAbortController = new AbortController()
   }
 
   /**
@@ -150,7 +153,7 @@ export class BotUtils {
  * Поиск оружия в инвентаре
  * @returns {Object|null} оружие или null
  */
-  searchWeapons() {
+  getMeleeWeapon() {
     const weaponItems = [
       'netherite_sword', // незеритовый меч
       'netherite_axe',   // незеритовый топор
@@ -175,6 +178,16 @@ export class BotUtils {
     }
 
     return weapon
+  }
+
+  getRangeWeapon() {
+    return this._bot.inventory.items().find(item =>
+      item.name.includes('bow') || item.name.includes('crossbow')
+    )
+  }
+
+  getArrow() {
+    return this._bot.inventory.items().find(item => item.name.includes('arrow'))
   }
 
   searchPlayer(playerName = '') {
@@ -252,6 +265,37 @@ export class BotUtils {
     if (this._eatingTimeoutId) {
       clearTimeout(this._eatingTimeoutId)
       this._eatingTimeoutId = null
+    }
+  }
+
+  async shoot({ entity, weapon }) {
+    this.stopShoot()
+
+    try {
+      if (this._shootAbortController.signal.aborted) return
+
+      await this._bot.lookAt(entity.position, true) // Прицеливаемся
+      this._bot.activateItem() // Начинаем натягивать тетиву
+
+      // Время натяжения (для лука ~1000ms, для арбалета зависит от чаров)
+      const chargeTime = weapon.name.includes('crossbow') ? 1250 : 1000
+      await new Promise(resolve => setTimeout(resolve, chargeTime))
+
+      this._bot.deactivateItem() // Отпускаем = выстрел!
+      console.log('🏹 Выстрелил!')
+
+      this._shootTimeoutId = setTimeout(() => this.shoot({ entity, weapon }), 500)
+    } catch (error) {
+      console.log(`🏹 Ошибка стрельбы: ${error.message}`)
+    }
+  }
+
+  stopShoot() {
+    this._shootAbortController.abort()
+    this._shootAbortController = new AbortController()
+    if (this._shootTimeoutId) {
+      clearTimeout(this._shootTimeoutId)
+      this._shootTimeoutId = null
     }
   }
 }
