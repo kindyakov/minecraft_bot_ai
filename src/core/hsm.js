@@ -2,7 +2,7 @@ import EventEmitter from 'node:events';
 import { createActor } from 'xstate';
 import { createBrowserInspector } from '@statelyai/inspect';
 import { machine } from '../hsm/machine.js';
-import { isEntityOfType } from '../hsm/utils/isEnemyEntity.js';
+import { isEntityOfType } from '../hsm/utils/isEntityOfType.js';
 
 class BotStateMachine extends EventEmitter {
   constructor(bot) {
@@ -109,12 +109,13 @@ class BotStateMachine extends EventEmitter {
       })
     })
 
-    this.bot.on('entityDead', (entity) => {
-      this.actor.send({
-        type: 'REMOVE_ENTITY',
-        entity
-      })
-    })
+    // Срабатывает при получении урона
+    // this.bot.on('entityDead', (entity) => {
+    //   this.actor.send({
+    //     type: 'REMOVE_ENTITY',
+    //     entity
+    //   })
+    // })
 
     // Выпал предмет
     this.bot.on('itemDrop', (entity) => {

@@ -1,9 +1,9 @@
 import { and, not, stateIn } from "xstate"
 
 const noEnemiesNearby = ({ context }) => {
-  if (!context.position || !context.enemies.length) return true
+  if (!context.enemies.length) return true
 
-  return !context.enemies.some(enemy =>
+  return !context.enemies?.some(enemy =>
     enemy.position &&
     enemy.position.distanceTo(context.position) <= context.preferences.maxDistToEnemy
   )

@@ -1,5 +1,5 @@
 import { assign } from 'xstate';
-import { isEntityOfType } from "../../utils/isEnemyEntity.js"
+import { isEntityOfType } from "../../utils/isEntityOfType.js"
 
 const updateHealth = assign({
   health: ({ context, event }) => event.health
@@ -32,7 +32,7 @@ const removeEntity = assign(({ context, event: { entity } }) => {
   const key = isEntityOfType(entity) ? 'enemies' : 'entities'
 
   return {
-    [key]: context[key].filter(mob => mob.id !== entity.id)
+    [key]: [...context[key].filter(mob => mob.id !== entity.id)]
   }
 })
 

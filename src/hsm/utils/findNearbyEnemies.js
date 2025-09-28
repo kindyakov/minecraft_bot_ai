@@ -1,7 +1,7 @@
 // Находим ближайшего врага
 export function findNearbyEnemies({ enemies, preferences, position }) {
   return enemies
-    .filter(enemy => enemy.position.distanceTo(position) <= preferences.maxDistToEnemy) // фильтруем врагов по максимальной дистанции бота
+    .filter(enemy => enemy.position && enemy.position.distanceTo(position) <= preferences.maxDistToEnemy) // фильтруем врагов по максимальной дистанции бота
     .reduce((closest, enemy) => {
       if (!closest) return enemy
 
