@@ -55,7 +55,7 @@ const entryMeleeAttacking = ({ context: { bot, nearestEnemy }, event }) => {
   bot.pvp.attack(entity)
 }
 
-const entryRangedAttacking = ({ context: { bot, nearestEnemy }, event }) => {
+const entryRangedAttacking = async ({ context: { bot, nearestEnemy }, event }) => {
   const { entity = null } = nearestEnemy
 
   if (!entity || !entity?.isValid) {
@@ -73,17 +73,29 @@ const entryRangedAttacking = ({ context: { bot, nearestEnemy }, event }) => {
   if (rangedWeapon) {
     bot.equip(rangedWeapon, 'hand')
     console.log(`🏹 Экипировал: ${rangedWeapon.name}`)
+
+    try {
+      await bot.lookAt(entity.position, true) // Прицеливаемся
+      bot.activateItem() // Начинаем натягивать тетиву
+
+      // Время натяжения (для лука ~1000ms, для арбалета зависит от чаров)
+      const chargeTime = rangedWeapon.name.includes('crossbow') ? 1250 : 1000
+      await new Promise(resolve => setTimeout(resolve, chargeTime))
+
+      bot.deactivateItem() // Отпускаем = выстрел!
+      console.log('🏹 Выстрелил!')
+    } catch (error) {
+      console.log(`🏹 Ошибка стрельбы: ${error.message}`)
+    }
   } else {
     console.log('🏹 Нет дальнобойного оружия, переключаюсь на ближний бой')
-    // Отправляем событие для смены состояния
-    // Или используем fallback к мечу
+
     const weapon = bot.utils.searchWeapons()
     if (weapon) {
       bot.equip(weapon, 'hand')
+      bot.pvp.attack(entity)
     }
   }
-
-  bot.pvp.attack(entity)
 }
 
 export default {

@@ -16,9 +16,12 @@ export const machine = createMachine(
       SET_BOT: {
         actions: [{ type: "setBot" }]
       },
-      UPDATE_POSITION_BOT: {
+      UPDATE_POSITION: {
         actions: [{ type: "updatePosition" }]
       },
+      UPDATE_SATURATION: {
+        actions: [{ type: "updateFoodSaturation" }]
+      }
     },
     "states": {
       "MAIN_ACTIVITY": {
@@ -178,6 +181,9 @@ export const machine = createMachine(
                 "entry": {
                   "type": "entryEmergencyEating"
                 },
+                exit: {
+                  type: 'exitEmergencyEating'
+                },
                 "always": {
                   "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.PEACEFUL.hist",
                   "guard": "isFoodRestored",
@@ -196,6 +202,9 @@ export const machine = createMachine(
               "EMERGENCY_HEALING": {
                 "entry": {
                   "type": "entryEmergencyHealing"
+                },
+                exit: {
+                  type: 'exitEmergencyHealing'
                 },
                 "always": {
                   "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.hist",
@@ -225,7 +234,7 @@ export const machine = createMachine(
             },
             "always": [
               { "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.hist", "guard": "noEnemiesNearby" },
-              { "target": ".FLEEING", "guard": "isFleeing" },
+              { "target": ".FLEEING", "guard": "isLowLealth" },
               { "target": ".DECIDING", "guard": "hasContextCombatChanged" }
             ],
             "on": {

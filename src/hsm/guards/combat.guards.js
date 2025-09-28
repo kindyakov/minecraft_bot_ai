@@ -9,12 +9,7 @@ const noEnemiesNearby = ({ context }) => {
   )
 }
 
-const isFleeing = and([
-  not(stateIn({ MAIN_ACTIVITY: { COMBAT: 'FLEEING' } })),
-  ({ context, event }) => context.health <= 8
-])
-
-const hasContextCombatChanged = ({ context, event }) => context.combatContextChanged
+const hasContextCombatChanged = ({ context, event }) => context.combatContextChanged && context.health > 8
 
 const isLowLealth = and([
   not(stateIn({ MAIN_ACTIVITY: { COMBAT: 'FLEEING' } })),
@@ -33,7 +28,6 @@ const isEnemyClose = ({ context: { nearestEnemy }, event }) => {
 
 export default {
   noEnemiesNearby,
-  isFleeing,
   isLowLealth,
   hasContextCombatChanged,
   isSurrounded,

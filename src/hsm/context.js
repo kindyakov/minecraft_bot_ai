@@ -4,6 +4,7 @@ export const context = {
   health: 20,
   food: 20,
   oxygen: 20,
+  foodSaturation: 5,
 
   // Окружение
   weather: null,

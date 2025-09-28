@@ -2,6 +2,7 @@ export class BotUtils {
   constructor(bot) {
     this._bot = bot // приватная переменная
     this.lastMovingAt = Date.now()
+    this._eatingTimeoutId = null
   }
 
   /**
@@ -197,5 +198,60 @@ export class BotUtils {
     return this.getAllItems()
       .filter(item => this._bot.autoEat.foodsByName[item.name])
       .filter(item => !this._bot.autoEat.opts.bannedFood.includes(item.name))
+  }
+
+  // Для еды
+  async eating() {
+    if (!this._bot || this._bot?.health === 20) {
+      this.stopEating()
+      return
+    }
+
+    try {
+      if (this._bot.food >= 20) {
+        console.log('Голод полный, жду регенерации здоровья...')
+        this.stopEating() // Очищаем предыдущий
+        this._eatingTimeoutId = setTimeout(() => {
+          this.eating()
+        }, 1500)
+        return
+      }
+
+      console.log('Ищу еду в инвентаре...')
+
+      const allItems = this._bot.utils.getAllItems()
+      const foodChoices = this._bot.autoEat.findBestChoices(allItems, 'saturation')
+
+      if (!foodChoices.length) {
+        this._bot.chat('Нет еды в инвентаре критическая ситуация!')
+        return
+      }
+
+      const bestFood = foodChoices[0]
+      console.log(`Выбрал еду: ${bestFood.name}`)
+
+      await this._bot.equip(bestFood, 'hand')
+
+      console.log('Начинаю есть...')
+      await this._bot.consume()
+
+      console.log(`Поел! HP: ${this._bot.health.toFixed(1)}, Food: ${this._bot.food}, Saturation: ${this._bot.foodSaturation.toFixed(1)}`)
+
+      if (this._bot.health < 20) {
+        this.stopEating()
+        this._eatingTimeoutId = setTimeout(() => {
+          this.eating()
+        }, 1500)
+      }
+    } catch (error) {
+      console.log(`Ошибка при еде: ${error.message}`)
+    }
+  }
+
+  stopEating() {
+    if (this._eatingTimeoutId) {
+      clearTimeout(this._eatingTimeoutId)
+      this._eatingTimeoutId = null
+    }
   }
 }

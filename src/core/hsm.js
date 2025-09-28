@@ -48,7 +48,7 @@ class BotStateMachine extends EventEmitter {
   setupBotEvents() {
     // Обновление здоровья
     this.bot.on('health', () => {
-      console.log("Здоровье:", this.bot.health.toFixed(0))
+      console.log("Здоровье:", this.bot.health.toFixed(1))
       this.actor.send({
         type: 'UPDATE_HEALTH',
         health: this.bot.health
@@ -74,8 +74,13 @@ class BotStateMachine extends EventEmitter {
 
     this.bot.on('move', () => {
       this.actor.send({
-        type: 'UPDATE_POSITION_BOT',
+        type: 'UPDATE_POSITION',
         position: this.bot.entity.position
+      })
+
+      this.actor.send({
+        type: 'UPDATE_SATURATION',
+        foodSaturation: this.bot.foodSaturation
       })
     })
 
