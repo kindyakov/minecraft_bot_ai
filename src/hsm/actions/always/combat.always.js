@@ -3,10 +3,12 @@ import { assign, raise } from "xstate"
 const analyzeCombat = ({ context }) => {
   const { health, previousCombatState, preferences, nearestEnemy } = context
 
-  if (!nearestEnemy || nearestEnemy?.distance > preferences.maxDistToEnemy) {
+  if (!nearestEnemy.entity || nearestEnemy.distance > preferences.maxDistToEnemy) {
     raise({ type: 'NO_ENEMIES' })
-    return {}
+    return
   }
+
+  if (!previousCombatState.enemyId) return
 
   // Определяем тип изменения
   const changes = {
@@ -19,7 +21,7 @@ const analyzeCombat = ({ context }) => {
 
   // Отправляем специфичные события
   if (changes.targetChanged) {
-    raise({ type: 'TARGET_CHANGED', })
+    raise({ type: 'TARGET_CHANGED', distance: nearestEnemy.distance })
   } else if (changes.becameFar) {
     raise({ type: 'ENEMY_BECAME_FAR' })
   } else if (changes.becameClose) {
@@ -32,13 +34,13 @@ const analyzeCombat = ({ context }) => {
     raise({ type: 'HEALTH_RESTORED' })
   }
 
-  assign({
+  assign(() => ({
     previousCombatState: {
       enemyId: nearestEnemy.entity.id,
       distance: nearestEnemy.distance,
       health
     }
-  })
+  }))
 }
 
 export default {

@@ -244,6 +244,7 @@ export const machine = createMachine(
             },
             states: {
               DECIDING: {
+                entry: { type: 'entryDeciding' },
                 always: [
                   { target: "FLEEING", guard: "isLowHealth" },
                   { target: "DEFENDING", guard: "isSurrounded" },

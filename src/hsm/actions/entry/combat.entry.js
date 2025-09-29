@@ -1,6 +1,6 @@
 import { assign } from "xstate"
 
-const entryCombat = assign(({ context: { bot } }) => {
+const entryCombat = ({ context: { bot } }) => {
   console.log('⚔️ Вход в состояние COMBAT')
 
   bot.armorManager.equipAll() // Бот при наличии брони в инвенторе наденет её
@@ -8,18 +8,11 @@ const entryCombat = assign(({ context: { bot } }) => {
   if (bot.movements) {
     bot.movements.allowSprinting = true // Разрешаем боту бежать        
   }
+}
 
-  return {
-    combatContextChanged: false,
-  }
-})
-
-const entryDeciding = assign(({ context }) => {
+const entryDeciding = ({ context }) => {
   console.log('⚔️ Вход в состояние DECIDING')
-  return {
-    combatContextChanged: false
-  }
-})
+}
 
 const entryFleeing = ({ context, event }) => {
   console.log('⚔️ Вход в состояние FLEEING')
@@ -31,7 +24,7 @@ const entryDefenging = ({ context, event }) => {
 
 const entryMeleeAttacking = ({ context: { bot, nearestEnemy }, event }) => {
   console.log('⚔️ Вход в состояние MELEE_ATTACKING')
-  const { entity = null } = nearestEnemy
+  const { entity } = nearestEnemy
 
   if (!entity || !entity?.isValid) {
     console.log('⚔️ Нет валидного врага для атаки')
@@ -53,7 +46,7 @@ const entryMeleeAttacking = ({ context: { bot, nearestEnemy }, event }) => {
 
 const entryRangedAttacking = ({ context: { bot, nearestEnemy }, event }) => {
   console.log('⚔️ Вход в состояние RANGED_ATTACKING')
-  const { entity = null } = nearestEnemy
+  const { entity } = nearestEnemy
 
   if (!entity || !entity?.isValid) {
     console.log('🏹 Нет валидного врага для стрельбы')

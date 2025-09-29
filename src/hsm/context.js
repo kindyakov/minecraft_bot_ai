@@ -45,5 +45,13 @@ export const context = {
     combatMode: 'defensive'
   },
 
-  nearestEnemy: null,
+  nearestEnemy: {
+    entity: null,
+    distance: 0,
+  },
+  previousCombatState: {
+    enemyId: null,
+    distance: null,
+    health: 20
+  }
 }

@@ -1,6 +1,15 @@
-const exitCombat = ({ context }) => {
+import { assign } from "xstate"
+
+const exitCombat = assign(({ context }) => {
   console.log('⚔️ Выход из COMBAT')
-}
+  return {
+    previousCombatState: {
+      enemyId: null,
+      distance: null,
+      health: context.health
+    }
+  }
+})
 
 const exitMeleeAttack = ({ context: { bot }, event }) => {
   console.log('🏹 Выход из состояния MELEE_ATTACKING')
