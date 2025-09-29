@@ -2,7 +2,6 @@ import EventEmitter from 'node:events';
 import { createActor } from 'xstate';
 import { createBrowserInspector } from '@statelyai/inspect';
 import { machine } from '../hsm/machine.js';
-import { isEntityOfType } from '../hsm/utils/isEntityOfType.js';
 
 class BotStateMachine extends EventEmitter {
   constructor(bot) {

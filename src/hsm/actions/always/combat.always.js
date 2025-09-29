@@ -1,33 +1,25 @@
 import { assign, raise } from "xstate"
-import { findNearbyEnemies } from "../../utils/findNearbyEnemies.js"
 
 const analyzeCombat = ({ context }) => {
-  const { health, position, previousCombatState } = context
-  const currentEnemy = findNearbyEnemies(context)
+  const { health, previousCombatState, preferences, nearestEnemy } = context
 
-  if (!currentEnemy) {
+  if (!nearestEnemy || nearestEnemy?.distance > preferences.maxDistToEnemy) {
     raise({ type: 'NO_ENEMIES' })
     return {}
   }
 
-  const currentDistance = currentEnemy.position.distanceTo(position)
-
   // Определяем тип изменения
   const changes = {
-    targetChanged: currentEnemy.id !== previousCombatState.enemyId,
-    becameFar: previousCombatState.distance <= 5 && currentDistance > 8,
-    becameClose: previousCombatState.distance > 8 && currentDistance <= 5,
+    targetChanged: nearestEnemy.entity.id !== previousCombatState.enemyId,
+    becameFar: previousCombatState.distance <= 5 && nearestEnemy.distance > 8,
+    becameClose: previousCombatState.distance > 8 && nearestEnemy.distance <= 5,
     healthCritical: previousCombatState.health > 8 && health <= 8,
     healthRestored: previousCombatState.health <= 8 && health > 8
   }
 
   // Отправляем специфичные события
   if (changes.targetChanged) {
-    raise({
-      type: 'TARGET_CHANGED',
-      enemy: currentEnemy,
-      distance: currentDistance
-    })
+    raise({ type: 'TARGET_CHANGED', })
   } else if (changes.becameFar) {
     raise({ type: 'ENEMY_BECAME_FAR' })
   } else if (changes.becameClose) {
@@ -40,11 +32,12 @@ const analyzeCombat = ({ context }) => {
     raise({ type: 'HEALTH_RESTORED' })
   }
 
-  // Всегда обновляем контекст
-  raise({
-    type: 'UPDATE_COMBAT_CONTEXT',
-    enemy: currentEnemy,
-    distance: currentDistance
+  assign({
+    previousCombatState: {
+      enemyId: nearestEnemy.entity.id,
+      distance: nearestEnemy.distance,
+      health
+    }
   })
 }
 

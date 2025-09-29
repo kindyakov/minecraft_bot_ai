@@ -233,9 +233,6 @@ export const machine = createMachine(
                 target: "#MINECRAFT_BOT.MAIN_ACTIVITY.hist",
                 actions: ["clearCombatContext"]
               },
-              UPDATE_COMBAT_CONTEXT: {
-                actions: ["updateCombatContext"]
-              },
               ANALYZE_COMBAT: {
                 actions: ["analyzeCombat"]
               }
@@ -261,9 +258,6 @@ export const machine = createMachine(
                   HEALTH_RESTORED: {
                     target: "DECIDING"
                   },
-                  TARGET_CHANGED: {
-                    actions: ["updateCombatContext"]
-                  }
                 }
               },
               MELEE_ATTACKING: {
@@ -276,14 +270,12 @@ export const machine = createMachine(
                       // Новая цель близко - перезапускаем атаку
                       target: "MELEE_ATTACKING",
                       guard: ({ event }) => event.distance <= 5,
-                      actions: ["updateCombatContext"],
                       reenter: true
                     },
                     {
                       // Новая цель далеко - переключаемся на лук
                       target: "RANGED_ATTACKING",
                       guard: "canUseRanged",
-                      actions: ["updateCombatContext"]
                     }
                   ],
                   ENEMY_BECAME_FAR: {
@@ -304,13 +296,11 @@ export const machine = createMachine(
                       // Новая цель далеко - перезапускаем стрельбу
                       target: "RANGED_ATTACKING",
                       guard: ({ event }) => event.distance > 8,
-                      actions: ["updateCombatContext"],
                       reenter: true
                     },
                     {
                       // Новая цель близко - переключаемся на меч
                       target: "MELEE_ATTACKING",
-                      actions: ["updateCombatContext"]
                     }
                   ],
                   ENEMY_BECAME_CLOSE: {
@@ -432,11 +422,7 @@ export const machine = createMachine(
             "always": {
               "target": "#MINECRAFT_BOT.MAIN_ACTIVITY.COMBAT",
               "guard": "isEnemyNearby",
-              "actions": [
-                {
-                  type: "setTargetOnEnemy",
-                },
-              ],
+              "actions": ["setTargetOnEnemy"],
               "meta": {}
             },
             on: {
