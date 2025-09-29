@@ -6,7 +6,7 @@ import { actors } from './actors/index.actors.js';
 
 export const machine = createMachine(
   {
-    /** @xstate-layout N4IgpgJg5mDOIC5QFkCSA5AogYQEoEEAxAFQH0AhAeWIGIBlTMq4gbQAYBdRUABwHtYASwAugvgDtuIAB6IAtAEYAbMoB0SgMwaAnGwBMADjY6NevQBoQAT0QBWWwHZVehXo0AWLQdtL3DvQC+AZZoWHhETNQ0AKoACgAi+MSYpLGUdKjEqJTo7FxIIPxCohJSsgiKhkqWNgj2Ti5unhrevv5BIRg4BCQUUXGJyaR0SdEEWTl5UkUiYpIF5Yq2bAo1do7Orh5ePn6BwSCh3RF9xKrI+Bik+NhZAGqZAJqqsZg3mITRADLnGBgA4jRYl98I9MLhhsRKLEpgUZiV5qByl5VLYdho2O5DBoHA4NGsEHptO5nGwDET7ESjGSlB1Dl1wr1mOdLuhrrdUA9iM9Xu9Pj9yNFUF94gCgSCwRC6FCYZxpgJZqUFogHEolKp3Eo2NotQptK0lBZrIhXLZVDj3MTtA5bNbVWxaQcjozImcLlcbvcni83tgPt9VHQvphMLExcDQeDIdDYbwFQiynYDBoNWqFO5NWxHMZVsbCUptKpvAo0fozNaWnTnT1XSyPRyuTzff6foR8LhQoCI5Lo7L8nHinNEwgbSSFA4FAZrUoDHj00banIHAZzTas3plysFMp3FWGTXTnW2Z7Od7eX7+apCJQvl9KAB1cMSqPSmNyuHxofKhAtEnL3-aHotjuNqZK2ASLgKKoWb6vYmLEkoqoKHuYQHsy7rHg2Z7NpedAABKYF8yS4E+kZSjKsaFJ+SpIiqmKqLiHgZtoOi4g47gEloTi2JOeorFi9gFihxxMtQR7sl63KqGM-yYOgZBYJg8R0KomDIOCsnoNgjykG8WToIC16UPEwxvLg2B4ZR8JfrRFRaGajGaiBKz+BuHF5nIbCqNoyhqraygKBiDjGAYwkuoeGESaeUkyXJCkhspqnqbgmnabpSRilZ1GIjI8hElBBimnoSjLKYngLvImrqGqiG6JojQeGFaFiZFJ6NtJKVxaQimJWpGlyWlBH4F8YpGSZDDthZWWDjRuV2QWqgKA6DjWt4IGGu5tQTotNU+HxGZ+KFTr7ic6GslF7WxfJ3UJSpfWdVpOlDSNBk0NNio5YsIFmgY7hTt4aIGCVngEgF3naBDPk+a4bC4k1p0tedbXetglDIOQSQxAkSQpKj6NJKQqPyZgAAarDvgOH3DnIG6LUBxhZuOjiFUBoNuCu+gaMsegrMBvjIcdqEI26SNYVJeMY7Q70Jt+bheTV-MGLOaoYuBebbumqLJlzPmaLDlrw6JIv1pJzwS5jLAKP2VEzZ9KreUSM42qD2oc2w7u+DxfPuALnRC0b4nI+LaOS1ewaYJlFM21T340-RDo+A66baPYgMEoBbCG7WrVi2bIdJGHIaZVb8q29T63pzzWcRaLpuqObZyEOHmV6Nb1mzYsctsz51dnSb0V5-jbqESG1zEMQNwANKR232Xl74DEuK0yep5tJpuLYveI-37UN+cI8pEkE-YNPr2W7PZex+4PiLzqM6+Cn9hrwg26FVvxuYXXe-qeHY-H6fgIWCt1LjHWycgCy5lqNuIC79A653rvnM4BADJKT-lPGeICZZgKxE4fwk49qWlXunWc5otBATXAhHugsRLZ1rgPBBQ9VDINkiZI+6Cz4lw-JfMBtgjDeXWknQhT8XYlVIaYRwyxKG+3pP7WhO8UaIKYfgFBrDx7sMAcArhoC5pyAzHoW+aogZCOAgSIGDhYE5zrhPOgk86BvSju3O2CBnIOyAm4EqhgMxc1Bt4fRNVgqMRaIVXc1Dwp90-vQ6xtjVDxFDOkTIpBMhqTsUk5AdBSCxLSBkZI8RpY2TmliKCaoQJmENOmcRz89TjjER4YK61PAWLoe1KJKlcChkuBCdsyBKAQihDeOxbTYgdMJmjYEjBMB5I7ogDcKZEJ1PqpaXxEF3Z+JqoVd2sNAohL9jQmu8ipItKvJQYypl8A4DwjQa80R0AmTGpMpxywvJKxWLVIk2p2IOFBjqKCehLQ6hTvrX6FiciZB6QCVQz1iB4VIN09AoLcBY0GCkSFlkHFz1jiWKqPMNCmg8GiPUFUKhAQYji5MJVtw6inBoR0OywktRBVCEiBkIVvCItC2F8L7EX20YsCG6oNkbLxTinyBJbD6K0BKiG5VCopxpTI3Z6EGVguZXha5skIQcsZYinGpA7lou4ToksLRoICuMNfYVhKaaaznGSnieoZzEmBXCxl4LVUoI1UqhF9zqZ8pNQKoVVSCSKGpX6lY+VU4uCdfC8FcVMioEwOkzVPTtVDFjVkBN3qMVwUWuOScy5zUEtBsFRav1vArAhjzA2oTmpuk9TG+ScaE0ws9TQNp3S7gpDTY8TNYDMVmjqvTANgEILsWgrxPwqoXDUv2LSmt5w63MrTfGxNLae06JTn+HMbg8TLknPiPMxVCwSrISoLxbgo0uuZRZAmSaEUAFtBDiDAGu8obACQ+xXArL9-iL3Kv+PXPCN6W0ADM+AABswN8AAO4vsqjtdarMD1VW-Sh7Qv6mX-uvWQW9NBYBgbAGAHgsGKhQRYs7PM1Kj3HuoxK9D4KsPNudcm2AAALMAYHhBgAAE7EaXOoUwLM1a1E1G7U1Ym5XVmFvOpjGGANAZkzQYDABDLjd7iOQJNMSaqKGFZoerVJ299HAPYZbQAIwAK6CDAxAXjXkl7sUho5vl19OKwxLX9TQgkgrKCCAccQfAIBwCkJJo2mD8mLB3OqbcE5Zy-XxcOjyPtCwCtcD5CNgVGn7MeGFqZFQVpOGPVqLm9hkxBq0FBR5Ya0uUgy-pgOlj6HnhbDlpxgUnAZnxcoWcjg-lBu3c4HFK0dRElxBuTLET2pNcvKgeIwYWvDh6+oZaBZipkj8NUJD7nkwsR1PUIGM75V0o-hdbCfIAyhABPN2Wvyc16lxOOd2Eb32Ti2z7NxHtMTjZO1JKbAZBTClFAZK7tlrSFg6zimc5CWgbagSBIsXslpanNbDA7IW5ETdOxeAMQYQxhiB1orBc1gJOACtfRCWpfqqnfTi17RUPvbMO3Ohrk2cIBjbB2S7BPwuIFB2OnwRIMS6FcAYINS0zRuHHHykb-gZxfaDk2M7rYbx3kfPjymhPyj4I1AWrrNoHPaE4kUlQOhoa-J3RoOX8Dfs-HwoRYinP1fc4QEYfRfhAo+FMCVQx1OoKTj+m9sV9PLd12t6oFjghYDCGB3NHmK482Vf8OSD3QapwMUeTDS0mZI11fR9954V14pKToNHxYDmalFdTqVjyvySQpfDTV4P9CC83SL0lfqj10r6X+CX+QwUoKFeMJX-di5oGhtSyWBvOe9kY5ig9QvvVkqpSeqyh30cNe95WOXwfJXh+IAWn8-UwVfoZhWo33eiCe95b8ItZaQMZyeBYhphAesz8KMYU3Iuau19O8UBDVEm5iQ-pfkl4Rd1ZMRuJkxyFJFNQqFZ0DMmk39Q4f5R42ET5V9HFqYCxCxEdlxDEH8cVQZJwvJN4p9wk88GFQ5mFUFUCAFL9wFU9tYPAfJfoTAn9dAUxtYoDtQYDpE0dp9yC95YlCA5JAdu8udcs5AODbRvoeI9dBN04HQtZxEKEeDX8Dl8AbFi9xCnElx9AixDAzAAYxVvF1Y-BCx8oCxyQpdUcTp6sED1DNCYk4lslElkg0k6CSpZkN1lAtxAprRQYVAfldZ9QiRhsbDZF+D5dVBDlBlhkukelSA+kvgtDHcJDgZ9DyRDAI0TCoF2IVxgIHt9BBINwjo4C7CstoiNDokxpTlzkPDr8K03llwfIsRQCoFZx9FZxFkKR9RkxzFSDt4Z9nhw9I9L9HBCwnM6otQXADd1YcQKsfY8EdAJ8fY6Mv8MCs19Qc0Yt814tLUMQUxHs3ItxKVHUBja0ZNXVWUoVGN4U6Dhd9F6YHRiRVRrQfBRd8ilZbRgIyRMVqU1j-03V1VbjGV7jPEGJJwZV1s3iYc8oSxUR1x2ITiHUGc+DFVLjF0G100V0ZMwTkxnBHkCxoSbRYTCQyRnAT8lpiop0NoAS5MTNcTtDqZXAbQBsDoT8CwSTOIMxzRDAUd3FdZNRfMAggA */
+    /** @xstate-layout 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-o5u+Xi84ORMgLoBKocl870DodwDEBIvNSDFP-UsKqWs5FAQ8GiPU5C5BAQYnI5MJVAEzhYl8nlPy3Rocfph7DPGF1hoVc2229NoJRok9RuRPkCQIq0PJiG5VCrso436-WAmSIGSwzK2SEIcN4YI4MFIf7w2Ktto4lcEnJPuBo4BAk9H0yMcnBvHieo2NIc4yh-TvGtN4R01GbzgnSNias1GqTvb7OBXVFZ1wPl7D3INSdf1GnMNxTKQTUggX8M8yGGlrIBNSMlg5duCcs5fq2fIeOLyizvArAhlrS0o6Utaby6gDLWWaD33nXcFIeXHiFeAmaOqQFjA2ek6e9i0FeJ+FVC4De+xkN5ua-8VS8l0s1o68F4CDEcxuDxH-ZMEEFryZASoRNbgmu4Z8ytgRZAOsAFtBDiDAP+tgBJ8Erhql977DhLt4cw7dzLGmaAADM+AABtwd8AAO6kbHL4B0QEIJVW+6jtU2g-vXfLhgu7wPYDg7AGAHghXvIU04sdk7lP5OY4w1pwHHXYAAAswDg+EGAAATqRpw9UyHJsQJqSzoWhcOhp5pm7OOgdXcEyDgAhuz+7-6HHEgvWjmqGO73qal2L7HSRJcGYAEYAFdBDg4gKRryLhZyk0hjb3wfOfyw0Wr9IGSafBBWUEEA44g+AQDgFINTpwm3EymTudUJXJzLjG7R+zmZnBMfTAYRPe1VSjofU8IPNtFgrScCdrUrvMX2ZxLLOcRh-D+UQgtzzea09SXPC2DPr8KFOAzDRupv9Sb2b23HumVItQHQ8wHvlx8mx8gDBbYMDfHWTa1BswCWpfqqmR07v6JgdT1CBpXwfvz+Uj4vAGUIAJJ-DjMGOQBuIqtZkpO9ycy-fpFSjX31P3Td8tlUIKYUEcj-fmtIWFvciZzewtDVAZwgRFg8Q8QOiYiljtAa5dJ-LYSj4-BBghhhgGRf5Kp+A7Tpg+D2gL7AG1CeAfzO74KxoP6YhP7wG144QBhRKdjoFzQ-5TaEIsSgSuAGCRZZjd4rQ6hEi4jFRHSLb3rP4+iIFXg3h3iPhoFXIiblCThmh-7bgzjt4QycRQRpg6DQwar7YaAUE74iF75IEERETgiH7SHB5zRzIag3pu7FQ+AzjvZOI1YkH3JkED5JbQKUEv6XiM6CCwDCD0HlBawrgR7LDXqGBASaD2b2xrgrANYIT6CJZQJwF6FXTxRKR0ABHyDyz9obzGDxaHZUwZjiZRodp7D2I6GwFD67KpE3TpFJT9SPTpT6T-CZEVDBRQS555H2AFGLjbiywxb5TxYuC6HD4dSaRpG9TJSpRPSWqmGSzmFZ4rA5F575H4h5gLTW6zhkgHQrQjG7IVytFLgMYMoLJPLrG6BgHo72QZiBSb7uHJGjFMJVw1xSHzGZ6VSuCXHLjLzMqgxYhOA2h7Emq9KIKXyvGiILGIBAzqATi6D2AkJ-yVZ6grjJjeq0KVHb6PHaK+KsJDKFKHEuyLTLRty-EZxZpAnZIArEp4lzEQnvEVDto5GWjIquzapqj9qgLomCEeF6FPEfDmrgkOrH7kjmhwmupKwuBaoZw6peqcluLckPG7ITqHEFjqikJmAAz3JJqgxGCWb4KGgYhqhyJuFJFVGBpPpFp1rpCZCkBVoZFmH0kSKYEt76lbiBTWhQagGYjKD6hEg8F3GmmYlKkWmTqhhrpzoLqkBLpfD2lvGN5OkYrLgalDHal5hay3L5TBT6CCSGAUmPrPpiHGRvofoqn4IMSKK6DLg+StwQRaxqGwbkjsr6jJi-YYn4qjE+F+GtGARxI251RaiSk6m2jQT4L+DulFb4Ki60lCniIlj6iLTjgR7lbjaF7GDib3IqDkiGB8EVEKnoTLZYaWo3x66PyHFsGywjYOjEiqjWg+CRYYpJ7sogSFTAQbxTm+b+Z6YaZnkJoMSTjKZ+AFg2j4F5QliojrjsRbg6hTgmm8otQHmtbtbfkOnxlsEpiXkFiAW3kgWEhkjOAZgTj6CdrzawVcaoZa4A4S5ZY-k2hx795YXAWcRFGmCl5mAbw+S+COhBBAA */
     id: 'MINECRAFT_BOT',
     type: "parallel",
     predictableActionArguments: true,
@@ -224,80 +224,117 @@ export const machine = createMachine(
             }
           },
           COMBAT: {
-            initial: "MELEE_ATTACKING",
+            initial: "DECIDING",
             description: "Состояние сражения (приоритет 7.5)",
-            entry: {
-              type: "entryCombat"
-            },
-            exit: {
-              type: 'exitCombat'
-            },
-            always: [
-              {
-                target: "#MINECRAFT_BOT.MAIN_ACTIVITY.hist",
-                guard: "noEnemiesNearby",
-                actions: [
-                  { type: "clearCombatContext", },
-                ]
-              },
-              { target: ".FLEEING", guard: "isLowLealth" },
-            ],
+            entry: { type: "entryCombat" },
+            exit: { type: 'exitCombat' },
             on: {
+              NO_ENEMIES: {
+                target: "#MINECRAFT_BOT.MAIN_ACTIVITY.hist",
+                actions: ["clearCombatContext"]
+              },
               UPDATE_COMBAT_CONTEXT: {
                 actions: ["updateCombatContext"]
+              },
+              ANALYZE_COMBAT: {
+                actions: ["analyzeCombat"]
               }
             },
             invoke: {
               id: "combatMonitor",
-              src: "serviceCombatMonitoring"
+              src: "serviceCombatMonitoring",
+              input: ({ context }) => ({ context })
             },
             states: {
-              FLEEING: {
-                entry: {
-                  type: "entryFleeing"
-                },
-                exit: {
-                  type: "exitFleeing"
-                },
+              DECIDING: {
                 always: [
+                  { target: "FLEEING", guard: "isLowHealth" },
                   { target: "DEFENDING", guard: "isSurrounded" },
-                  { target: "RANGED_ATTACKING", guard: "isEnemyFar" },
-                  { target: "MELEE_ATTACKING", guard: "isEnemyClose" },
+                  { target: "RANGED_ATTACKING", guard: "canUseRangedAndEnemyFar" },
+                  { target: "MELEE_ATTACKING" }
                 ]
+              },
+              FLEEING: {
+                entry: { type: "entryFleeing" },
+                exit: { type: "exitFleeing" },
+                on: {
+                  HEALTH_RESTORED: {
+                    target: "DECIDING"
+                  },
+                  TARGET_CHANGED: {
+                    actions: ["updateCombatContext"]
+                  }
+                }
               },
               MELEE_ATTACKING: {
                 description: "Ближний бой",
-                entry: {
-                  type: "entryMeleeAttacking"
-                },
-                exit: {
-                  type: "exitMeleeAttack"
-                },
-                always: [
-                  { target: "FLEEING", guard: "isLowLealth" },
-                  { target: "RANGED_ATTACKING", guard: "isEnemyFar" },
-                ]
-              },
-              RANGED_ATTACKING: {
-                description: "Дальний бой",
-                entry: { type: "entryRangedAttacking" },
-                exit: { type: "exitRangedAttacking" },
-                always: [
-                  { target: "FLEEING", guard: "isLowLealth" },
-                  { target: "MELEE_ATTACKING", guard: "isEnemyClose" },
-                ]
-              },
-              DEFENDING: {
-                entry: {
-                  type: "entryDefenging"
-                },
-                exit: {
-                  type: "exitDefenging"
+                entry: { type: "entryMeleeAttacking" },
+                exit: { type: "exitMeleeAttack" },
+                on: {
+                  TARGET_CHANGED: [
+                    {
+                      // Новая цель близко - перезапускаем атаку
+                      target: "MELEE_ATTACKING",
+                      guard: ({ event }) => event.distance <= 5,
+                      actions: ["updateCombatContext"],
+                      reenter: true
+                    },
+                    {
+                      // Новая цель далеко - переключаемся на лук
+                      target: "RANGED_ATTACKING",
+                      guard: "canUseRanged",
+                      actions: ["updateCombatContext"]
+                    }
+                  ],
+                  ENEMY_BECAME_FAR: {
+                    target: "RANGED_ATTACKING",
+                    guard: "canUseRanged"
+                  },
+                  HEALTH_CRITICAL: {
+                    target: "FLEEING"
+                  }
                 }
               },
+              RANGED_ATTACKING: {
+                entry: "entryRangedAttacking",
+                exit: "exitRangedAttacking",
+                on: {
+                  TARGET_CHANGED: [
+                    {
+                      // Новая цель далеко - перезапускаем стрельбу
+                      target: "RANGED_ATTACKING",
+                      guard: ({ event }) => event.distance > 8,
+                      actions: ["updateCombatContext"],
+                      reenter: true
+                    },
+                    {
+                      // Новая цель близко - переключаемся на меч
+                      target: "MELEE_ATTACKING",
+                      actions: ["updateCombatContext"]
+                    }
+                  ],
+                  ENEMY_BECAME_CLOSE: {
+                    target: "MELEE_ATTACKING"
+                  },
+                  HEALTH_CRITICAL: {
+                    target: "FLEEING"
+                  }
+                }
+              },
+              DEFENDING: {
+                entry: "entryDefending",
+                exit: "exitDefending",
+                on: {
+                  NOT_SURROUNDED: {
+                    target: "DECIDING"
+                  },
+                  HEALTH_CRITICAL: {
+                    target: "FLEEING"
+                  }
+                }
+              }
             },
           },
-
           "TASKS": {
             "description": "Задачи бота",
             "initial": "DEPOSIT_ITEMS",
@@ -409,7 +446,11 @@ export const machine = createMachine(
               REMOVE_ENTITY: {
                 actions: ["removeEntity"]
               },
-            }
+            },
+            invoke: {
+              id: "entitiesTracking",
+              src: "serviceEntitiesTracking",
+            },
           },
           // "ARMOR_TOOLS_MONITOR": {
           //   "entry": {

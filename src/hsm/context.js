@@ -41,9 +41,9 @@ export const context = {
     autoDefend: true,
     followDistance: 3,
     maxDistToEnemy: 15,
+    maxObservDist: 50,
     combatMode: 'defensive'
   },
 
-  combatContextChanged: false,
   nearestEnemy: null,
 }

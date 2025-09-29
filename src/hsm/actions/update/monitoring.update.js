@@ -9,23 +9,32 @@ const updateFood = assign({
   food: ({ context, event }) => event.food
 })
 
-const updateEntities = assign(({ context, event: { entity } }) => {
-  if (!context.position || entity.position.distanceTo(context.position) > 50) {
-    return {}
+const updateEntities = assign(({ context: { bot, position, preferences } }) => {
+  if (!bot?.entities || !position) return {}
+
+  const allEntities = Object.values(bot.entities)
+    .filter(entity =>
+      entity
+      && entity !== bot.entity
+      && entity.position.distanceTo(position) <= preferences.maxObservDist
+    )
+    .sort((a, b) => {
+      const distA = a.position.distanceTo(position)
+      const distB = b.position.distanceTo(position)
+      return distA - distB
+    })
+
+  const entities = allEntities.filter(e => !isEntityOfType(e))
+  const enemies = allEntities.filter(e => isEntityOfType(e))
+
+  return {
+    entities,
+    enemies,
+    nearestEnemy: enemies[0] ? {
+      entity: enemies[0],
+      distance: enemies[0].position.distanceTo(position)
+    } : null
   }
-
-  const key = isEntityOfType(entity) ? 'enemies' : 'entities'
-  const mobs = [...context[key]]
-
-  const existingIndex = mobs.findIndex(mob => mob.id === entity.id)
-
-  if (existingIndex >= 0) {
-    mobs[existingIndex] = entity
-  } else {
-    mobs.push(entity)
-  }
-
-  return { [key]: mobs }
 })
 
 const removeEntity = assign(({ context, event: { entity } }) => {

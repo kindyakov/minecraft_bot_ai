@@ -258,6 +258,12 @@ export class BotUtils {
       }
     } catch (error) {
       console.log(`Ошибка при еде: ${error.message}`)
+      if (this._bot.health < 20) {
+        this.stopEating()
+        this._eatingTimeoutId = setTimeout(() => {
+          this.eating()
+        }, 1500)
+      }
     }
   }
 

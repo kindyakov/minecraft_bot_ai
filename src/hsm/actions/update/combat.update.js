@@ -15,6 +15,12 @@ const updateCombatContext = assign(({ context }) => {
   }
 })
 
+const clearCombatContext = assign({
+  nearestEnemy: null,
+  combatContextChanged: false
+})
+
 export default {
   updateCombatContext,
+  clearCombatContext,
 }

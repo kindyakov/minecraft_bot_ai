@@ -45,6 +45,21 @@ class BotStateMachine extends EventEmitter {
     })
   }
 
+  handleEntityUpdate(entity) {
+    const { preferences } = this.actor.getSnapshot().context;
+    const distance = entity.position.distanceTo(this.bot.entity.position);
+
+    if (distance <= preferences.maxObservDist) {
+      this.actor.send({
+        type: 'UPDATE_ENTITIES',
+        entity
+      });
+      return true
+    }
+
+    return false
+  }
+
   setupBotEvents() {
     // Обновление здоровья
     this.bot.on('health', () => {
@@ -84,38 +99,20 @@ class BotStateMachine extends EventEmitter {
       })
     })
 
-    // Обновление сущностей
-    this.bot.on('entitySpawn', (entity) => {
-      this.actor.send({
-        type: 'UPDATE_ENTITIES',
-        entity
-      })
-    })
-
-    this.bot.on('entityMoved', (entity) => {
-      if (isEntityOfType(entity)) {
-        this.actor.send({
-          type: 'UPDATE_ENTITIES',
-          entity,
-        })
-      }
-    })
-
     // Пропала сужность
-    this.bot.on('entityGone', (entity) => {
-      this.actor.send({
-        type: 'REMOVE_ENTITY',
-        entity
-      })
-    })
-
-    // Срабатывает при получении урона
-    // this.bot.on('entityDead', (entity) => {
+    // this.bot.on('entityGone', (entity) => {
     //   this.actor.send({
     //     type: 'REMOVE_ENTITY',
     //     entity
     //   })
     // })
+
+    this.bot.on('entityDead', (entity) => {
+      this.actor.send({
+        type: 'REMOVE_ENTITY',
+        entity
+      })
+    })
 
     // Выпал предмет
     this.bot.on('itemDrop', (entity) => {

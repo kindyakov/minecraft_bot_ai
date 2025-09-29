@@ -1,47 +1,24 @@
 import { and, not, stateIn } from "xstate"
 
-const noEnemiesNearby = ({ context }) => {
-  if (!context.enemies.length) return true
-
-  return !context.enemies?.some(enemy =>
-    enemy.position &&
-    enemy.position.distanceTo(context.position) <= context.preferences.maxDistToEnemy
-  )
+const canUseRanged = ({ context }) => {
+  const weapon = context.bot.utils.getRangeWeapon()
+  const arrows = context.bot.utils.getArrow()
+  return weapon && arrows
 }
 
-const isLowLealth = and([
-  not(stateIn({ MAIN_ACTIVITY: { COMBAT: 'FLEEING' } })),
-  ({ context, event }) => context.health <= 8
-])
+const canUseRangedAndEnemyFar = ({ context }) => {
+  return canUseRanged({ context }) && context.nearestEnemy?.distance > 8
+}
+
+const isLowHealth = ({ context, event }) => context.health <= 8
 
 const isSurrounded = and([
-  not(stateIn({ MAIN_ACTIVITY: { COMBAT: 'DEFENDING' } })),
-  ({ context, event }) => context.health > 8,
   ({ context, event }) => false
 ])
 
-const isEnemyFar = and([
-  ({ context, event }) => context.health > 8,
-  ({ context }) => {
-    const rangedWeapon = context.bot.utils.getRangeWeapon() // поиск оружия лук/арбалет
-    const arrows = context.bot.utils.getArrow()
-    return rangedWeapon && arrows
-  },
-  ({ context: { nearestEnemy }, event }) => {
-    return nearestEnemy && nearestEnemy.distance >= 9
-  }
-])
-
-const isEnemyClose = and([
-  ({ context, event }) => context.health > 8,
-  ({ context: { nearestEnemy }, event }) => {
-    return nearestEnemy && nearestEnemy.distance <= 5
-  }])
-
 export default {
-  noEnemiesNearby,
-  isLowLealth,
+  canUseRanged,
+  canUseRangedAndEnemyFar,
+  isLowHealth,
   isSurrounded,
-  isEnemyFar,
-  isEnemyClose,
 }
