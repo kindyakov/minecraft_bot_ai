@@ -256,6 +256,10 @@ export const machine = createMachine(
                 entry: { type: "entryFleeing" },
                 exit: { type: "exitFleeing" },
                 on: {
+                  TARGET_CHANGED: {
+                    target: "FLEEING",
+                    reenter: true
+                  },
                   HEALTH_RESTORED: {
                     target: "DECIDING"
                   },

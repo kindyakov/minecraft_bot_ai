@@ -86,6 +86,16 @@ class BotStateMachine extends EventEmitter {
       })
     })
 
+    this.bot.on('death', () => {
+      this.actor.send({ type: '#MINECRAFT_BOT.MAIN_ACTIVITY.PEACEFUL' });
+    })
+
+    // Событие сработает когда снаряд летит в бота
+    this.bot.on('incoming_projectil', (projectil, arrowTrajectory) => {
+      // projectil - летящая стрела
+      // arrowTrajectory - её траектория
+    })
+
     // Пропала сужность
     // this.bot.on('entityGone', (entity) => {
     //   this.actor.send({

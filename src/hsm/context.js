@@ -40,7 +40,7 @@ export const context = {
     autoEat: true,
     autoDefend: true,
     followDistance: 3,
-    maxDistToEnemy: 15,
+    maxDistToEnemy: 20,
     maxObservDist: 50,
     combatMode: 'defensive'
   },

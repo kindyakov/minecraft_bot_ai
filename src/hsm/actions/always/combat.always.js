@@ -3,7 +3,7 @@ import { assign, raise } from "xstate"
 const analyzeCombat = raise(({ context }) => {
   const { health, prevCombatState = {}, preferences = {}, nearestEnemy = {} } = context
 
-  if (!nearestEnemy?.entity || nearestEnemy.distance > preferences.maxDistToEnemy) {
+  if (!nearestEnemy?.entity || nearestEnemy.distance > preferences.maxDistToEnemy && health > 17) {
     return { type: 'NO_ENEMIES' }
   }
 
@@ -13,28 +13,22 @@ const analyzeCombat = raise(({ context }) => {
     becameFar: prevCombatState.distance <= 5 && nearestEnemy.distance > 8,
     becameClose: prevCombatState.distance > 8 && nearestEnemy.distance <= 5,
     healthCritical: prevCombatState.health > 8 && health <= 8,
-    healthRestored: prevCombatState.health <= 8 && health > 8
+    healthRestored: prevCombatState.health <= 17 && health > 17
   }
 
+  // Отправляем специфичные события
   if (changes.healthCritical) {
     return { type: 'HEALTH_CRITICAL' }
   } else if (changes.healthRestored) {
     return { type: 'HEALTH_RESTORED' }
   }
 
-  // Отправляем специфичные события
   if (changes.targetChanged) {
     return { type: 'TARGET_CHANGED', distance: nearestEnemy.distance }
   } else if (changes.becameFar) {
     return { type: 'ENEMY_BECAME_FAR' }
   } else if (changes.becameClose) {
     return { type: 'ENEMY_BECAME_CLOSE' }
-  }
-
-  if (changes.healthCritical) {
-    return { type: 'HEALTH_CRITICAL' }
-  } else if (changes.healthRestored) {
-    return { type: 'HEALTH_RESTORED' }
   }
 
   return {}

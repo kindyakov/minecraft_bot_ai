@@ -245,7 +245,7 @@ export class BotUtils {
 
       if (this._bot.autoEat.isEating) return
 
-      console.log('Начинаю есть...')
+      console.log('🍖 Начинаю есть...')
       await this._bot.consume()
 
       console.log(`Поел! HP: ${this._bot.health.toFixed(1)}, Food: ${this._bot.food}, Saturation: ${this._bot.foodSaturation.toFixed(1)}`)
