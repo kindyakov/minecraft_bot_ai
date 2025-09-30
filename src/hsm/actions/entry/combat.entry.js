@@ -32,13 +32,13 @@ const entryMeleeAttacking = ({ context: { bot, nearestEnemy }, event }) => {
   }
 
   const meleeWeapon = bot.utils.getMeleeWeapon() // поиск оружия меч/топор
-  if (!meleeWeapon) {
-    console.log('❌ Нет оружия!')
-    return
-  }
 
-  console.log(`🗡️ Экипировал оружие: ${meleeWeapon.name}`)
-  bot.equip(meleeWeapon, 'hand')
+  if (meleeWeapon) {
+    console.log(`🗡️ Экипировал оружие: ${meleeWeapon.name}`)
+    bot.equip(meleeWeapon, 'hand')
+  } else {
+    console.log('🗡️ Нет оружия ближнего боя❗')
+  }
 
   console.log(`⚔️ Атакую ${entity.name || entity.displayName}`)
   bot.pvp.attack(entity)
@@ -61,7 +61,7 @@ const entryRangedAttacking = ({ context: { bot, nearestEnemy }, event }) => {
   if (weapon && arrows) {
     bot.equip(weapon, 'hand')
     console.log(`🏹 Экипировал: ${weapon.name}`)
-    bot.utils.shoot({ entity, weapon })
+    bot.hawkEye.autoAttack(entity, weapon.name)
   }
 }
 

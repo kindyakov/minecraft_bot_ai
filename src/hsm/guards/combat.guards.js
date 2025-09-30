@@ -6,6 +6,8 @@ const canUseRanged = ({ context }) => {
   return weapon && arrows
 }
 
+const canUseWeapon = () => !!bot.utils.getMeleeWeapon()
+
 const canUseRangedAndEnemyFar = ({ context }) => {
   return canUseRanged({ context }) && context.nearestEnemy?.distance > 8
 }
@@ -18,6 +20,7 @@ const isSurrounded = and([
 
 export default {
   canUseRanged,
+  canUseWeapon,
   canUseRangedAndEnemyFar,
   isLowHealth,
   isSurrounded,

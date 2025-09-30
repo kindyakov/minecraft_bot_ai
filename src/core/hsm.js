@@ -47,21 +47,6 @@ class BotStateMachine extends EventEmitter {
     })
   }
 
-  handleEntityUpdate(entity) {
-    const { preferences } = this.actor.getSnapshot().context;
-    const distance = entity.position.distanceTo(this.bot.entity.position);
-
-    if (distance <= preferences.maxObservDist) {
-      this.actor.send({
-        type: 'UPDATE_ENTITIES',
-        entity
-      });
-      return true
-    }
-
-    return false
-  }
-
   setupBotEvents() {
     // Обновление здоровья
     this.bot.on('health', () => {
