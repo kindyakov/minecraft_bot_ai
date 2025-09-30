@@ -15,7 +15,51 @@ const entryDeciding = ({ context }) => {
 }
 
 const entryFleeing = ({ context, event }) => {
-  console.log('⚔️ Вход в состояние FLEEING')
+  console.log('🏃 Вход в состояние FLEEING - убегаю и лечусь!')
+  const { bot, nearestEnemy } = context
+
+  // Останавливаем все атаки
+  bot.pvp.stop()
+  bot.hawkEye.stop()
+
+  // Начинаем есть для восстановления здоровья
+  if (bot.utils.getAllFood().length > 0) {
+    console.log('🍖 Начинаю лечение через еду')
+    bot.utils.eating()
+  } else {
+    console.log('⚠️ Нет еды для лечения!')
+  }
+
+  // Убегаем от врага
+  if (nearestEnemy?.entity && nearestEnemy.entity.isValid) {
+    const enemy = nearestEnemy.entity
+    const botPos = bot.entity.position
+    const enemyPos = enemy.position
+
+    // Вычисляем вектор направления от врага
+    const direction = botPos.clone().subtract(enemyPos).normalize()
+
+    // Точка на расстоянии 20 блоков от врага в противоположном направлении
+    const fleeTarget = botPos.clone().add(direction.scaled(20))
+
+    console.log(`🏃 Убегаю от ${enemy.name || enemy.displayName} в точку (${fleeTarget.x.toFixed(1)}, ${fleeTarget.y.toFixed(1)}, ${fleeTarget.z.toFixed(1)})`)
+
+    // Импортируем GoalNear на лету
+    const pathFinderPkg = require('mineflayer-pathfinder')
+    const { goals } = pathFinderPkg
+
+    // Двигаемся к безопасной точке
+    bot.pathfinder.setGoal(new goals.GoalNear(
+      Math.floor(fleeTarget.x),
+      Math.floor(fleeTarget.y),
+      Math.floor(fleeTarget.z),
+      1
+    ), true)
+
+    if (bot.movements) {
+      bot.movements.allowSprinting = true // Спринт для быстрого убегания
+    }
+  }
 }
 
 const entryDefenging = ({ context, event }) => {
