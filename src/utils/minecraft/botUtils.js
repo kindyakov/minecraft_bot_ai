@@ -224,9 +224,7 @@ export class BotUtils {
       if (this._bot.food >= 20) {
         console.log('Голод полный, жду регенерации здоровья...')
         this.stopEating() // Очищаем предыдущий
-        this._eatingTimeoutId = setTimeout(() => {
-          this.eating()
-        }, 1500)
+        this._eatingTimeoutId = setTimeout(() => this.eating(), 1500)
         return
       }
 
@@ -245,6 +243,8 @@ export class BotUtils {
 
       await this._bot.equip(bestFood, 'hand')
 
+      if (this._bot.autoEat.isEating) return
+
       console.log('Начинаю есть...')
       await this._bot.consume()
 
@@ -252,17 +252,13 @@ export class BotUtils {
 
       if (this._bot.health < 20) {
         this.stopEating()
-        this._eatingTimeoutId = setTimeout(() => {
-          this.eating()
-        }, 1500)
+        this._eatingTimeoutId = setTimeout(() => this.eating(), 1500)
       }
     } catch (error) {
       console.log(`Ошибка при еде: ${error.message}`)
       if (this._bot.health < 20) {
         this.stopEating()
-        this._eatingTimeoutId = setTimeout(() => {
-          this.eating()
-        }, 1500)
+        this._eatingTimeoutId = setTimeout(() => this.eating(), 1500)
       }
     }
   }
