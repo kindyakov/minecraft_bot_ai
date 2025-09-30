@@ -16,7 +16,7 @@ const entryDeciding = ({ context }) => {
 
 const entryFleeing = ({ context, event }) => {
   console.log('🏃 Вход в состояние FLEEING - убегаю и лечусь!')
-  const { bot, nearestEnemy, combatThresholds, survivalThresholds } = context
+  const { bot, nearestEnemy, preferences } = context
 
   if (bot.movements) {
     bot.movements.allowSprinting = true // Спринт для быстрого убегания
@@ -31,7 +31,7 @@ const entryFleeing = ({ context, event }) => {
 
   // Начинаем есть для восстановления здоровья
   if (bot.utils.getAllFood().length > 0) {
-    if (botPos.distanceTo(enemyPos) >= 15) {
+    if (botPos.distanceTo(enemyPos) >= preferences.safeEatDistance) {
       bot.utils.eating()
     } else {
       bot.chat('Не могу поесть враги рядом !')
@@ -44,7 +44,7 @@ const entryFleeing = ({ context, event }) => {
 
   if (
     player
-    && player.position.distanceTo(enemyPos) > 15
+    && player.position.distanceTo(enemyPos) > preferences.safePlayerDistance
     && player.position.distanceTo(botPos) <= preferences.fleeToPlayerRadius
   ) {
     console.log(`🏃‍♂️‍➡️ Бот бежит к игроку "${player.username}"`)
@@ -57,7 +57,7 @@ const entryFleeing = ({ context, event }) => {
   const direction = botPos.clone().subtract(enemyPos).normalize()
 
   // Точка на расстоянии 20 блоков от врага в противоположном направлении
-  const fleeTarget = botPos.clone().add(direction.scaled(20))
+  const fleeTarget = botPos.clone().add(direction.scaled(preferences.fleeTargetDistance))
 
   console.log(`🏃 Убегаю от ${enemy.name || enemy.displayName} в точку (${fleeTarget.x.toFixed(1)}, ${fleeTarget.y.toFixed(1)}, ${fleeTarget.z.toFixed(1)})`)
 
