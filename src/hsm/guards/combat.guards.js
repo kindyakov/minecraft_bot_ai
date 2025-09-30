@@ -6,7 +6,7 @@ const canUseRanged = ({ context }) => {
   return weapon && arrows
 }
 
-const canUseWeapon = () => !!bot.utils.getMeleeWeapon()
+const canUseWeapon = ({ context }) => !!context.bot.utils.getMeleeWeapon()
 
 const canUseRangedAndEnemyFar = ({ context }) => {
   return canUseRanged({ context }) && context.nearestEnemy?.distance > context.preferences.enemyRangedRange

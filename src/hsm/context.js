@@ -18,8 +18,8 @@ export const context = {
   toolDurability: {
     pickaxe: null,
     sword: null,
-    axe: 0,
-    shield: 0,
+    axe: null,
+    shield: null,
   },
   armorDurability: {
     helmet: null,

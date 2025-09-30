@@ -5,8 +5,8 @@ const analyzeCombat = raise(({ context }) => {
 
   if (
     !nearestEnemy?.entity
-    || nearestEnemy.distance > preferences.maxDistToEnemy
-    && health > preferences.healthRestored
+    || (nearestEnemy.distance > preferences.maxDistToEnemy
+      && health > preferences.healthRestored)
   ) {
     return { type: 'NO_ENEMIES' }
   }

@@ -64,6 +64,10 @@ class BotStateMachine extends EventEmitter {
         type: 'UPDATE_FOOD',
         food: this.bot.food
       })
+      this.actor.send({
+        type: 'UPDATE_SATURATION',
+        foodSaturation: this.bot.foodSaturation
+      })
     })
 
     // Обновление кислорода  
@@ -79,15 +83,10 @@ class BotStateMachine extends EventEmitter {
         type: 'UPDATE_POSITION',
         position: this.bot.entity.position
       })
-
-      this.actor.send({
-        type: 'UPDATE_SATURATION',
-        foodSaturation: this.bot.foodSaturation
-      })
     })
 
     this.bot.on('death', () => {
-      this.actor.send({ type: '#MINECRAFT_BOT.MAIN_ACTIVITY.PEACEFUL' });
+      this.actor.send({ type: 'DEATH' });
     })
 
     // Событие сработает когда снаряд летит в бота
