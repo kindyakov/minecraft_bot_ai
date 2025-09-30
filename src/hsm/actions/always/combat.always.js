@@ -1,31 +1,46 @@
 import { assign, raise } from "xstate"
 
 const analyzeCombat = raise(({ context }) => {
-  const { health, prevCombatState = {}, preferences = {}, nearestEnemy = {} } = context
+  const { health, prevCombatState = {}, preferences = {}, nearestEnemy = {}, combatThresholds } = context
 
-  if (!nearestEnemy?.entity || nearestEnemy.distance > preferences.maxDistToEnemy && health > 17) {
+  if (
+    !nearestEnemy?.entity
+    || nearestEnemy.distance > preferences.maxDistToEnemy
+    && health > preferences.healthRestored
+  ) {
     return { type: 'NO_ENEMIES' }
   }
 
   // Определяем тип изменения
   const changes = {
     targetChanged: nearestEnemy.entity.id !== prevCombatState.enemyId,
-    becameFar: prevCombatState.distance <= 5 && nearestEnemy.distance > 8,
-    becameClose: prevCombatState.distance > 8 && nearestEnemy.distance <= 5,
-    healthCritical: prevCombatState.health > 8 && health <= 8,
-    healthRestored: prevCombatState.health <= 17 && health > 17
+
+    becameFar: prevCombatState.distance <= preferences.enemyMeleeRange
+      && nearestEnemy.distance > preferences.enemyRangedRange,
+
+    becameClose: prevCombatState.distance > preferences.enemyRangedRange
+      && nearestEnemy.distance <= preferences.enemyMeleeRange,
+
+    healthCritical: prevCombatState.health > preferences.healthCritical
+      && health <= preferences.healthCritical,
+
+    healthRestored: prevCombatState.health <= preferences.healthRestored
+      && health > preferences.healthRestored
   }
 
   // Отправляем специфичные события
+
+  if (changes.targetChanged) {
+    return { type: 'TARGET_CHANGED', distance: nearestEnemy.distance }
+  }
+
   if (changes.healthCritical) {
     return { type: 'HEALTH_CRITICAL' }
   } else if (changes.healthRestored) {
     return { type: 'HEALTH_RESTORED' }
   }
 
-  if (changes.targetChanged) {
-    return { type: 'TARGET_CHANGED', distance: nearestEnemy.distance }
-  } else if (changes.becameFar) {
+  if (changes.becameFar) {
     return { type: 'ENEMY_BECAME_FAR' }
   } else if (changes.becameClose) {
     return { type: 'ENEMY_BECAME_CLOSE' }

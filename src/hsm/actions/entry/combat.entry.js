@@ -16,7 +16,7 @@ const entryDeciding = ({ context }) => {
 
 const entryFleeing = ({ context, event }) => {
   console.log('🏃 Вход в состояние FLEEING - убегаю и лечусь!')
-  const { bot, nearestEnemy, position } = context
+  const { bot, nearestEnemy, combatThresholds, survivalThresholds } = context
 
   if (bot.movements) {
     bot.movements.allowSprinting = true // Спринт для быстрого убегания
@@ -42,7 +42,11 @@ const entryFleeing = ({ context, event }) => {
     console.log('⚠️ Нет еды для лечения!')
   }
 
-  if (player && player.position.distanceTo(enemyPos) > 10 && player.position.distanceTo(botPos) <= 100) {
+  if (
+    player
+    && player.position.distanceTo(enemyPos) > 15
+    && player.position.distanceTo(botPos) <= preferences.fleeToPlayerRadius
+  ) {
     console.log(`🏃‍♂️‍➡️ Бот бежит к игроку "${player.username}"`)
     bot.chat(`Бегу к ${player.username} выручай!`)
     bot.pathfinder.setGoal(new GoalNear(player.position.x, player.position.y, player.position.z, 3), true)
@@ -72,12 +76,13 @@ const entryDefenging = ({ context, event }) => {
 
 const entryMeleeAttacking = ({ context: { bot, nearestEnemy }, event }) => {
   console.log('⚔️ Вход в состояние MELEE_ATTACKING')
-  const { entity } = nearestEnemy
 
-  if (!entity || !entity?.isValid) {
+  if (!nearestEnemy?.entity?.isValid) {  // Проверяем СНАЧАЛА
     console.log('⚔️ Нет валидного врага для атаки')
     return
   }
+
+  const { entity } = nearestEnemy
 
   const meleeWeapon = bot.utils.getMeleeWeapon() // поиск оружия меч/топор
 
@@ -94,12 +99,12 @@ const entryMeleeAttacking = ({ context: { bot, nearestEnemy }, event }) => {
 
 const entryRangedAttacking = ({ context: { bot, nearestEnemy }, event }) => {
   console.log('⚔️ Вход в состояние RANGED_ATTACKING')
-  const { entity } = nearestEnemy
-
-  if (!entity || !entity?.isValid) {
-    console.log('🏹 Нет валидного врага для стрельбы')
+  if (!nearestEnemy?.entity?.isValid) {  // Проверяем СНАЧАЛА
+    console.log('⚔️ Нет валидного врага для атаки')
     return
   }
+
+  const { entity } = nearestEnemy
 
   console.log(`🏹 Начинаю дальний бой с ${entity.name || entity.displayName}`)
 

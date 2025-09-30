@@ -38,14 +38,14 @@ const isHungerCritical = and([
   not(stateIn({ MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_EATING' } })),
   not(stateIn({ MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' } })),
   ...getHigherPriorityConditions(PRIORITIES.EMERGENCY_EATING),
-  ({ context, event }) => context.food < 5
+  ({ context, event }) => context.food < context.preferences.foodEmergency
 ])
 
 const isHealthCritical = and([
   not(stateIn({ MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' } })),
   not(stateIn({ MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_EATING' } })),
   ...getHigherPriorityConditions(PRIORITIES.EMERGENCY_HEALING),
-  ({ context, event }) => context.health < 5,
+  ({ context, event }) => context.health < context.preferences.healthEmergency,
 ])
 
 const isEnemyNearby = and([
@@ -63,7 +63,7 @@ const isEnemyNearby = and([
 const isInventoryFull = and([
   not(stateIn({ MAIN_ACTIVITY: { TASKS: 'DEPOSIT_ITEMS' } })),
   ...getHigherPriorityConditions(PRIORITIES.DEPOSIT_ITEMS),
-  ({ context, event }) => context.inventory.length >= 45
+  ({ context, event }) => context.inventory.length >= context.preferences.maxCountSlotsInInventory
 ])
 
 const isBrokenArmorOrTools = and([

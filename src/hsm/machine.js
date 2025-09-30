@@ -272,9 +272,13 @@ export const machine = createMachine(
                 on: {
                   TARGET_CHANGED: [
                     {
+                      target: "FLEEING",
+                      guard: ({ context }) => context.health <= context.preferences.healthCritical,
+                    },
+                    {
                       // Новая цель близко - перезапускаем атаку
                       target: "MELEE_ATTACKING",
-                      guard: ({ event }) => event.distance <= 5,
+                      guard: ({ context, event }) => event.distance <= context.preferences.enemyMeleeRange,
                       reenter: true
                     },
                     {
@@ -298,9 +302,13 @@ export const machine = createMachine(
                 on: {
                   TARGET_CHANGED: [
                     {
+                      target: "FLEEING",
+                      guard: ({ context }) => context.health <= context.preferences.healthCritical,
+                    },
+                    {
                       // Новая цель далеко - перезапускаем стрельбу
                       target: "RANGED_ATTACKING",
-                      guard: ({ event }) => event.distance > 8,
+                      guard: ({ event }) => event.distance > context.preferences.enemyRangedRange,
                       reenter: true
                     },
                     {

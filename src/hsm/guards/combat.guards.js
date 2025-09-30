@@ -9,10 +9,10 @@ const canUseRanged = ({ context }) => {
 const canUseWeapon = () => !!bot.utils.getMeleeWeapon()
 
 const canUseRangedAndEnemyFar = ({ context }) => {
-  return canUseRanged({ context }) && context.nearestEnemy?.distance > 8
+  return canUseRanged({ context }) && context.nearestEnemy?.distance > context.preferences.enemyRangedRange
 }
 
-const isLowHealth = ({ context, event }) => context.health <= 8
+const isLowHealth = ({ context, event }) => context.health <= context.preferences.healthCritical
 
 const isSurrounded = and([
   ({ context, event }) => false
