@@ -1,9 +1,9 @@
 import { assign } from "xstate"
 
 const clearCombatContext = assign({
-  previousCombatState: {
+  prevCombatState: {
     enemyId: null,
-    distance: null,
+    distance: 0,
     health: 20
   }
 })

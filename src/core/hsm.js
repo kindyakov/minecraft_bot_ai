@@ -1,6 +1,6 @@
 import EventEmitter from 'node:events';
 import { createActor } from 'xstate';
-import { createBrowserInspector } from '@statelyai/inspect';
+import { createSkyInspector } from '@statelyai/inspect';
 import { machine } from '../hsm/machine.js';
 
 class BotStateMachine extends EventEmitter {
@@ -13,8 +13,11 @@ class BotStateMachine extends EventEmitter {
   }
 
   init() {
+    // const inspector = createSkyInspector();
+    // inspector.start?.();
+
     this.actor = createActor(this.machine, {
-      inspect: createBrowserInspector().inspect
+      // inspect: inspector.inspect
     })
 
     console.log('HSM машина создана')

@@ -234,7 +234,7 @@ export const machine = createMachine(
                 actions: ["clearCombatContext"]
               },
               ANALYZE_COMBAT: {
-                actions: ["analyzeCombat"]
+                actions: ["analyzeCombat", "savePrevCombatState"]
               }
             },
             invoke: {

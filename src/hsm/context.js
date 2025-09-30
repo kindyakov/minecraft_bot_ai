@@ -47,11 +47,11 @@ export const context = {
 
   nearestEnemy: {
     entity: null,
-    distance: 0,
+    distance: Infinity,
   },
-  previousCombatState: {
+  prevCombatState: {
     enemyId: null,
-    distance: null,
+    distance: Infinity,
     health: 20
   }
 }
