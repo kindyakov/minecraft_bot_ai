@@ -8,6 +8,10 @@ const entryCombat = ({ context: { bot } }) => {
   if (bot.movements) {
     bot.movements.allowSprinting = true // Разрешаем боту бежать        
   }
+
+  if (bot.pathfinder) {
+    bot.pathfinder.setMovements(bot.movements)
+  }
 }
 
 const entryDeciding = ({ context }) => {

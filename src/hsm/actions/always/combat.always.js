@@ -1,12 +1,11 @@
 import { assign, raise } from "xstate"
 
 const analyzeCombat = raise(({ context }) => {
-  const { health, prevCombatState = {}, preferences = {}, nearestEnemy = {}, combatThresholds } = context
+  const { health, prevCombatState = {}, preferences = {}, nearestEnemy = {} } = context
 
   if (
     !nearestEnemy?.entity
-    || (nearestEnemy.distance > preferences.maxDistToEnemy
-      && health > preferences.healthRestored)
+    || nearestEnemy.distance > preferences.maxDistToEnemy
   ) {
     return { type: 'NO_ENEMIES' }
   }

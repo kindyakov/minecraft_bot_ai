@@ -1,5 +1,6 @@
 import { loadPathfinder, initPathfinder } from "./pathfinder.js"
 import { loadArmorManager, initArmorManager } from "./armorManager.js"
+import { loadMovement } from "./movement.js"
 import { loadPvp } from "./pvp.js"
 import { initViewer } from "./viewer.js"
 import { loadWebInventory } from "./webInventory.js"
@@ -10,6 +11,7 @@ import { loadHawkeye } from "./hawkeye.js"
 
 export const loadPlugins = (bot) => {
   loadPathfinder(bot)
+  loadMovement(bot)
   loadArmorManager(bot)
   loadWebInventory(bot)
   loadAutoEat(bot)
