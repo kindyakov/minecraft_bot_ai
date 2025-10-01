@@ -107,6 +107,7 @@ class BotStateMachine extends EventEmitter {
     this.bot.on('goal_reached', (goal) => {
       const snapshot = this.actor.getSnapshot()
       const isFleeing = snapshot.matches({ MAIN_ACTIVITY: { COMBAT: 'FLEEING' } })
+      console.log('❗❗ добажал')
 
       if (isFleeing) {
         this.actor.send({ type: 'FLEE_GOAL_REACHED' })

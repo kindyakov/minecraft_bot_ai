@@ -3,11 +3,19 @@ import { findNearbyEnemies } from "../../utils/findNearbyEnemies.js"
 
 const setTargetOnEnemy = assign(({ context }) => {
   const nearestEnemy = findNearbyEnemies(context)
+  const entity = nearestEnemy || null
+  const distance = nearestEnemy?.position.distanceTo(context.position) || Infinity
+
   return {
-    nearestEnemy: nearestEnemy ? {
-      entity: nearestEnemy,
-      distance: nearestEnemy.position.distanceTo(context.position)
-    } : null,
+    nearestEnemy: {
+      entity,
+      distance,
+    },
+    prevCombatState: {
+      enemyId: entity?.id || null,
+      distance,
+      health: 20
+    }
   }
 })
 

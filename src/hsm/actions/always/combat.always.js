@@ -5,6 +5,7 @@ const analyzeCombat = raise(({ context }) => {
 
   if (
     !nearestEnemy?.entity
+    || !nearestEnemy.entity.isValid
     || nearestEnemy.distance > preferences.maxDistToEnemy
   ) {
     return { type: 'NO_ENEMIES' }
@@ -20,15 +21,12 @@ const analyzeCombat = raise(({ context }) => {
     becameClose: prevCombatState.distance > preferences.enemyRangedRange
       && nearestEnemy.distance <= preferences.enemyMeleeRange,
 
-    healthCritical: prevCombatState.health > preferences.healthCritical
-      && health <= preferences.healthCritical,
+    healthCritical: health <= preferences.healthCritical,
 
-    healthRestored: prevCombatState.health <= preferences.healthRestored
-      && health > preferences.healthRestored
+    healthRestored: health > preferences.healthRestored
   }
 
   // Отправляем специфичные события
-
   if (changes.targetChanged) {
     return { type: 'TARGET_CHANGED', distance: nearestEnemy.distance }
   }

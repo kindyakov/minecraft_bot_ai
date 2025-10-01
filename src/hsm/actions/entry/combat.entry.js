@@ -1,21 +1,22 @@
-import { GoalNear, GoalFollow } from "../../../modules/plugins/goals.js"
+import { raise } from "xstate"
+import { GoalXZ, GoalFollow } from "../../../modules/plugins/goals.js"
 
 const entryCombat = ({ context: { bot } }) => {
-  console.log('⚔️ Вход в состояние COMBAT')
+  try {
+    console.log('⚔️ Вход в состояние COMBAT')
 
-  bot.armorManager.equipAll() // Бот при наличии брони в инвенторе наденет её
+    bot.armorManager.equipAll() // Бот при наличии брони в инвенторе наденет её
 
-  if (bot.movements) {
-    bot.movements.allowSprinting = true // Разрешаем боту бежать        
-  }
-
-  if (bot.pathfinder) {
-    bot.pathfinder.setMovements(bot.movements)
+    if (bot.movements) {
+      bot.movements.allowSprinting = true // Разрешаем боту бежать        
+    }
+  } catch (error) {
+    console.log('Ошибка при в ходе в COMBAT', error)
   }
 }
 
 const entryDeciding = ({ context }) => {
-  console.log('⚔️ Вход в состояние DECIDING')
+  console.log('🤔⚔️ Вход в состояние DECIDING')
 }
 
 const entryFleeing = ({ context, event }) => {
@@ -53,7 +54,7 @@ const entryFleeing = ({ context, event }) => {
   ) {
     console.log(`🏃‍♂️‍➡️ Бот бежит к игроку "${player.username}"`)
     bot.chat(`Бегу к ${player.username} выручай!`)
-    bot.pathfinder.setGoal(new GoalNear(player.position.x, player.position.y, player.position.z, 3), true)
+    bot.pathfinder.setGoal(new GoalNear(player.position.x, player.position.y, player.position.z, 3))
     return
   }
 
@@ -66,24 +67,22 @@ const entryFleeing = ({ context, event }) => {
   console.log(`🏃 Убегаю от ${enemy.name || enemy.displayName} в точку (${fleeTarget.x.toFixed(1)}, ${fleeTarget.y.toFixed(1)}, ${fleeTarget.z.toFixed(1)})`)
 
   // Двигаемся к безопасной точке
-  bot.pathfinder.setGoal(new GoalNear(
+  bot.pathfinder.setGoal(new GoalXZ(
     Math.floor(fleeTarget.x),
-    Math.floor(fleeTarget.y),
     Math.floor(fleeTarget.z),
-    1
-  ), true)
+  ))
 }
 
 const entryDefenging = ({ context, event }) => {
   console.log('⚔️ Вход в состояние DEFENDING')
 }
 
-const entryMeleeAttacking = ({ context: { bot, nearestEnemy }, event }) => {
+const entryMeleeAttacking = raise(({ context: { bot, nearestEnemy }, event }) => {
   console.log('⚔️ Вход в состояние MELEE_ATTACKING')
 
   if (!nearestEnemy?.entity?.isValid) {  // Проверяем СНАЧАЛА
     console.log('⚔️ Нет валидного врага для атаки')
-    return
+    return { type: 'NO_ENEMIES' }
   }
 
   const { entity } = nearestEnemy
@@ -100,16 +99,14 @@ const entryMeleeAttacking = ({ context: { bot, nearestEnemy }, event }) => {
   console.log(`⚔️ Атакую ${entity.name || entity.displayName}`)
   bot.pvp.attack(entity)
 
-  if (!bot.pathfinder.isMoving()) {
-    bot.pathfinder.setGoal(new GoalFollow(entity, 3), true)
-  }
-}
+  return {}
+})
 
-const entryRangedAttacking = ({ context: { bot, nearestEnemy }, event }) => {
+const entryRangedAttacking = raise(({ context: { bot, nearestEnemy }, event }) => {
   console.log('⚔️ Вход в состояние RANGED_ATTACKING')
   if (!nearestEnemy?.entity?.isValid) {  // Проверяем СНАЧАЛА
     console.log('⚔️ Нет валидного врага для атаки')
-    return
+    return { type: 'NO_ENEMIES' }
   }
 
   const { entity } = nearestEnemy
@@ -123,8 +120,12 @@ const entryRangedAttacking = ({ context: { bot, nearestEnemy }, event }) => {
     bot.equip(weapon, 'hand')
     console.log(`🏹 Экипировал: ${weapon.name}`)
     bot.hawkEye.autoAttack(entity, weapon.name)
+  } else {
+    return { type: 'ENEMY_BECAME_CLOSE' }
   }
-}
+
+  return {}
+})
 
 export default {
   entryCombat,
