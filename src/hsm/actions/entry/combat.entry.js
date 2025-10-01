@@ -1,4 +1,4 @@
-import { GoalNear } from "../../../modules/plugins/goals.js"
+import { GoalNear, GoalFollow } from "../../../modules/plugins/goals.js"
 
 const entryCombat = ({ context: { bot } }) => {
   console.log('⚔️ Вход в состояние COMBAT')
@@ -99,6 +99,10 @@ const entryMeleeAttacking = ({ context: { bot, nearestEnemy }, event }) => {
 
   console.log(`⚔️ Атакую ${entity.name || entity.displayName}`)
   bot.pvp.attack(entity)
+
+  if (!bot.pathfinder.isMoving()) {
+    bot.pathfinder.setGoal(new GoalFollow(entity, 3), true)
+  }
 }
 
 const entryRangedAttacking = ({ context: { bot, nearestEnemy }, event }) => {

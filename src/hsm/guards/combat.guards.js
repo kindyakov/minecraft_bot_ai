@@ -14,6 +14,10 @@ const canUseRangedAndEnemyFar = ({ context }) => {
 
 const isLowHealth = ({ context, event }) => context.health <= context.preferences.healthCritical
 
+const isEnemyMelee = ({ context, event }) => event.distance <= context.preferences.enemyMeleeRange
+
+const isEnemyFar = ({ context, event }) => event.distance > context.preferences.enemyRangedRange
+
 const isSurrounded = and([
   ({ context, event }) => false
 ])
@@ -23,5 +27,7 @@ export default {
   canUseWeapon,
   canUseRangedAndEnemyFar,
   isLowHealth,
+  isEnemyMelee,
+  isEnemyFar,
   isSurrounded,
 }

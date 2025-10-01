@@ -103,6 +103,16 @@ class BotStateMachine extends EventEmitter {
     //   })
     // })
 
+
+    this.bot.on('goal_reached', (goal) => {
+      const snapshot = this.actor.getSnapshot()
+      const isFleeing = snapshot.matches({ MAIN_ACTIVITY: { COMBAT: 'FLEEING' } })
+
+      if (isFleeing) {
+        this.actor.send({ type: 'FLEE_GOAL_REACHED' })
+      }
+    })
+
     this.bot.on('entityDead', (entity) => {
       this.actor.send({
         type: 'REMOVE_ENTITY',

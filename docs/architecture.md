@@ -79,6 +79,7 @@ Minecraft_bot/
 │   │       ├── 📄 dashboard.js
 │   │       ├── 📄 goals.js
 │   │       ├── 📄 index.plugins.js
+│   │       ├── 📄 movement.js
 │   │       ├── 📄 pathfinder.js
 │   │       ├── 📄 pvp.js
 │   │       ├── 📄 tool.js

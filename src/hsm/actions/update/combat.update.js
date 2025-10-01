@@ -1,9 +1,13 @@
 import { assign } from "xstate"
 
 const clearCombatContext = assign({
+  nearestEnemy: {
+    entity: null,
+    distance: Infinity,
+  },
   prevCombatState: {
     enemyId: null,
-    distance: 0,
+    distance: Infinity,
     health: 20
   }
 })
