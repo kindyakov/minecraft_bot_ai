@@ -13,7 +13,9 @@ const analyzeCombat = raise(({ context }) => {
 
   // Определяем тип изменения
   const changes = {
-    targetChanged: nearestEnemy.entity.id !== prevCombatState.enemyId,
+    targetChanged: nearestEnemy.entity.id !== prevCombatState.enemyId &&
+      (!prevCombatState.enemyId ||
+        Math.abs(nearestEnemy.distance - (prevCombatState.distance || 0)) > 2), // изменение больше 2 блоков,
 
     becameFar: prevCombatState.distance <= preferences.enemyMeleeRange
       && nearestEnemy.distance > preferences.enemyRangedRange,
