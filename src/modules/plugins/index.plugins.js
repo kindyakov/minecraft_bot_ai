@@ -11,7 +11,7 @@ import { loadHawkeye } from "./hawkeye.js"
 
 export const loadPlugins = (bot) => {
   loadPathfinder(bot)
-  loadMovement(bot)
+  // loadMovement(bot)
   loadArmorManager(bot)
   // loadWebInventory(bot)
   loadAutoEat(bot)

@@ -1,10 +1,5 @@
 const exitCombat = ({ context: { bot } }) => {
   console.log('⚔️ Выход из COMBAT')
-
-  bot.pvp.stop()
-  bot.hawkEye.stop()
-  bot.pathfinder.setGoal(null)
-  bot.utils.stopEating()
 }
 
 const exitDeciding = () => {

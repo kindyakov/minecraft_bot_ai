@@ -234,6 +234,7 @@ export const machine = createMachine(
             exit: ['exitCombat', "clearCombatContext"],
             on: {
               NO_ENEMIES: {
+                guard: 'canExitCombat',
                 target: "#MINECRAFT_BOT.MAIN_ACTIVITY.hist",
               },
               ANALYZE_COMBAT: {

@@ -45,8 +45,8 @@ export const context = {
     combatMode: 'defensive',
 
     // FLEEING distances
-    safeEatDistance: 30,        // Минимальная дистанция до врага для безопасного поедания
-    fleeTargetDistance: 20,     // Дистанция убегания от врага
+    safeEatDistance: 20,        // Минимальная дистанция до врага для безопасного поедания
+    fleeTargetDistance: 25,     // Дистанция убегания от врага
     safePlayerDistance: 10,     // Минимальная дистанция от игрока до врага для безопасности (необходима для безопасности: когда бот бежит к игноку в состоянии FLEEING мог отбегать от игрока если с ним не безопасно)
     fleeToPlayerRadius: 50,     // Радиус поиска игрока при побеге (в FLEEING)
 
@@ -55,7 +55,6 @@ export const context = {
 
     enemyMeleeRange: 5,     // Дистанция для ближнего боя
     enemyRangedRange: 8,    // Дистанция для дальнего боя
-
 
     maxCountSlotsInInventory: 45, // Максимальное количество слотов в инвентаре
 

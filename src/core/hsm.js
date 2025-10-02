@@ -103,11 +103,10 @@ class BotStateMachine extends EventEmitter {
     //   })
     // })
 
-
     this.bot.on('goal_reached', (goal) => {
       const snapshot = this.actor.getSnapshot()
       const isFleeing = snapshot.matches({ MAIN_ACTIVITY: { COMBAT: 'FLEEING' } })
-      console.log('❗❗ добажал')
+      console.log('❗❗ добежал')
 
       if (isFleeing) {
         this.actor.send({ type: 'FLEE_GOAL_REACHED' })
@@ -127,6 +126,18 @@ class BotStateMachine extends EventEmitter {
       if (entity.name === 'broken_item') {
         this.actor.send({ type: 'WEAPON_BROKEN' })
       }
+    })
+
+    // this.bot.on('goal_reached', (goal) => {
+    //   console.log('🎯 Goal reached!', goal)
+    // })
+
+    this.bot.on('goal_updated', (goal) => {
+      // console.log('🔄 Goal updated:', goal)
+    })
+
+    this.bot.on('path_update', (results) => {
+      console.log('🛤️ Path update:', results.status)
     })
   }
 }

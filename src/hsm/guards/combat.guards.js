@@ -1,4 +1,4 @@
-import { and, not, stateIn } from "xstate"
+import { and, not, stateIn, or } from "xstate"
 
 const canUseRanged = ({ context }) => {
   const weapon = context.bot.utils.getRangeWeapon()
@@ -22,6 +22,13 @@ const isSurrounded = and([
   ({ context, event }) => false
 ])
 
+const canExitCombat = or([
+  // Можно выйти если НЕ в FLEEING
+  not(stateIn({ MAIN_ACTIVITY: { COMBAT: 'FLEEING' } })),
+  // ИЛИ если в FLEEING но здоровье восстановилось
+  ({ context }) => context.health > context.preferences.healthRestored
+])
+
 export default {
   canUseRanged,
   canUseWeapon,
@@ -30,4 +37,5 @@ export default {
   isEnemyMelee,
   isEnemyFar,
   isSurrounded,
+  canExitCombat
 }

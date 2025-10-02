@@ -1,5 +1,5 @@
 import { raise } from "xstate"
-import { GoalXZ, GoalFollow } from "../../../modules/plugins/goals.js"
+import { GoalXZ, GoalFollow, GoalNear } from "../../../modules/plugins/goals.js"
 
 const entryCombat = ({ context: { bot } }) => {
   try {
@@ -10,6 +10,7 @@ const entryCombat = ({ context: { bot } }) => {
     if (bot.movements) {
       bot.movements.allowSprinting = true // Разрешаем боту бежать        
     }
+
   } catch (error) {
     console.log('Ошибка при в ходе в COMBAT', error)
   }
@@ -24,53 +25,87 @@ const entryFleeing = ({ context, event }) => {
   const { bot, nearestEnemy, preferences } = context
 
   if (bot.movements) {
-    bot.movements.allowSprinting = true // Спринт для быстрого убегания
+    bot.movements.allowSprinting = true
   }
 
-  // Убегаем от врага
-  if (!nearestEnemy?.entity || !nearestEnemy.entity.isValid) return
-  const enemy = nearestEnemy.entity
   const botPos = bot.entity.position
-  const enemyPos = enemy.position
   const player = bot.utils.searchPlayer()
+  const hasFood = bot.utils.getAllFood().length > 0
 
-  // Начинаем есть для восстановления здоровья
-  if (bot.utils.getAllFood().length > 0) {
-    if (botPos.distanceTo(enemyPos) >= preferences.safeEatDistance) {
-      bot.utils.eating()
-    } else {
-      bot.chat('Не могу поесть враги рядом !')
-      console.log('⚠️ Нет возможности поесть враги рядом')
-    }
-  } else {
+  // Проверка: можно ли убежать к игроку
+  const canFleeToPlayer = (enemy) => {
+    if (!player) return false
+
+    const playerToEnemyDist = player.position.distanceTo(enemy.position)
+    const playerToBotDist = player.position.distanceTo(botPos)
+
+    return playerToEnemyDist > preferences.safePlayerDistance
+      && playerToBotDist <= preferences.fleeToPlayerRadius
+  }
+
+  // Убегание от врага
+  const fleeFromEnemy = (enemy) => {
+    const enemyPos = enemy.position
+    const direction = botPos.clone().subtract(enemyPos).normalize()
+    const fleeTarget = botPos.clone().add(direction.scaled(preferences.fleeTargetDistance))
+
+    console.log(`🏃 Убегаю от ${enemy.name || enemy.displayName} в точку (${fleeTarget.x.toFixed(1)}, ${fleeTarget.y.toFixed(1)}, ${fleeTarget.z.toFixed(1)})`)
+
+    bot.pathfinder.setGoal(new GoalXZ(
+      Math.floor(fleeTarget.x),
+      Math.floor(fleeTarget.z),
+    ))
+  }
+
+  // Убегание к игроку
+  const fleeToPlayer = () => {
+    console.log(`🏃‍♂️‍➡️ Бот бежит к игроку "${player.username}"`)
+    bot.chat(`Бегу к ${player.username}, выручай!`)
+    bot.pathfinder.setGoal(new GoalNear(
+      player.position.x,
+      player.position.y,
+      player.position.z,
+      3
+    ))
+  }
+
+  // Нет еды - всё равно убегаем
+  if (!hasFood) {
     bot.chat('ААААА! Нет еды, за мной бегут !!!')
     console.log('⚠️ Нет еды для лечения!')
-  }
 
-  if (
-    player
-    && player.position.distanceTo(enemyPos) > preferences.safePlayerDistance
-    && player.position.distanceTo(botPos) <= preferences.fleeToPlayerRadius
-  ) {
-    console.log(`🏃‍♂️‍➡️ Бот бежит к игроку "${player.username}"`)
-    bot.chat(`Бегу к ${player.username} выручай!`)
-    bot.pathfinder.setGoal(new GoalNear(player.position.x, player.position.y, player.position.z, 3))
+    if (nearestEnemy?.entity?.isValid) {
+      fleeFromEnemy(nearestEnemy.entity)
+    }
     return
   }
 
-  // Вычисляем вектор направления от врага
-  const direction = botPos.clone().subtract(enemyPos).normalize()
+  // Есть еда - решаем есть или убегать
+  if (nearestEnemy?.entity?.isValid) {
+    const enemy = nearestEnemy.entity
+    const distanceToEnemy = botPos.distanceTo(enemy.position)
 
-  // Точка на расстоянии 20 блоков от врага в противоположном направлении
-  const fleeTarget = botPos.clone().add(direction.scaled(preferences.fleeTargetDistance))
+    // Враг близко - убегаем
+    if (distanceToEnemy < preferences.safeEatDistance) {
+      bot.chat('Не могу поесть, враги рядом!')
+      console.log('⚠️ Нет возможности поесть, враги рядом')
 
-  console.log(`🏃 Убегаю от ${enemy.name || enemy.displayName} в точку (${fleeTarget.x.toFixed(1)}, ${fleeTarget.y.toFixed(1)}, ${fleeTarget.z.toFixed(1)})`)
+      // Проверяем можно ли убежать к игроку
+      if (canFleeToPlayer(enemy)) {
+        fleeToPlayer()
+        return
+      }
 
-  // Двигаемся к безопасной точке
-  bot.pathfinder.setGoal(new GoalXZ(
-    Math.floor(fleeTarget.x),
-    Math.floor(fleeTarget.z),
-  ))
+      // Иначе убегаем от врага
+      fleeFromEnemy(enemy)
+      return
+    }
+  }
+
+  // Враг далеко или его нет - едим
+  console.log('✅ Безопасно! Останавливаюсь и ем')
+  bot.pathfinder.setGoal(null)
+  bot.utils.eating()
 }
 
 const entryDefenging = ({ context, event }) => {
@@ -88,7 +123,6 @@ const entryMeleeAttacking = raise(({ context: { bot, nearestEnemy }, event }) =>
   const { entity } = nearestEnemy
 
   const meleeWeapon = bot.utils.getMeleeWeapon() // поиск оружия меч/топор
-
   if (meleeWeapon) {
     console.log(`🗡️ Экипировал оружие: ${meleeWeapon.name}`)
     bot.equip(meleeWeapon, 'hand')
@@ -97,6 +131,7 @@ const entryMeleeAttacking = raise(({ context: { bot, nearestEnemy }, event }) =>
   }
 
   console.log(`⚔️ Атакую ${entity.name || entity.displayName}`)
+
   bot.pvp.attack(entity)
 
   return {}
