@@ -70,15 +70,23 @@ cp config/.env.example .env
 ```env
 # Сервер
 MINECRAFT_HOST=localhost
-MINECRAFT_PORT=25565
+MINECRAFT_PORT=22222
 MINECRAFT_VERSION=1.20.1
 
 # Аутентификация
-BOT_USERNAME=Bot
+MINECRAFT_USERNAME=Bot
 AUTH_TYPE=offline  # offline | microsoft | mojang
 
-# Опционально
-# BOT_PASSWORD=your_password
+MINECRAFT_VIEWER_PORT=9000
+MINECRAFT_WEB_INVENTORY_PORT=9001
+
+AI_PROVIDER=
+AI_MODEL=
+AI_API_KEY=
+AI_TIMEOUT_MS=
+AI_MAX_TOKENS=
+
+NODE_ENV=production
 ```
 
 ## Запуск
@@ -98,7 +106,7 @@ npm run format
 
 ```
 src/
-├── ai/                 # AI модули (планируется)
+├── ai/                # AI модули (планируется)
 ├── config/            # Конфигурации, логгер
 ├── core/              # Ядро: Bot, HSM
 ├── hsm/               # XState машина состояний
@@ -160,11 +168,11 @@ MINECRAFT_BOT (parallel)
 
 **Переходы происходят по приоритетам:**
 
-- URGENT_NEEDS (8) может прервать FOLLOWING (9)
+- FOLLOWING (9) может прервать URGENT_NEEDS (8)
 - COMBAT (7.5) может прервать MINING (7)
 - TASKS (6) не может прервать COMBAT (7.5)
 
-Подробнее: [docs/architecture.md](docs/architecture.md)
+Подробнее: [./architecture.md](docs/architecture.md)
 
 ## Разработка
 
@@ -231,9 +239,9 @@ console.log('Активные состояния:', this.actor.getSnapshot().val
 
 ## Документация
 
-- [Архитектура](docs/architecture.md) - Детальная архитектура проекта
-- [FSM](docs/architecture_fsm.md) - Описание машины состояний
-- [Описание бота](docs/minecraft_bot.md) - Общее описание
+- [Архитектура](./architecture.md) - Детальная архитектура проекта
+- [FSM](./architecture_fsm.md) - Описание машины состояний
+- [Описание бота](./minecraft_bot.md) - Общее описание
 
 ## Лицензия
 
@@ -241,7 +249,7 @@ ISC
 
 ## Контакты
 
-Вопросы и предложения: [создай issue](../../issues)
+Вопросы и предложения: [создай issue](../../../issues)
 
 ---
 

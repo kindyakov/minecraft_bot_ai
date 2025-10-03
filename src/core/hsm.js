@@ -24,6 +24,8 @@ class BotStateMachine extends EventEmitter {
 
     console.log('HSM машина создана');
 
+    this.bot.hsm = this;
+
     this.setupAntiLoopObserver();
     this.setupBotEvents();
     this.handlers();
@@ -102,6 +104,18 @@ class BotStateMachine extends EventEmitter {
     return String(stateValue);
   }
 
+  getContext() {
+    return this.actor.getSnapshot().context;
+  }
+
+  getCurrentState() {
+    return this.actor.getSnapshot().value;
+  }
+
+  isInState(statePath) {
+    return this.actor.getSnapshot().matches(statePath);
+  }
+
   handlers() {
     this.on('player-command', (commandName, options) => {
       if (commandName === 'stop') {
@@ -149,16 +163,6 @@ class BotStateMachine extends EventEmitter {
 
     this.bot.on('death', () => {
       this.actor.send({ type: 'DEATH' });
-    });
-
-    this.bot.on('goal_reached', (goal) => {
-      const snapshot = this.actor.getSnapshot();
-      const isFleeing = snapshot.matches({ MAIN_ACTIVITY: { COMBAT: 'FLEEING' } });
-      console.log('❗добежал❗');
-
-      if (isFleeing) {
-        this.actor.send({ type: 'FLEE_GOAL_REACHED' });
-      }
     });
 
     this.bot.on('entityDead', (entity) => {

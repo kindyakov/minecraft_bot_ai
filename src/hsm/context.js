@@ -46,12 +46,9 @@ export const context = {
 
     // FLEEING distances
     safeEatDistance: 20,        // Минимальная дистанция до врага для безопасного поедания
-    fleeTargetDistance: 25,     // Дистанция убегания от врага
+    fleeTargetDistance: 15,     // Дистанция убегания от врага
     safePlayerDistance: 10,     // Минимальная дистанция от игрока до врага для безопасности (необходима для безопасности: когда бот бежит к игноку в состоянии FLEEING мог отбегать от игрока если с ним не безопасно)
     fleeToPlayerRadius: 50,     // Радиус поиска игрока при побеге (в FLEEING)
-
-    healthCritical: 10,      // Входить в FLEEING
-    healthRestored: 15,      // Выходить из FLEEING
 
     enemyMeleeRange: 5,     // Дистанция для ближнего боя
     enemyRangedRange: 8,    // Дистанция для дальнего боя
@@ -59,11 +56,11 @@ export const context = {
     maxCountSlotsInInventory: 45, // Максимальное количество слотов в инвентаре
 
     // Пороги для EMERGENCY_EATING
-    foodEmergency: 6,        // Вход в EMERGENCY_EATING
+    foodEmergency: 15,        // Вход в EMERGENCY_EATING
     foodRestored: 20,        // Выход из EMERGENCY_EATING (полный голод)
 
     // Пороги для EMERGENCY_HEALING  
-    healthEmergency: 6,      // Вход в EMERGENCY_HEALING
+    healthEmergency: 10,      // Вход в EMERGENCY_HEALING
     healthFullyRestored: 18, // Выход из EMERGENCY_HEALING (почти полное HP)
   },
 
@@ -71,9 +68,4 @@ export const context = {
     entity: null,
     distance: Infinity,
   },
-  prevCombatState: {
-    enemyId: null,
-    distance: Infinity,
-    health: 20
-  }
 }

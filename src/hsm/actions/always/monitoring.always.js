@@ -11,11 +11,6 @@ const setTargetOnEnemy = assign(({ context }) => {
       entity,
       distance,
     },
-    prevCombatState: {
-      enemyId: entity?.id || null,
-      distance,
-      health: 20
-    }
   }
 })
 

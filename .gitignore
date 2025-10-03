@@ -2,8 +2,6 @@ logs/
 node_modules
 .env
 .continue
-commit.txt
-start_promt_ai.md
 Desktop.ini
-DisplayTree.ps1
+*.ps1
 CLAUDE.md
