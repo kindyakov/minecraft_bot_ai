@@ -1,6 +1,5 @@
 import EventEmitter from 'node:events';
 import { createActor } from 'xstate';
-import { createLocalInspector } from './inspector.js';
 import { machine } from '../hsm/machine.js';
 import { AntiLoopGuard } from '../hsm/utils/antiLoop.js';
 
@@ -17,15 +16,11 @@ class BotStateMachine extends EventEmitter {
       windowMs: 1000
     });
 
-    this.inspector = createLocalInspector(8080);
-
     this.init();
   }
 
   init() {
-    this.actor = createActor(this.machine, {
-      inspect: this.inspector.inspect
-    });
+    this.actor = createActor(this.machine);
 
     console.log('HSM машина создана');
 
@@ -64,7 +59,7 @@ class BotStateMachine extends EventEmitter {
           console.error('Статистика:', this.antiLoopGuard.getStats());
           console.error('');
 
-          this.stop()
+          this.actor.stop();
 
           if (this.bot && this.bot.chat) {
             this.bot.chat('⚠️ Произошла критическая ошибка! Остановка...');
@@ -159,7 +154,7 @@ class BotStateMachine extends EventEmitter {
     this.bot.on('goal_reached', (goal) => {
       const snapshot = this.actor.getSnapshot();
       const isFleeing = snapshot.matches({ MAIN_ACTIVITY: { COMBAT: 'FLEEING' } });
-      console.log('❗❗ добежал');
+      console.log('❗добежал❗');
 
       if (isFleeing) {
         this.actor.send({ type: 'FLEE_GOAL_REACHED' });
@@ -178,11 +173,6 @@ class BotStateMachine extends EventEmitter {
         this.actor.send({ type: 'WEAPON_BROKEN' });
       }
     });
-  }
-
-  stop() {
-    this.actor.stop();
-    this.inspector.close();
   }
 }
 
