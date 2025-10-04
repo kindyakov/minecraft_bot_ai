@@ -68,4 +68,9 @@ export const context = {
     entity: null,
     distance: Infinity,
   },
+
+  plan: null, // текущий план
+  taskData: null, // данные текущей задачи
+  pausedPlan: null, // прерванный план
+  savedTaskState: null, // сохранённое состояние задачи
 }

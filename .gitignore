@@ -1,4 +1,5 @@
 logs/
+markdown/
 node_modules
 .env
 .continue

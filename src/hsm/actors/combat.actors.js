@@ -55,12 +55,6 @@ const serviceMeleeAttack = createStatefulService({
       setState({ currentTarget: enemy })
     }
   },
-
-  onCleanup: ({ bot }) => {
-    bot.pvp.stop()
-    bot.pathfinder.setGoal(null)
-    console.log('🆑 Очистка боя')
-  }
 })
 
 const serviceRangedAttack = createStatefulService({
@@ -116,8 +110,7 @@ const serviceRangedAttack = createStatefulService({
   },
 
   onCleanup: ({ bot }) => {
-    bot.hawkEye.stop()
-    bot.pathfinder.setGoal(null)
+
   }
 })
 
@@ -155,10 +148,6 @@ const serviceFleeing = createStatefulService({
       Math.floor(fleeTarget.z),
     ))
   },
-
-  onCleanup: ({ bot }) => {
-    bot.pathfinder.setGoal(null)
-  }
 })
 
 export default {

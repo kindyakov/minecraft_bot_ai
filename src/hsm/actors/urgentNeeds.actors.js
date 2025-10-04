@@ -104,12 +104,6 @@ const serviceEmergencyHealing = createStatefulService({
     bot.utils.eating()
     setState({ isEating: true })
   },
-
-  onCleanup: ({ bot }) => {
-    bot.pathfinder.setGoal(null)
-    bot.utils.stopEating()
-    console.log('🆑 Выход из режима выживания')
-  }
 })
 
 export default {
