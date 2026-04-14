@@ -8,6 +8,7 @@
     "build": "tsc && tsc-alias",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
+    "inspect-schematic": "node --import tsx src/scripts/inspectSchematic.ts",
     "type-check": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.{ts,js}\"",
     "knip": "knip",
@@ -49,6 +50,7 @@
     "mineflayer-tool": "^1.2.0",
     "mineflayer-web-inventory": "^1.8.5",
     "openai": "^6.32.0",
+    "prismarine-nbt": "^2.8.0",
     "prismarine-viewer": "^1.33.0",
     "winston": "^3.17.0",
     "xstate": "^5.22.0"
