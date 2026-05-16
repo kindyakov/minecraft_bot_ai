@@ -13,6 +13,7 @@ import { canSeeEnemy } from '@/utils/combat/enemyVisibility'
 import { hasMovementController } from '@/utils/combat/movementController'
 import {
 	clearMicroMovement,
+	enableMicroMovement,
 	stopMeleeAttack,
 	stopPathfinderMovement,
 	stopRangedAttack
@@ -187,6 +188,19 @@ const canExitMeleeToRanged = (
 	)
 }
 
+const applyRangedSkirmishMovement = (bot: any, enemy: Entity) => {
+	clearMicroMovement(bot)
+
+	if (!hasMovementController(bot)) {
+		return
+	}
+
+	enableMicroMovement(bot)
+	bot.movement.setGoal(bot.movement.goals.Default)
+	bot.movement.heuristic.get('proximity').target(enemy.position).avoid(true)
+	void bot.movement.steer(bot.movement.getYaw(enemy.position), true)
+}
+
 const serviceApproaching = createStatefulService<ApproachingState>({
 	name: 'Approaching',
 	tickInterval: 250,
@@ -347,7 +361,7 @@ const serviceRangedSkirmish = createStatefulService<RangedSkirmishState>({
 				return
 			}
 
-			clearMicroMovement(bot)
+			applyRangedSkirmishMovement(bot, target.entity)
 			setState(loadout)
 		} catch {
 			sendBack({ type: 'ENEMY_BECAME_CLOSE' })
@@ -393,7 +407,7 @@ const serviceRangedSkirmish = createStatefulService<RangedSkirmishState>({
 		}
 
 		if (
-			state.weapon?.name !== loadout.weapon.name ||
+			state.weapon !== loadout.weapon ||
 			state.weaponType !== loadout.weaponType
 		) {
 			try {
@@ -407,10 +421,12 @@ const serviceRangedSkirmish = createStatefulService<RangedSkirmishState>({
 			}
 		}
 
+		applyRangedSkirmishMovement(bot, enemy)
+
 		if (
 			!state.currentTarget ||
 			state.currentTarget.id !== enemy.id ||
-			state.weapon?.name !== loadout.weapon.name ||
+			state.weapon !== loadout.weapon ||
 			state.weaponType !== loadout.weaponType
 		) {
 			if (state.currentTarget) {

@@ -885,23 +885,24 @@ test(
 )
 
 test(
-	'UPDATE_FOOD preempts into urgent eating even when a hostile is already nearby',
+	'UPDATE_FOOD does not preempt active melee combat while the hostile is still close',
 	async () => {
 		const { actor } = createTestActor()
 
 		try {
 			actor.send({
-				type: 'UPDATE_ENTITIES',
-				entities: [enemy as any],
-				enemies: [enemy as any],
-				players: [],
-				nearestEnemy: {
-					entity: enemy as any,
-					distance: 2
-				}
+				type: 'START_COMBAT',
+				target: enemy as any
 			})
 			await waitForTurn()
 			await waitForTurn()
+
+			assert.equal(
+				actor.getSnapshot().matches({
+					MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
+				} as never),
+				true
+			)
 
 			actor.send({
 				type: 'UPDATE_FOOD',
@@ -910,9 +911,10 @@ test(
 			await waitForTurn()
 			await waitForTurn()
 
+			assert.equal(actor.getSnapshot().context.food, 5)
 			assert.equal(
 				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_EATING' }
+					MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
 				} as never),
 				true
 			)

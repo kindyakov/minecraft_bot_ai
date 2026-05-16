@@ -302,7 +302,7 @@ test('STOP_COMBAT cleans up active melee combat', async () => {
 		await delay(0)
 		await delay(0)
 
-		assert.equal(bot.pvpStopCalls > 0, true)
+		assert.equal(bot.pvpForceStopCalls > 0, true)
 	} finally {
 		actor.stop()
 	}
@@ -429,7 +429,7 @@ test('combat hands off from melee to ranged skirmish without overlap', async () 
 			true
 		)
 		assert.equal(actor.getSnapshot().context.movementOwner, 'MOVEMENT')
-		assert.equal(bot.pvpStopCalls > 0, true)
+		assert.equal(bot.pvpForceStopCalls > 0, true)
 		assert.equal(bot.hawkEyeAttackCalls > 0, true)
 	} finally {
 		actor.stop()

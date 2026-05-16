@@ -319,6 +319,21 @@ const eventEnemyInMeleeRange = ({
 	Boolean(event.nearestEnemy.entity) &&
 	event.nearestEnemy.distance <= context.preferences.enemyMeleeRange
 
+const hasCloseMeleeThreat = (context: MachineContext) =>
+	Boolean(context.nearestEnemy.entity) &&
+	context.nearestEnemy.distance <= context.preferences.enemyMeleeRange
+
+const canPreemptForHungerRecovery = ({
+	context,
+	event
+}: {
+	context: MachineContext
+	event: MachineEvent
+}) =>
+	event.type === 'UPDATE_FOOD' &&
+	event.food < context.preferences.foodEmergency &&
+	!(context.movementOwner === 'PVP' && hasCloseMeleeThreat(context))
+
 const eventCanSkirmishRanged = ({
 	event,
 	context
@@ -1828,9 +1843,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 						on: {
 							UPDATE_FOOD: [
 								{
-									guard: ({ event, context }) =>
-										event.type === 'UPDATE_FOOD' &&
-										event.food < context.preferences.foodEmergency,
+									guard: canPreemptForHungerRecovery,
 									target:
 										'#MINECRAFT_BOT.MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING',
 									actions: ['updateFood']
