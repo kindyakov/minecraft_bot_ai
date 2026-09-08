@@ -62,16 +62,17 @@ const outputStateLayouts: StateLayout[] = [
 		width: 250,
 		height: 100,
 		kind: 'leaf',
-		summary: 'Resting state. Waits for commands, combat triggers, or urgent needs.'
+		summary:
+			'Resting state. Waits for commands, combat triggers, or urgent needs.'
 	},
 	{
-		path: 'MAIN_ACTIVITY.hist',
+		path: 'MAIN_ACTIVITY.RESUMING',
 		x: 355,
 		y: 185,
 		width: 70,
 		height: 70,
-		kind: 'history',
-		summary: 'Return point after urgent recovery.'
+		kind: 'leaf',
+		summary: 'Replan the current goal or return to idle after recovery.'
 	},
 	{
 		path: 'MAIN_ACTIVITY.URGENT_NEEDS',
@@ -164,7 +165,8 @@ const outputStateLayouts: StateLayout[] = [
 		width: 240,
 		height: 105,
 		kind: 'leaf',
-		summary: 'Invokes the agent turn and chooses the next execution step or finish.'
+		summary:
+			'Invokes the agent turn and chooses the next execution step or finish.'
 	},
 	{
 		path: 'MAIN_ACTIVITY.TASKS.EXECUTING',
@@ -387,8 +389,7 @@ const noteLayouts: NoteLayout[] = [
 		width: 900,
 		height: 45,
 		title: 'MINECRAFT_BOT',
-		body:
-			'Parallel XState root. MAIN_ACTIVITY owns current behavior; MONITORING keeps health, hunger, and entities hot.'
+		body: 'Parallel XState root. MAIN_ACTIVITY owns current behavior; MONITORING keeps health, hunger, and entities hot.'
 	},
 	{
 		id: 'note-external-triggers',
@@ -397,8 +398,7 @@ const noteLayouts: NoteLayout[] = [
 		width: 560,
 		height: 180,
 		title: 'External triggers',
-		body:
-			'USER_COMMAND -> TASKS.THINKING\nSTART_COMBAT -> COMBAT\nSTOP_COMBAT -> THINKING or IDLE\nDEATH / STOP_CURRENT_GOAL -> IDLE\nSTART_URGENT_NEEDS -> EMERGENCY_EATING or EMERGENCY_HEALING',
+		body: 'USER_COMMAND -> TASKS.THINKING\nSTART_COMBAT -> COMBAT\nSTOP_COMBAT -> THINKING or IDLE\nDEATH / STOP_CURRENT_GOAL -> IDLE\nSTART_URGENT_NEEDS -> EMERGENCY_EATING or EMERGENCY_HEALING',
 		fillColor: '#f8fafc',
 		strokeColor: '#475569'
 	},
@@ -409,8 +409,7 @@ const noteLayouts: NoteLayout[] = [
 		width: 560,
 		height: 130,
 		title: 'Agent loop',
-		body:
-			'THINKING invokes one agent turn, EXECUTING runs exactly one pending tool, DECIDE_NEXT loops until finish or anti-loop abort.',
+		body: 'THINKING invokes one agent turn, EXECUTING runs exactly one pending tool, DECIDE_NEXT loops until finish or anti-loop abort.',
 		fillColor: '#ecfeff',
 		strokeColor: '#0f766e'
 	},
@@ -421,8 +420,7 @@ const noteLayouts: NoteLayout[] = [
 		width: 560,
 		height: 150,
 		title: 'Mining workflow',
-		body:
-			'mine_resource is the only deep execution subtree. It validates preconditions, searches blocks, navigates, breaks, retries, and records completion or failure.',
+		body: 'mine_resource is the only deep execution subtree. It validates preconditions, searches blocks, navigates, breaks, retries, and records completion or failure.',
 		fillColor: '#eff6ff',
 		strokeColor: '#1d4ed8'
 	},
@@ -433,8 +431,7 @@ const noteLayouts: NoteLayout[] = [
 		width: 560,
 		height: 120,
 		title: 'Invoked actors',
-		body:
-			'COMBAT: serviceMeleeAttack, serviceRangedSkirmish\nURGENT_NEEDS: emergencyEating / emergencyHealing\nMONITORING: serviceEntitiesTracking',
+		body: 'COMBAT: serviceMeleeAttack, serviceRangedSkirmish\nURGENT_NEEDS: emergencyEating / emergencyHealing\nMONITORING: serviceEntitiesTracking',
 		fillColor: '#fff7ed',
 		strokeColor: '#c2410c'
 	},
@@ -445,8 +442,7 @@ const noteLayouts: NoteLayout[] = [
 		width: 560,
 		height: 120,
 		title: 'Legend',
-		body:
-			'Solid arrows = normal transitions\nAnimated arrows = hot loops worth watching\nDashed arrows = cross-lane or external triggers\nState captions summarize purpose, not raw action lists',
+		body: 'Solid arrows = normal transitions\nAnimated arrows = hot loops worth watching\nDashed arrows = cross-lane or external triggers\nState captions summarize purpose, not raw action lists',
 		fillColor: '#ffffff',
 		strokeColor: '#111827'
 	}
@@ -487,7 +483,7 @@ const edgeLayouts: EdgeLayout[] = [
 	},
 	{
 		id: 'edge-monitor-health',
-		source: 'MONITORING.HEALTH_MONITOR',
+		source: 'MAIN_ACTIVITY',
 		target: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING',
 		label: 'UPDATE_HEALTH [critical]',
 		dashed: true,
@@ -495,7 +491,7 @@ const edgeLayouts: EdgeLayout[] = [
 	},
 	{
 		id: 'edge-monitor-hunger',
-		source: 'MONITORING.HUNGER_MONITOR',
+		source: 'MAIN_ACTIVITY',
 		target: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING',
 		label: 'UPDATE_FOOD [critical]',
 		dashed: true,
@@ -509,26 +505,38 @@ const edgeLayouts: EdgeLayout[] = [
 		strokeColor: '#b91c1c'
 	},
 	{
-		id: 'edge-urgent-eating-history',
+		id: 'edge-urgent-eating-resuming',
 		source: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING',
-		target: 'MAIN_ACTIVITY.hist',
+		target: 'MAIN_ACTIVITY.RESUMING',
 		label: 'FOOD_RESTORED / done',
 		strokeColor: '#d97706'
 	},
 	{
-		id: 'edge-urgent-healing-history',
+		id: 'edge-urgent-healing-resuming',
 		source: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING',
-		target: 'MAIN_ACTIVITY.hist',
+		target: 'MAIN_ACTIVITY.RESUMING',
 		label: 'HEALTH_RESTORED / done',
 		strokeColor: '#dc2626'
 	},
 	{
-		id: 'edge-urgent-error-idle',
+		id: 'edge-urgent-error-resuming',
 		source: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING',
-		target: 'MAIN_ACTIVITY.IDLE',
-		label: 'invoke error -> IDLE',
+		target: 'MAIN_ACTIVITY.RESUMING',
+		label: 'ERROR / RECOVERY_FAILED',
 		dashed: true,
 		strokeColor: '#64748b'
+	},
+	{
+		id: 'edge-resuming-task',
+		source: 'MAIN_ACTIVITY.RESUMING',
+		target: 'MAIN_ACTIVITY.TASKS.THINKING',
+		label: 'always [current goal] / replan'
+	},
+	{
+		id: 'edge-resuming-idle',
+		source: 'MAIN_ACTIVITY.RESUMING',
+		target: 'MAIN_ACTIVITY.IDLE',
+		label: 'always [no goal]'
 	},
 	{
 		id: 'edge-combat-deciding-melee',
@@ -862,11 +870,12 @@ const escapeXml = (value: string) =>
 		.replaceAll('"', '&quot;')
 		.replaceAll("'", '&apos;')
 
-const toCellId = (path: string) => `state-${path.replaceAll('.', '-').replaceAll('#', '')}`
+const toCellId = (path: string) =>
+	`state-${path.replaceAll('.', '-').replaceAll('#', '')}`
 
 const getStateLabel = (path: string) => {
-	if (path === 'MAIN_ACTIVITY.hist') {
-		return 'HISTORY'
+	if (path === 'MAIN_ACTIVITY.RESUMING') {
+		return 'RESUMING'
 	}
 
 	return path.split('.').at(-1) ?? path
@@ -877,7 +886,7 @@ const getPalette = (path: string) => {
 		return { fill: '#f8fafc', stroke: '#334155', text: '#0f172a' }
 	}
 
-	if (path === 'MAIN_ACTIVITY.hist') {
+	if (path === 'MAIN_ACTIVITY.RESUMING') {
 		return { fill: '#f1f5f9', stroke: '#64748b', text: '#0f172a' }
 	}
 
@@ -1023,7 +1032,10 @@ const collectStatePaths = (
 
 	return Object.entries(states).flatMap(([name, config]) => {
 		const currentPath = [...path, name]
-		return [currentPath.join('.'), ...collectStatePaths(config.states, currentPath)]
+		return [
+			currentPath.join('.'),
+			...collectStatePaths(config.states, currentPath)
+		]
 	})
 }
 
@@ -1051,10 +1063,7 @@ export const buildHsmDrawioDiagram = (): HsmDrawioDiagram => {
 	const statePaths = collectStatePaths(machine.config.states)
 	validateLayoutCoverage(statePaths)
 
-	const cells: string[] = [
-		'<mxCell id="0"/>',
-		'<mxCell id="1" parent="0"/>'
-	]
+	const cells: string[] = ['<mxCell id="0"/>', '<mxCell id="1" parent="0"/>']
 
 	cells.push(
 		...outputStateLayouts.map(layout => {

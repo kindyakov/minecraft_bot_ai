@@ -17,6 +17,7 @@ class BotStateMachine {
 	private readonly pendingEvents: MachineEvent[] = []
 	private isReady = false
 	private antiLoopTripped = false
+	private antiLoopCooldown?: NodeJS.Timeout
 
 	constructor(bot: Bot) {
 		this.bot = bot
@@ -82,7 +83,8 @@ class BotStateMachine {
 				this.antiLoopTripped = true
 				this.bot.chat('⚠️ Произошла критическая ошибка! Остановка...')
 				this.send({ type: 'STOP_CURRENT_GOAL' })
-				setTimeout(() => {
+				this.antiLoopCooldown = setTimeout(() => {
+					this.antiLoopGuard.reset()
 					this.antiLoopTripped = false
 				}, 60_000)
 			}
@@ -162,6 +164,7 @@ class BotStateMachine {
 	}
 
 	stop(): void {
+		if (this.antiLoopCooldown) clearTimeout(this.antiLoopCooldown)
 		if (this.pathfindCacheCleanupInterval) {
 			clearInterval(this.pathfindCacheCleanupInterval)
 		}

@@ -1,10 +1,10 @@
+import { createStatefulService } from '@/hsm/helpers/createStatefulService'
+
 import {
 	type WindowTransferRequest,
 	type WindowTransferResult,
 	transferWindowItem
 } from '@/ai/runtime/window.js'
-
-import { createStatefulService } from '@/hsm/helpers/createStatefulService'
 
 interface TransferItemState {
 	isActive: boolean
@@ -17,6 +17,7 @@ export const primitiveTransferItem = createStatefulService<
 	WindowTransferRequest
 >({
 	name: 'primitiveTransferItem',
+	timeoutMs: 15_000,
 	initialState: {
 		isActive: true,
 		transferred: null

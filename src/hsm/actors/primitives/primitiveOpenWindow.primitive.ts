@@ -1,13 +1,12 @@
-import {
-	type WindowSession,
-	closeWindowSession,
-	closeWindowSessionSafely,
-	openWindowSession
-} from '@/ai/runtime/window.js'
-
 import type { MemoryPosition } from '@/core/memory/types.js'
 
 import { createStatefulService } from '@/hsm/helpers/createStatefulService'
+
+import {
+	type WindowSession,
+	closeWindowSessionSafely,
+	openWindowSession
+} from '@/ai/runtime/window.js'
 
 interface OpenWindowState {
 	isActive: boolean
@@ -24,6 +23,7 @@ export const primitiveOpenWindow = createStatefulService<
 	OpenWindowOptions
 >({
 	name: 'primitiveOpenWindow',
+	timeoutMs: 15_000,
 	initialState: {
 		isActive: true,
 		windowSession: null
@@ -70,11 +70,8 @@ export const primitiveOpenWindow = createStatefulService<
 
 				if (!closeResult.ok) {
 					;(dispatch ?? sendBack)({
-						type: 'WINDOW_OPENED',
-						session
-					})
-					;(dispatch ?? sendBack)({
-						type: 'WINDOW_CLOSE_FAILED',
+						type: 'WINDOW_CLEANUP_FAILED',
+						session,
 						reason: closeResult.reason ?? 'Unknown window close error'
 					})
 				}

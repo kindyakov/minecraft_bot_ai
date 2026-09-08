@@ -411,6 +411,40 @@ test('regression: BotUtils eats for hunger recovery even when health is already 
 	}
 })
 
+test('canceled eating does not schedule an autonomous retry', async t => {
+	t.mock.timers.enable({ apis: ['setTimeout'] })
+	let rejectEat: (error: Error) => void = () => {}
+	let calls = 0
+	const bot = {
+		health: 8,
+		food: 5,
+		foodSaturation: 2,
+		registry: { isNewerOrEqualTo: () => true },
+		inventory: { slots: [], items: () => [{ name: 'bread' }] },
+		autoEat: {
+			isEating: false,
+			findBestChoices: () => [{ name: 'bread' }],
+			eat: () => {
+				calls++
+				bot.autoEat.isEating = true
+				return new Promise<void>((_resolve, reject) => {
+					rejectEat = reject
+				})
+			},
+			cancelEat: () => {
+				bot.autoEat.isEating = false
+				rejectEat(new Error('eating canceled'))
+			}
+		}
+	}
+	const utils = new BotUtils(bot as any)
+	const result = utils.eating().catch(() => {})
+	utils.stopEating()
+	await result
+	t.mock.timers.tick(1500)
+	assert.equal(calls, 1)
+})
+
 test('regression: BotUtils.stopEating cancels active autoEat session', () => {
 	class FakeEatingBot extends EventEmitter {
 		health = 12

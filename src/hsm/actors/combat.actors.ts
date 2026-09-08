@@ -29,7 +29,8 @@ const logCombatRuntime = (event: string, payload: Record<string, unknown>) => {
 	Logger.debug(`[COMBAT] ${event}`, payload)
 }
 
-const isPvpTargetActive = (bot: any, enemy: Entity) => bot.pvp?.target?.id === enemy.id
+const isPvpTargetActive = (bot: any, enemy: Entity) =>
+	bot.pvp?.target?.id === enemy.id
 
 const getCombatDistance = (position: any, entity: Entity): number =>
 	position?.distanceTo?.(entity.position) ?? Number.POSITIVE_INFINITY
@@ -57,7 +58,8 @@ const resolveCombatTarget = (
 				(enemy: Entity) =>
 					enemy?.id === targetId &&
 					Boolean(enemy.isValid) &&
-					getCombatDistance(position, enemy) <= context.preferences.maxDistToEnemy
+					getCombatDistance(position, enemy) <=
+						context.preferences.maxDistToEnemy
 			) ?? null
 		)
 	}
@@ -112,7 +114,9 @@ const issueMeleeAttack = (
 		void attackResult.catch((error: unknown) => {
 			Logger.error('[COMBAT] melee_attack_failed', {
 				error:
-					error instanceof Error ? (error.stack ?? error.message) : String(error)
+					error instanceof Error
+						? (error.stack ?? error.message)
+						: String(error)
 			})
 			sendBack({
 				type: 'ERROR',
@@ -151,7 +155,9 @@ const canExitMeleeToRanged = (
 	}
 
 	return (
-		target.distance > context.preferences.enemyMeleeRange + meleeExitRangeBuffer &&
+		!context.rangedUnavailable &&
+		target.distance >
+			context.preferences.enemyMeleeRange + meleeExitRangeBuffer &&
 		resolveRangedLoadout(bot) !== null &&
 		canSeeEnemy(bot, target.entity)
 	)
@@ -159,6 +165,7 @@ const canExitMeleeToRanged = (
 
 const serviceMeleeAttack = createStatefulService<MeleeAttackState>({
 	name: 'MeleeAttack',
+	operationTimeoutMs: 15_000,
 	tickInterval: 500,
 	initialState: {
 		currentTarget: null
@@ -239,6 +246,7 @@ const serviceMeleeAttack = createStatefulService<MeleeAttackState>({
 
 const serviceRangedSkirmish = createStatefulService<RangedSkirmishState>({
 	name: 'RangedSkirmish',
+	operationTimeoutMs: 15_000,
 	asyncTickInterval: 250,
 	initialState: {
 		currentTarget: null,
@@ -252,11 +260,7 @@ const serviceRangedSkirmish = createStatefulService<RangedSkirmishState>({
 		const loadout = resolveRangedLoadout(bot)
 		const target = resolveCombatTarget(context)
 
-		if (
-			!loadout ||
-			!target.entity ||
-			!canSeeEnemy(bot, target.entity)
-		) {
+		if (!loadout || !target.entity || !canSeeEnemy(bot, target.entity)) {
 			sendBack({ type: 'ENEMY_BECAME_CLOSE' })
 			return
 		}
@@ -268,8 +272,11 @@ const serviceRangedSkirmish = createStatefulService<RangedSkirmishState>({
 			}
 
 			setState(loadout)
-		} catch {
-			sendBack({ type: 'ENEMY_BECAME_CLOSE' })
+		} catch (error) {
+			sendBack({
+				type: 'RANGED_UNAVAILABLE',
+				reason: error instanceof Error ? error.message : String(error)
+			})
 		}
 	},
 
@@ -320,8 +327,11 @@ const serviceRangedSkirmish = createStatefulService<RangedSkirmishState>({
 				if (abortSignal.aborted) {
 					return
 				}
-			} catch {
-				sendBack({ type: 'ENEMY_BECAME_CLOSE' })
+			} catch (error) {
+				sendBack({
+					type: 'RANGED_UNAVAILABLE',
+					reason: error instanceof Error ? error.message : String(error)
+				})
 				return
 			}
 		}

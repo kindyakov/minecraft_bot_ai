@@ -12,13 +12,11 @@ export type BaseServiceState = {
 	[key: string]: unknown
 }
 
-type ServiceState = BaseServiceState
-
-interface ServiceAPI<TState extends ServiceState, TOptions = {}> {
+interface ServiceAPI<TState extends BaseServiceState, TOptions = {}> {
 	bot: Bot
-	context: MachineContext
-	state: TState
-	input: TOptions // Параметры из invoke input
+	readonly context: MachineContext
+	readonly state: TState
+	input: TOptions
 	event?: unknown
 	sendBack: (event: MachineEvent) => void
 	setState: (newState: Partial<TState>) => void
@@ -26,268 +24,173 @@ interface ServiceAPI<TState extends ServiceState, TOptions = {}> {
 	abortSignal: AbortSignal
 }
 
-type ServiceHandler<TState extends ServiceState, TOptions = {}> = (
+type ServiceHandler<TState extends BaseServiceState, TOptions = {}> = (
 	api: ServiceAPI<TState, TOptions>
 ) => void | Promise<void>
 
-type ServiceEventsHandler<TState extends ServiceState, TOptions = {}> = (
-	api: ServiceAPI<TState, TOptions>
-) => Record<string, (...args: any[]) => void>
-
-interface StatefulServiceConfig<TState extends ServiceState, TOptions = {}> {
+interface StatefulServiceConfig<
+	TState extends BaseServiceState,
+	TOptions = {}
+> {
 	name: string
 	tickInterval?: number
-	initialState?: Partial<TState>
 	asyncTickInterval?: number
+	timeoutMs?: number
+	operationTimeoutMs?: number
+	initialState?: Partial<TState>
 	onStart?: ServiceHandler<TState, TOptions>
 	onTick?: ServiceHandler<TState, TOptions>
 	onAsyncTick?: ServiceHandler<TState, TOptions>
-	onEvents?: ServiceEventsHandler<TState, TOptions>
+	onEvents?: (
+		api: ServiceAPI<TState, TOptions>
+	) => Record<
+		string,
+		(api: ServiceAPI<TState, TOptions>, ...args: any[]) => void | Promise<void>
+	>
 	onCleanup?: ServiceHandler<TState, TOptions>
 	onReceive?: ServiceHandler<TState, TOptions>
 }
 
-/**
- * Универсальный factory для создания stateful service
- * Поддерживает: sync, async, events, гибридный подход
- */
+/** Owns subscriptions, deadlines, error delivery and cancellation for one invocation. */
 export function createStatefulService<
-	TState extends ServiceState = ServiceState,
+	TState extends BaseServiceState = BaseServiceState,
 	TOptions = {}
 >(config: StatefulServiceConfig<TState, TOptions>) {
 	return fromCallback<MachineEvent, { bot: Bot; options: TOptions }>(
 		({ sendBack, input, receive }) => {
 			const { bot, options } = input
-
-			if (!bot) {
-				throw new Error(`[${config.name}] Bot is null in service context`)
-			}
-
-			// Внутреннее состояние service
-			let internalState: TState = {
-				...config.initialState,
-				isActive: true
-			} as TState
-
-			// AbortController для отмены async операций
 			const abortController = new AbortController()
-
-			// Helper для обновления состояния
-			const setState = (updates: Partial<TState>) => {
-				internalState = { ...internalState, ...updates }
-			}
-
-			// Helper для получения актуального контекста
+			let state = { ...config.initialState, isActive: true } as TState
+			let ready = false
+			let failed = false
+			let stopped = false
+			const timers: ReturnType<typeof setInterval>[] = []
+			const operationTimers = new Set<ReturnType<typeof setTimeout>>()
+			const subscriptions = new Map<string, (...args: any[]) => void>()
 			const getContext = () => bot.hsm.getContext()
-
-			// API для callbacks
+			const reportError = (error: unknown) => {
+				if (stopped || failed || abortController.signal.aborted) return
+				failed = true
+				abortController.abort()
+				const message = error instanceof Error ? error.message : String(error)
+				Logger.error(`[${config.name}] service failed`, { error: message })
+				sendBack({ type: 'ERROR', error: message })
+			}
 			const api: ServiceAPI<TState, TOptions> = {
-				context: getContext(),
-				state: internalState,
-				input: options, // Передаём все параметры
 				bot,
-				sendBack,
-				setState,
+				get context() {
+					return getContext()
+				},
+				get state() {
+					return state
+				},
+				input: options,
+				sendBack: event => {
+					if (!stopped && !failed && !abortController.signal.aborted)
+						sendBack(event)
+				},
+				setState: updates => {
+					state = { ...state, ...updates }
+				},
 				getContext,
 				abortSignal: abortController.signal
 			}
-
-			// ========================================
-			// 1. Инициализация (если задана)
-			// ========================================
-			if (config.onStart) {
+			const run = (handler: () => void | Promise<void>) => {
 				try {
-					api.context = getContext()
-					const result = config.onStart(api)
-					if (result instanceof Promise) {
-						result.catch(error => {
-							Logger.error(`❌ [${config.name}] Async Error in onStart`, {
-								error: error instanceof Error ? error.message : String(error),
-								stack: error instanceof Error ? error.stack : undefined
-							})
-							sendBack({
-								type: 'ERROR',
-								error: error instanceof Error ? error.message : String(error)
-							})
-						})
-					}
-				} catch (error) {
-					Logger.error(`❌ Error in ${config.name} onStart`, {
-						error: error instanceof Error ? error.message : String(error),
-						stack: error instanceof Error ? error.stack : undefined
+					const result = handler()
+					if (!(result instanceof Promise)) return Promise.resolve()
+					if (stopped || failed) return result.catch(reportError)
+					const timer =
+						config.operationTimeoutMs === undefined
+							? undefined
+							: setTimeout(
+									() =>
+										reportError(
+											new Error(`${config.name} operation timed out`)
+										),
+									config.operationTimeoutMs
+								)
+					if (timer) operationTimers.add(timer)
+					return result.catch(reportError).finally(() => {
+						if (timer) {
+							clearTimeout(timer)
+							operationTimers.delete(timer)
+						}
 					})
+				} catch (error) {
+					reportError(error)
+					return Promise.resolve()
 				}
 			}
-
-			// ========================================
-			// 2. Синхронный tick (если задан)
-			// ========================================
-			let tickInterval: NodeJS.Timeout | null = null
-
-			if (config.onTick) {
-				const tick = () => {
-					if (!internalState.isActive) return
-
-					try {
-						// Обновляем api с актуальным контекстом
-						api.context = getContext()
-						api.state = internalState
-
-						config.onTick!(api)
-					} catch (error) {
-						Logger.error(`❌ Error in ${config.name} onTick`, {
-							error: error instanceof Error ? error.message : String(error),
-							stack: error instanceof Error ? error.stack : undefined
-						})
-						sendBack({
-							type: 'ERROR',
-							error: error instanceof Error ? error.message : String(error)
-						})
+			try {
+				// Subscribe before startup: setGoal/open may emit their result synchronously.
+				for (const [name, handler] of Object.entries(
+					config.onEvents?.(api) ?? {}
+				)) {
+					const listener = (...args: any[]) => {
+						if (!stopped && !failed) void run(() => handler(api, ...args))
 					}
+					bot.on(name as any, listener)
+					subscriptions.set(name, listener)
 				}
-
-				tickInterval = setInterval(tick, config.tickInterval || 1000)
-			}
-
-			// ========================================
-			// 3. Асинхронный tick (если задан)
-			// ========================================
-			let asyncTickInterval: NodeJS.Timeout | null = null
-			let isAsyncRunning = false
-
-			if (config.onAsyncTick) {
-				const asyncTick = async () => {
-					if (!internalState.isActive || isAsyncRunning) return
-
-					isAsyncRunning = true
-
-					try {
-						api.context = getContext()
-						api.state = internalState
-
-						await config.onAsyncTick!(api)
-					} catch (error) {
-						if (error instanceof Error) {
-							if (error.name === 'AbortError') {
-								Logger.debug(`⚠️ ${config.name}: async операция отменена`)
-								return
-							}
-
-							Logger.error(`❌ Error in ${config.name} onAsyncTick`, {
-								error: error.message,
-								stack: error.stack
-							})
-							sendBack({ type: 'ERROR', error: error.message })
-						} else {
-							const errorMessage = String(error)
-							Logger.error(`❌ Error in ${config.name} onAsyncTick`, {
-								error: errorMessage
-							})
-							sendBack({ type: 'ERROR', error: errorMessage })
-						}
-					} finally {
-						isAsyncRunning = false
-					}
-				}
-
-				asyncTickInterval = setInterval(
-					asyncTick,
-					config.asyncTickInterval || 2000
-				)
-			}
-
-			// ========================================
-			// 4. Подписка на события bot (если заданы)
-			// ========================================
-			const eventHandlers = new Map<string, (...args: any[]) => void>()
-
-			if (config.onEvents) {
-				const events = config.onEvents(api)
-
-				for (const [eventName, handler] of Object.entries(events)) {
-					const wrappedHandler = (...args: any[]) => {
-						if (!internalState.isActive) return
-
-						try {
-							api.context = getContext()
-							api.state = internalState
-
-							handler(api, ...args)
-						} catch (error) {
-							Logger.error(
-								`❌ Error in ${config.name} event ${eventName}`,
-								{
-									error: error instanceof Error ? error.message : String(error),
-									stack: error instanceof Error ? error.stack : undefined
-								}
-							)
-						}
-					}
-
-					bot.on(eventName as any, wrappedHandler)
-					eventHandlers.set(eventName, wrappedHandler)
-				}
-			}
-
-			// ========================================
-			// 5. Получение событий от машины (если задано)
-			// ========================================
-			if (config.onReceive) {
 				receive(event => {
-					if (!internalState.isActive) return
-
-					try {
-						api.context = getContext()
-						api.state = internalState
-						api.event = event
-
-						config.onReceive!(api)
-					} catch (error) {
-						Logger.error(`❌ Error in ${config.name} onReceive`, {
-							error: error instanceof Error ? error.message : String(error),
-							stack: error instanceof Error ? error.stack : undefined
-						})
-					}
+					if (stopped || failed || !config.onReceive) return
+					api.event = event
+					void run(() => config.onReceive!(api))
 				})
-			}
-
-			// ========================================
-			// CLEANUP
-			// ========================================
-			return () => {
-				internalState.isActive = false
-
-				// Отменяем все async операции
-				abortController.abort()
-
-				// Очищаем интервалы
-				if (tickInterval) clearInterval(tickInterval)
-				if (asyncTickInterval) clearInterval(asyncTickInterval)
-
-				// Отписываемся от событий
-				for (const [eventName, handler] of eventHandlers) {
-					bot.off(eventName as any, handler)
+				const schedule = (
+					handler: ServiceHandler<TState, TOptions> | undefined,
+					interval: number
+				) => {
+					if (!handler) return
+					let running = false
+					timers.push(
+						setInterval(() => {
+							if (!ready || stopped || failed || running) return
+							running = true
+							void run(() => handler(api)).finally(() => {
+								running = false
+							})
+						}, interval)
+					)
 				}
-
-				// Пользовательский cleanup
-				if (config.onCleanup) {
-					try {
-						config.onCleanup({
-							bot,
-							context: getContext(),
-							state: internalState,
-							input: options,
-							sendBack,
-							setState,
-							getContext,
-							abortSignal: abortController.signal
-						})
-					} catch (error) {
-						Logger.error(`❌ Error in ${config.name} onCleanup`, {
-							error: error instanceof Error ? error.message : String(error),
-							stack: error instanceof Error ? error.stack : undefined
-						})
-					}
+				schedule(config.onTick, config.tickInterval ?? 1000)
+				schedule(config.onAsyncTick, config.asyncTickInterval ?? 2000)
+				if (config.timeoutMs !== undefined) {
+					timers.push(
+						setTimeout(
+							() => reportError(new Error(`${config.name} timed out`)),
+							config.timeoutMs
+						)
+					)
+				}
+				void run(() => config.onStart?.(api)).then(() => {
+					ready = !failed && !stopped
+				})
+			} catch (error) {
+				reportError(error)
+			}
+			return () => {
+				stopped = true
+				state.isActive = false
+				abortController.abort()
+				for (const timer of timers) clearInterval(timer)
+				for (const timer of operationTimers) clearTimeout(timer)
+				operationTimers.clear()
+				for (const [name, handler] of subscriptions)
+					bot.off(name as any, handler)
+				try {
+					const result = config.onCleanup?.(api)
+					if (result instanceof Promise)
+						void result.catch(error =>
+							Logger.error(`[${config.name}] cleanup failed`, {
+								error: String(error)
+							})
+						)
+				} catch (error) {
+					Logger.error(`[${config.name}] cleanup failed`, {
+						error: String(error)
+					})
 				}
 			}
 		}

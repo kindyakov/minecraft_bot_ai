@@ -5,20 +5,9 @@ import Logger from '@/config/logger'
 type Priority = 'none' | 'low' | 'medium' | 'high' | 'critical'
 
 export class BotUtils {
-	private _eatingTimeoutId: NodeJS.Timeout | null = null
 	private _eatingPromise: Promise<void> | null = null
 
 	constructor(private _bot: Bot) {}
-
-	private scheduleEatingRetry(): void {
-		if (this._eatingTimeoutId) {
-			clearTimeout(this._eatingTimeoutId)
-		}
-
-		this._eatingTimeoutId = setTimeout(() => {
-			void this.eating()
-		}, 1500)
-	}
 
 	/**
 	 * Поиск ближайшего враждебного моба
@@ -200,92 +189,34 @@ export class BotUtils {
 			.filter(item => !this._bot.autoEat.opts.bannedFood.includes(item.name))
 	}
 
+	/** Performs one eating attempt; the active survival actor owns retries. */
 	async eating(): Promise<void> {
-		if (this._eatingPromise) {
-			return this._eatingPromise
+		if (this._eatingPromise) return this._eatingPromise
+		if (this._bot.food >= 20 || this._bot.autoEat.isEating) return
+
+		const foodChoices = this._bot.autoEat.findBestChoices(
+			this.getAllItems(),
+			'saturation'
+		)
+		const bestFood = foodChoices[0]
+		if (!bestFood) throw new Error('No suitable food available for recovery')
+
+		const attempt = this._bot.autoEat.eat({
+			food: bestFood,
+			priority: 'saturation',
+			offhand: false,
+			equipOldItem: true
+		})
+		this._eatingPromise = attempt
+		try {
+			await attempt
+		} finally {
+			if (this._eatingPromise === attempt) this._eatingPromise = null
 		}
-
-		if (!this._bot || (this._bot.health >= 20 && this._bot.food >= 20)) {
-			this.stopEating()
-			return
-		}
-
-		this._eatingPromise = (async () => {
-			try {
-				if (this._bot.food >= 20) {
-					Logger.debug('Голод полный, жду регенерации здоровья...')
-					if (this._bot.health < 20) {
-						this.scheduleEatingRetry()
-					}
-					return
-				}
-
-				if (this._bot.autoEat.isEating) {
-					return
-				}
-
-				Logger.debug('Ищу еду в инвентаре...')
-
-				const allItems = this.getAllItems()
-				const foodChoices = this._bot.autoEat.findBestChoices(
-					allItems,
-					'saturation'
-				)
-
-				if (!foodChoices.length) {
-					this._bot.chat('Нет еды в инвентаре критическая ситуация!')
-					return
-				}
-
-				const bestFood = foodChoices[0]!
-				Logger.debug(`Выбрал еду: ${bestFood.name}`)
-				Logger.debug('🍖 Начинаю есть...')
-
-				await this._bot.autoEat.eat({
-					food: bestFood,
-					priority: 'saturation',
-					offhand: false,
-					equipOldItem: true
-				})
-
-				Logger.debug(
-					`Поел! HP: ${this._bot.health.toFixed(1)}, Food: ${this._bot.food}, Saturation: ${this._bot.foodSaturation.toFixed(1)}`
-				)
-
-				if (this._bot.health < 20 && this._bot.food < 20) {
-					this.scheduleEatingRetry()
-				}
-			} catch (error) {
-				const errorMessage =
-					error instanceof Error ? error.message : String(error)
-				Logger.error('Ошибка при еде', {
-					error: errorMessage,
-					stack: error instanceof Error ? error.stack : undefined
-				})
-				if (this._bot.health < 20) {
-					this.scheduleEatingRetry()
-				}
-			} finally {
-				this._eatingPromise = null
-			}
-		})()
-
-		return this._eatingPromise
 	}
 
 	stopEating(): void {
-		if (this._eatingTimeoutId) {
-			clearTimeout(this._eatingTimeoutId)
-			this._eatingTimeoutId = null
-		}
-
-		if (this._bot.autoEat.isEating) {
-			try {
-				this._bot.autoEat.cancelEat()
-			} catch (error) {
-				// Исключение при отмене еды игнорируется
-			}
-		}
+		if (this._bot.autoEat.isEating) this._bot.autoEat.cancelEat()
 	}
 
 	/**
@@ -316,27 +247,41 @@ export class BotUtils {
 	waitForInventoryChange(
 		itemId: number,
 		initialCount: number,
-		timeout: number = 3000
+		timeout: number = 3000,
+		signal?: AbortSignal
 	): Promise<boolean> {
-		return new Promise(resolve => {
+		return new Promise((resolve, reject) => {
+			if (signal?.aborted) {
+				reject(signal.reason)
+				return
+			}
 			const startTime = Date.now()
+			const finish = (collected: boolean) => {
+				clearInterval(checkInterval)
+				signal?.removeEventListener('abort', abort)
+				resolve(collected)
+			}
+			const abort = () => {
+				clearInterval(checkInterval)
+				signal?.removeEventListener('abort', abort)
+				reject(signal?.reason)
+			}
 
 			const checkInterval = setInterval(() => {
 				const currentCount = this.countItemInInventory(itemId)
 
 				// Проверяем увеличилось ли количество
 				if (currentCount > initialCount) {
-					clearInterval(checkInterval)
-					resolve(true)
+					finish(true)
 					return
 				}
 
 				// Проверяем таймаут
 				if (Date.now() - startTime >= timeout) {
-					clearInterval(checkInterval)
-					resolve(false)
+					finish(false)
 				}
 			}, 100) // Проверка каждые 100мс
+			signal?.addEventListener('abort', abort, { once: true })
 		})
 	}
 

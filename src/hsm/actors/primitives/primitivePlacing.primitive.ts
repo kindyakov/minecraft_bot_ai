@@ -26,6 +26,7 @@ export const primitivePlacing = createStatefulService<
 	PlacingOptions
 >({
 	name: 'primitivePlacing',
+	timeoutMs: 15_000,
 	initialState: {
 		blockName: null,
 		position: null,

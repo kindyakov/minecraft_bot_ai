@@ -1,7 +1,11 @@
-import type { WindowSession, WindowTransferResult } from '@/ai/runtime/window.js'
 import type { Block, Entity, Vec3 } from '@/types'
 
 import type { MachineContext } from '@/hsm/context'
+
+import type {
+	WindowSession,
+	WindowTransferResult
+} from '@/ai/runtime/window.js'
 
 export type HealthEvents =
 	| { type: 'UPDATE_HEALTH'; health: number }
@@ -10,6 +14,7 @@ export type HealthEvents =
 	| { type: 'UPDATE_OXYGEN'; oxygenLevel: number }
 	| { type: 'FOOD_RESTORED' }
 	| { type: 'HEALTH_RESTORED' }
+	| { type: 'RECOVERY_FAILED'; reason: string; cause: 'no_food' | 'error' }
 	| {
 			type: 'SURVIVAL_MODE_CHANGED'
 			mode: 'IDLE' | 'EATING' | 'MOVEMENT' | 'PATHFINDER'
@@ -23,6 +28,7 @@ export type CombatEvents =
 	| { type: 'NO_ENEMIES' }
 	| { type: 'ENEMY_BECAME_FAR' }
 	| { type: 'ENEMY_BECAME_CLOSE' }
+	| { type: 'RANGED_UNAVAILABLE'; reason: string }
 
 export type UpdateEvents =
 	| { type: 'UPDATE_POSITION'; position: Vec3 }
@@ -48,6 +54,7 @@ export type PrimitiveEvents =
 	| { type: 'BROKEN' }
 	| { type: 'BREAKING_FAILED'; reason?: string }
 	| { type: 'WINDOW_OPENED'; session: WindowSession }
+	| { type: 'WINDOW_CLEANUP_FAILED'; session: WindowSession; reason: string }
 	| { type: 'WINDOW_OPEN_FAILED'; reason: string }
 	| { type: 'WINDOW_ITEM_TRANSFERRED'; transferred: WindowTransferResult }
 	| { type: 'WINDOW_TRANSFER_FAILED'; reason: string }

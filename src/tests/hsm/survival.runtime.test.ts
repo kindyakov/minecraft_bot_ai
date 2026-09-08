@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
+import { createRequire } from 'node:module'
 import test from 'node:test'
 import { setTimeout as delay } from 'node:timers/promises'
 
@@ -13,6 +14,185 @@ const hangingActor = fromPromise(async () => {
 })
 
 const noopActor = fromPromise(async () => {})
+
+test('real movement and physics increase separation in every flee direction', async () => {
+	const require = createRequire(import.meta.url)
+	const data = require('minecraft-data')('1.20.4')
+	const Block = require('prismarine-block')('1.20.4')
+	const { Physics, PlayerState } = require('prismarine-physics')
+	const movement = require('mineflayer-movement')
+	const world = {
+		getBlock(position: Vec3) {
+			const block = Block.fromStateId(
+				(position.y < 64 ? data.blocksByName.stone : data.blocksByName.air)
+					.minStateId,
+				0
+			)
+			block.position = position.floored()
+			return block
+		}
+	}
+	for (const useMovement of [true, false]) {
+		for (const [x, z] of [
+			[1.5, 0],
+			[-1.5, 0],
+			[0, 1.5],
+			[0, -1.5]
+		]) {
+			const bot = new SurvivalBot() as any
+			Object.assign(bot.entity, {
+				velocity: new Vec3(0, 0, 0),
+				onGround: true,
+				yaw: 0,
+				pitch: 0,
+				effects: []
+			})
+			bot.version = '1.20.4'
+			bot.jumpTicks = 0
+			bot.jumpQueued = false
+			bot.fireworkRocketDuration = 0
+			bot.blockAt = world.getBlock
+			bot.look = async (yaw: number, pitch: number) => {
+				bot.entity.yaw = yaw
+				bot.entity.pitch = pitch
+			}
+			movement.plugin(bot)
+			let yawSelections = 0
+			const getYaw = bot.movement.getYaw.bind(bot.movement)
+			bot.movement.getYaw = (...args: any[]) => {
+				yawSelections++
+				return getYaw(...args)
+			}
+			if (!useMovement) bot.movement = undefined
+			const actor = createSurvivalActor(bot)
+			try {
+				const enemy = { ...createEnemy(1.5), position: new Vec3(x!, 64, z!) }
+				await enterUrgentHealing(actor, enemy)
+				const controls = Object.fromEntries(bot.controlStates)
+				const before = bot.entity.position.distanceTo(enemy.position)
+				Physics(data, world)
+					.simulatePlayer(new PlayerState(bot, controls), world)
+					.apply(bot)
+				assert.ok(
+					bot.entity.position.distanceTo(enemy.position) > before,
+					`Flee must increase distance for enemy ${x},${z}`
+				)
+				if (useMovement)
+					assert.ok(
+						yawSelections > 0,
+						'Terrain heuristics must participate in steering'
+					)
+			} finally {
+				actor.stop()
+			}
+		}
+	}
+})
+
+test('unavailable food releases the task and does not restart recovery on unchanged hunger', async () => {
+	const bot = new SurvivalBot()
+	bot.utils.getAllFood = () => []
+	const actor = createSurvivalActor(bot)
+	try {
+		actor.send({
+			type: 'USER_COMMAND',
+			username: 'Steve',
+			text: 'Collect food'
+		})
+		actor.send({ type: 'UPDATE_FOOD', food: 5 })
+		await delay(200)
+		assert.ok(
+			actor.getSnapshot().matches({ MAIN_ACTIVITY: { TASKS: 'THINKING' } })
+		)
+		actor.send({ type: 'UPDATE_FOOD', food: 5 })
+		assert.ok(
+			actor.getSnapshot().matches({ MAIN_ACTIVITY: { TASKS: 'THINKING' } })
+		)
+		assert.equal(bot.eatingCalls, 0)
+		bot.utils.getAllFood = () => [{ name: 'bread' }]
+		actor.send({ type: 'UPDATE_FOOD', food: 5 })
+		assert.ok(
+			actor
+				.getSnapshot()
+				.matches({ MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_EATING' } })
+		)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('an unfinished eating call does not delay fleeing from a new threat', async () => {
+	const bot = new SurvivalBot()
+	bot.utils.eating = () => new Promise<void>(() => {})
+	const actor = createSurvivalActor(bot)
+	try {
+		actor.send({ type: 'UPDATE_HEALTH', health: 8 })
+		await delay(150)
+		const enemy = createEnemy(2)
+		actor.send({
+			type: 'UPDATE_ENTITIES',
+			entities: [enemy] as any,
+			enemies: [enemy] as any,
+			players: [],
+			nearestEnemy: { entity: enemy as any, distance: 2 }
+		})
+		await delay(150)
+		assert.equal(actor.getSnapshot().context.movementOwner, 'MOVEMENT')
+		assert.equal(bot.controlStates.get('forward'), true)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('recovery deadline releases the goal and prevents an immediate retry', t => {
+	t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] })
+	const bot = new SurvivalBot()
+	const actor = createSurvivalActor(bot)
+	try {
+		actor.send({ type: 'USER_COMMAND', username: 'Steve', text: 'Work' })
+		actor.send({ type: 'UPDATE_HEALTH', health: 8 })
+		t.mock.timers.tick(60_000)
+		assert.ok(
+			actor.getSnapshot().matches({ MAIN_ACTIVITY: { TASKS: 'THINKING' } })
+		)
+		assert.match(actor.getSnapshot().context.lastReason ?? '', /timed out/)
+		actor.send({ type: 'UPDATE_HEALTH', health: 8 })
+		assert.ok(
+			actor.getSnapshot().matches({ MAIN_ACTIVITY: { TASKS: 'THINKING' } })
+		)
+		actor.send({ type: 'UPDATE_HEALTH', health: 20 })
+		actor.send({ type: 'UPDATE_HEALTH', health: 8 })
+		assert.ok(
+			actor
+				.getSnapshot()
+				.matches({ MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' } })
+		)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('a recovery controller exception exits the failed service', async () => {
+	const bot = new SurvivalBot()
+	bot.pathfinder.setGoal = () => {
+		throw new Error('controller failed')
+	}
+	const actor = createSurvivalActor(bot)
+	try {
+		actor.send({ type: 'USER_COMMAND', username: 'Steve', text: 'Work' })
+		actor.send({ type: 'UPDATE_FOOD', food: 5 })
+		await delay(200)
+		assert.ok(
+			actor.getSnapshot().matches({ MAIN_ACTIVITY: { TASKS: 'THINKING' } })
+		)
+		assert.match(
+			actor.getSnapshot().context.lastReason ?? '',
+			/controller failed/
+		)
+	} finally {
+		actor.stop()
+	}
+})
 
 const createEnemy = (distance: number) => ({
 	id: 1,
@@ -39,7 +219,8 @@ class SurvivalBot extends EventEmitter {
 	pathfinderSetGoalCalls: unknown[] = []
 	movementSetGoalCalls: unknown[] = []
 	movementSteerCalls: Array<{ yaw: number; force: boolean | undefined }> = []
-	lookCalls: Array<{ yaw: number; pitch: number; force: boolean | undefined }> = []
+	lookCalls: Array<{ yaw: number; pitch: number; force: boolean | undefined }> =
+		[]
 	controlStates = new Map<string, boolean>()
 	searchedPlayer: any = null
 	inventory = {
@@ -67,6 +248,7 @@ class SurvivalBot extends EventEmitter {
 		getYaw: () => 0.25,
 		steer: async (yaw: number, force?: boolean) => {
 			this.movementSteerCalls.push({ yaw, force })
+			await this.look(yaw, 0, force)
 		}
 	}
 	game = { dimension: 'overworld' }
@@ -149,16 +331,36 @@ class SurvivalBot extends EventEmitter {
 		return 36
 	}
 	async openChest() {
-		return { close() {}, containerItems() { return [] } }
+		return {
+			close() {},
+			containerItems() {
+				return []
+			}
+		}
 	}
 	async openContainer() {
-		return { close() {}, containerItems() { return [] } }
+		return {
+			close() {},
+			containerItems() {
+				return []
+			}
+		}
 	}
 	async openFurnace() {
-		return { close() {}, containerItems() { return [] } }
+		return {
+			close() {},
+			containerItems() {
+				return []
+			}
+		}
 	}
 	async openBlock() {
-		return { close() {}, containerItems() { return [] } }
+		return {
+			close() {},
+			containerItems() {
+				return []
+			}
+		}
 	}
 	closeWindow() {}
 	setControlState(control: string, state: boolean) {
@@ -204,7 +406,9 @@ const enterUrgentHealing = async (
 		players: players as any,
 		nearestEnemy: {
 			entity: enemy as any,
-			distance: actor.getSnapshot().context.bot!.entity.position.distanceTo(enemy.position)
+			distance: actor
+				.getSnapshot()
+				.context.bot!.entity.position.distanceTo(enemy.position)
 		}
 	})
 	await delay(0)
@@ -302,7 +506,9 @@ test('emergency healing uses pathfinder flee for medium-distance threats', async
 
 		assert.equal(actor.getSnapshot().context.movementOwner, 'PATHFINDER')
 		assert.equal(
-			bot.pathfinderSetGoalCalls.some(goal => goal && goal.constructor?.name === 'GoalXZ'),
+			bot.pathfinderSetGoalCalls.some(
+				goal => goal && goal.constructor?.name === 'GoalXZ'
+			),
 			true
 		)
 		assert.equal(bot.eatingCalls, 0)

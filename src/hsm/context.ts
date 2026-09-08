@@ -1,9 +1,9 @@
+import type { Bot, Entity, Item, Vec3 } from '@/types'
+
 import type { PendingExecution } from '@/ai/contracts/execution.js'
 import type { ConversationEntry } from '@/ai/conversationHistory.js'
 import type { WindowSession } from '@/ai/runtime/window.js'
 import type { TaskContext } from '@/ai/taskContext.js'
-
-import type { Bot, Entity, Item, Vec3 } from '@/types'
 
 export interface MachineContext {
 	bot: Bot | null
@@ -65,6 +65,8 @@ export interface MachineContext {
 	movementOwner: 'NONE' | 'PATHFINDER' | 'PVP' | 'MOVEMENT'
 	preferredCombatTargetId: number | null
 	combatStopRequested: boolean
+	rangedUnavailable: boolean
+	recoveryFailure: 'no_food' | 'error' | null
 
 	isActiveTask: boolean
 	taskData: unknown | null
@@ -87,6 +89,8 @@ export interface MachineContext {
 	lastToolTranscript: string[]
 	failureSignature: string | null
 	failureRepeats: number
+	consecutiveFailures: number
+	executionAttempts: number
 }
 
 export const context: MachineContext = {
@@ -149,6 +153,8 @@ export const context: MachineContext = {
 	movementOwner: 'NONE',
 	preferredCombatTargetId: null,
 	combatStopRequested: false,
+	rangedUnavailable: false,
+	recoveryFailure: null,
 
 	isActiveTask: false,
 	taskData: null,
@@ -173,5 +179,7 @@ export const context: MachineContext = {
 	activeWindowSessionState: null,
 	lastToolTranscript: [],
 	failureSignature: null,
-	failureRepeats: 0
+	failureRepeats: 0,
+	consecutiveFailures: 0,
+	executionAttempts: 0
 }

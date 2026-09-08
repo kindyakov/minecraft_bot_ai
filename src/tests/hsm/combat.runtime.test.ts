@@ -243,6 +243,58 @@ const createRuntimeActor = (bot: CombatBot) => {
 	return actor
 }
 
+test('a rejected ranged equip falls back once and stays in melee for this encounter', async () => {
+	const bot = new CombatBot()
+	bot.inventoryItems = [
+		{ name: 'bow' },
+		{ name: 'arrow' },
+		{ name: 'iron_sword' }
+	]
+	bot.equip = async item => {
+		bot.equipCalls.push(item.name)
+		if (item.name === 'bow') throw new Error('equip rejected')
+	}
+	const actor = createRuntimeActor(bot)
+	try {
+		await enterCombat(actor, createEnemy(12))
+		await delay(700)
+		assert.equal(bot.equipCalls.filter(name => name === 'bow').length, 1)
+		assert.equal(
+			actor
+				.getSnapshot()
+				.matches({ MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' } }),
+			true
+		)
+		assert.equal(actor.getSnapshot().context.rangedUnavailable, true)
+		actor.send({ type: 'STOP_COMBAT' })
+		actor.send({ type: 'START_COMBAT', target: createEnemy(12) as any })
+		await delay(20)
+		assert.equal(bot.equipCalls.filter(name => name === 'bow').length, 2)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('a combat callback error exits combat and suppresses automatic restart', async () => {
+	const bot = new CombatBot()
+	bot.pvp.attack = () => {
+		throw new Error('attack controller failed')
+	}
+	const actor = createRuntimeActor(bot)
+	try {
+		await enterCombat(actor, createEnemy(2))
+		await delay(700)
+		assert.equal(actor.getSnapshot().matches({ MAIN_ACTIVITY: 'IDLE' }), true)
+		assert.match(
+			actor.getSnapshot().context.lastReason ?? '',
+			/attack controller failed/
+		)
+		assert.equal(actor.getSnapshot().context.combatStopRequested, true)
+	} finally {
+		actor.stop()
+	}
+})
+
 const createSurvivalRuntimeActor = (bot: CombatBot) => {
 	const actor = createActor(
 		createBotMachine({

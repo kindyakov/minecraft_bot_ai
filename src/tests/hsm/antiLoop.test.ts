@@ -2,7 +2,36 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import Logger from '../../config/logger.js'
+import BotStateMachine from '../../core/hsm.js'
 import { AntiLoopGuard } from '../../hsm/utils/antiLoop.js'
+
+test('HSM observer resets the guard after its cooldown', t => {
+	t.mock.timers.enable({ apis: ['setTimeout'] })
+	let observer: (snapshot: unknown) => void = () => {}
+	const stops: unknown[] = []
+	const wrapper = Object.create(BotStateMachine.prototype) as any
+	wrapper.antiLoopGuard = new AntiLoopGuard({
+		maxTransitionsPerSecond: 1,
+		emergencyStopAfter: 100,
+		windowMs: 1000
+	})
+	wrapper.actor = {
+		subscribe(callback: typeof observer) {
+			observer = callback
+		}
+	}
+	wrapper.bot = { chat() {} }
+	wrapper.send = (event: unknown) => {
+		stops.push(event)
+	}
+	wrapper.setupAntiLoopObserver()
+	observer({ value: 'A' })
+	observer({ value: 'B' })
+	assert.equal(stops.length, 1)
+	t.mock.timers.tick(60_000)
+	observer({ value: 'IDLE' })
+	assert.equal(stops.length, 1)
+})
 
 test('AntiLoopGuard ignores repeated updates with the same state signature', () => {
 	const guard = new AntiLoopGuard({

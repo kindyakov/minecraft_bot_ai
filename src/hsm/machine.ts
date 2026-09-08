@@ -9,7 +9,6 @@ import Logger from '@/config/logger'
 import { miningActions } from '@/hsm/actions/mining.actions'
 import combatActors from '@/hsm/actors/combat.actors'
 import monitoringActors from '@/hsm/actors/monitoring.actors'
-import survivalActors from '@/hsm/actors/survival.actors'
 import { primitiveBreaking } from '@/hsm/actors/primitives/primitiveBreaking.primitive'
 import { primitiveCloseWindow } from '@/hsm/actors/primitives/primitiveCloseWindow.primitive'
 import { primitiveFollowing } from '@/hsm/actors/primitives/primitiveFollowing.primitive'
@@ -18,13 +17,15 @@ import { primitiveOpenWindow } from '@/hsm/actors/primitives/primitiveOpenWindow
 import { primitivePlacing } from '@/hsm/actors/primitives/primitivePlacing.primitive'
 import { primitiveSearchBlock } from '@/hsm/actors/primitives/primitiveSearchBlock.primitive'
 import { primitiveTransferItem } from '@/hsm/actors/primitives/primitiveTransferItem.primitive'
+import survivalActors from '@/hsm/actors/survival.actors'
 import { type MachineContext, context } from '@/hsm/context'
 import combatGuards from '@/hsm/guards/combat.guards'
 import { miningGuards } from '@/hsm/guards/mining.guards'
 import type { MachineEvent, MiningTaskData } from '@/hsm/types'
-import { appendConversationEntry } from '@/ai/conversationHistory.js'
+
 import type { AgentTurnResult } from '@/ai/contracts/agentTurn.js'
 import type { PendingExecution } from '@/ai/contracts/execution.js'
+import { appendConversationEntry } from '@/ai/conversationHistory.js'
 import { runAgentTurn } from '@/ai/loop.js'
 import { closeWindowSession } from '@/ai/runtime/window.js'
 import {
@@ -181,34 +182,34 @@ const resolveExecutionInput = (
 	}
 
 	switch (execution.toolName) {
-	case 'navigate_to':
-		return {
-			bot,
-			options: {
-				target: tryGetPositionArg(execution, 'position'),
-				range:
-					typeof execution.args.range === 'number'
-						? execution.args.range
-						: undefined
+		case 'navigate_to':
+			return {
+				bot,
+				options: {
+					target: tryGetPositionArg(execution, 'position'),
+					range:
+						typeof execution.args.range === 'number'
+							? execution.args.range
+							: undefined
+				}
 			}
-		}
 		case 'break_block': {
 			const targetPosition = tryGetPositionArg(execution, 'position')
-		const block = targetPosition ? bot.blockAt(targetPosition) : null
-		return {
-			bot,
-			options: {
-				block
+			const block = targetPosition ? bot.blockAt(targetPosition) : null
+			return {
+				bot,
+				options: {
+					block
+				}
 			}
 		}
-		}
-	case 'open_window':
-		return {
-			bot,
-			options: {
-				position: tryGetPositionArg(execution, 'position')
+		case 'open_window':
+			return {
+				bot,
+				options: {
+					position: tryGetPositionArg(execution, 'position')
+				}
 			}
-		}
 		case 'transfer_item':
 			return {
 				bot,
@@ -227,19 +228,19 @@ const resolveExecutionInput = (
 				bot,
 				options: {}
 			}
-	case 'place_block':
-		return {
-			bot,
-			options: {
-				blockName: String(execution.args.block_name ?? ''),
-				position: tryGetPositionArg(execution, 'position'),
-				faceVector:
-					execution.args.face_vector &&
-					typeof execution.args.face_vector === 'object'
-						? (tryGetPositionArg(execution, 'face_vector') ?? undefined)
-						: undefined
+		case 'place_block':
+			return {
+				bot,
+				options: {
+					blockName: String(execution.args.block_name ?? ''),
+					position: tryGetPositionArg(execution, 'position'),
+					faceVector:
+						execution.args.face_vector &&
+						typeof execution.args.face_vector === 'object'
+							? (tryGetPositionArg(execution, 'face_vector') ?? undefined)
+							: undefined
+				}
 			}
-		}
 		case 'follow_entity': {
 			const requestedName = normalizeEntitySelector(execution.args.entity_name)
 			const requestedType = normalizeEntitySelector(execution.args.entity_type)
@@ -275,16 +276,16 @@ const resolveExecutionInput = (
 					Boolean(requestedName || requestedType) && matchesName && matchesType
 				)
 			})
-		return {
-			bot,
-			options: {
-				target,
-				distance:
-					typeof execution.args.distance === 'number'
-						? execution.args.distance
-						: undefined
+			return {
+				bot,
+				options: {
+					target,
+					distance:
+						typeof execution.args.distance === 'number'
+							? execution.args.distance
+							: undefined
+				}
 			}
-		}
 		}
 		default:
 			return {
@@ -331,6 +332,11 @@ const hasCloseMeleeThreat = (context: MachineContext) =>
 	Boolean(context.nearestEnemy.entity) &&
 	context.nearestEnemy.distance <= context.preferences.enemyMeleeRange
 
+const canAttemptRecovery = (context: MachineContext) =>
+	context.recoveryFailure === null ||
+	(context.recoveryFailure === 'no_food' &&
+		(context.bot?.utils.getAllFood().length ?? 0) > 0)
+
 const canPreemptForHungerRecovery = ({
 	context,
 	event
@@ -339,6 +345,7 @@ const canPreemptForHungerRecovery = ({
 	event: MachineEvent
 }) =>
 	event.type === 'UPDATE_FOOD' &&
+	canAttemptRecovery(context) &&
 	event.food < context.preferences.foodEmergency &&
 	!(context.movementOwner === 'PVP' && hasCloseMeleeThreat(context))
 
@@ -350,6 +357,7 @@ const eventCanSkirmishRanged = ({
 	event: MachineEvent
 }) => {
 	if (
+		context.rangedUnavailable ||
 		!isEntityUpdateEvent(event) ||
 		!event.nearestEnemy.entity ||
 		event.nearestEnemy.distance <= context.preferences.enemyMeleeRange
@@ -432,11 +440,14 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 			isHungerCritical: ({ context }) =>
 				context.food < context.preferences.foodEmergency,
 			isEnemyNearby: ({ context }) => context.nearestEnemy.entity !== null,
-		isAgentLoopStuck: ({ context }) => context.failureRepeats >= 3,
-		thinkingProducedExecution: ({ event }) =>
-			(event as ThinkingDoneEvent).output?.kind === 'execute',
-		thinkingProducedFinish: ({ event }) =>
-			(event as ThinkingDoneEvent).output?.kind === 'finish',
+			isAgentLoopStuck: ({ context }) =>
+				context.failureRepeats >= 3 ||
+				context.consecutiveFailures >= 3 ||
+				context.executionAttempts >= 128,
+			thinkingProducedExecution: ({ event }) =>
+				(event as ThinkingDoneEvent).output?.kind === 'execute',
+			thinkingProducedFinish: ({ event }) =>
+				(event as ThinkingDoneEvent).output?.kind === 'finish',
 			isNavigateExecution: ({ context }) =>
 				context.pendingExecution?.toolName === 'navigate_to',
 			isBreakExecution: ({ context }) =>
@@ -543,6 +554,12 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					event.type === 'UPDATE_SATURATION' ? event.foodSaturation : 0
 			}),
 			updateHealth: assign({
+				recoveryFailure: ({ context, event }) =>
+					event.type === 'UPDATE_HEALTH' &&
+					event.health >= context.preferences.healthFullyRestored &&
+					context.food >= context.preferences.foodRestored
+						? null
+						: context.recoveryFailure,
 				health: ({ context, event }) => {
 					if (event.type !== 'UPDATE_HEALTH') {
 						return 20
@@ -556,6 +573,12 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				}
 			}),
 			updateFood: assign({
+				recoveryFailure: ({ context, event }) =>
+					event.type === 'UPDATE_FOOD' &&
+					event.food >= context.preferences.foodRestored &&
+					context.health >= context.preferences.healthFullyRestored
+						? null
+						: context.recoveryFailure,
 				food: ({ context, event }) => {
 					if (event.type !== 'UPDATE_FOOD') {
 						return 20
@@ -655,14 +678,21 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				activeWindowSessionState: null,
 				lastToolTranscript: [],
 				preferredCombatTargetId: null,
-				combatStopRequested: false
+				combatStopRequested: false,
+				rangedUnavailable: false,
+				recoveryFailure: null,
+				failureSignature: null,
+				failureRepeats: 0,
+				consecutiveFailures: 0,
+				executionAttempts: 0
 			}),
 			markTaskActive: assign({
 				isActiveTask: true
 			}),
 			markTaskInactive: assign({
 				isActiveTask: false,
-				pendingExecution: null
+				pendingExecution: null,
+				taskData: null
 			}),
 			setGoalFromUserCommand: assign(({ context, event }) => {
 				if (event.type !== 'USER_COMMAND') {
@@ -685,6 +715,9 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					lastToolTranscript: [],
 					failureSignature: null,
 					failureRepeats: 0,
+					consecutiveFailures: 0,
+					executionAttempts: 0,
+					recoveryFailure: null,
 					errorHistory: []
 				}
 			}),
@@ -697,6 +730,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					lastToolTranscript: [],
 					failureSignature: null,
 					failureRepeats: 0,
+					consecutiveFailures: 0,
+					executionAttempts: 0,
 					movementOwner: 'NONE',
 					preferredCombatTargetId: null,
 					combatStopRequested: false
@@ -776,6 +811,45 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				activeWindowSession: null,
 				activeWindowSessionState: null
 			}),
+			recoverWindowSession: assign(({ context, event }) => {
+				if (event.type !== 'WINDOW_CLEANUP_FAILED') return {}
+				if (
+					context.activeWindowSession &&
+					context.activeWindowSession.window !== event.session.window
+				) {
+					Logger.warn('[HSM] cleanup failed for a superseded window', {
+						reason: event.reason
+					})
+					return {}
+				}
+				return {
+					activeWindowSession: event.session,
+					activeWindowSessionState: 'close_failed' as const
+				}
+			}),
+			recordRecoveryFailure: assign(({ event }) => ({
+				lastAction: 'survival_recovery',
+				lastActionArgs: null,
+				recoveryFailure:
+					event.type === 'RECOVERY_FAILED' ? event.cause : ('error' as const),
+				lastReason:
+					event.type === 'RECOVERY_FAILED'
+						? event.reason
+						: event.type === 'ERROR'
+							? event.error
+							: 'Recovery service failed',
+				lastResult: 'FAILED' as const
+			})),
+			clearRecoveryFailure: assign({ recoveryFailure: null }),
+			disableRanged: assign({ rangedUnavailable: true }),
+			recordCombatFailure: assign(({ event }) => ({
+				lastAction: 'combat',
+				lastActionArgs: null,
+				lastResult: 'FAILED' as const,
+				lastReason:
+					event.type === 'ERROR' ? event.error : 'Combat service failed'
+			})),
+			resetRanged: assign({ rangedUnavailable: false }),
 			setCombatTargetFromEvent: assign(({ context, event }) => {
 				if (event.type !== 'START_COMBAT' || !event.target) {
 					return {
@@ -853,6 +927,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 
 				return {
 					pendingExecution: output.execution,
+					executionAttempts: context.executionAttempts + 1,
 					subGoal: output.subGoal,
 					lastToolTranscript: output.transcript,
 					taskContext: refreshTaskContext(
@@ -889,6 +964,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				pendingExecution: null,
 				failureSignature: null,
 				failureRepeats: 0,
+				consecutiveFailures: 0,
 				lastToolTranscript: [event.type],
 				taskContext: refreshTaskContext(
 					context.taskContext,
@@ -918,30 +994,37 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					pendingExecution: null,
 					failureSignature: signature,
 					failureRepeats: repeats,
+					consecutiveFailures: context.consecutiveFailures + 1,
 					errorHistory: [...context.errorHistory, reason].slice(-3),
-				lastToolTranscript: [event.type],
-				taskContext: appendRejectedStepSignature(
-					refreshTaskContext(
-						context.taskContext,
-						context.currentGoal,
-						context.subGoal
-					),
-					signature ?? `execution_failed:${reason}`
-				)
-			}
-		}),
-		notifyGoalFinished: ({ context, event }) => {
-			const output = (event as ThinkingDoneEvent).output
-			if (output?.kind === 'finish') {
-				context.bot?.chat(output.message)
-			}
-		},
+					lastToolTranscript: [event.type],
+					taskContext: appendRejectedStepSignature(
+						refreshTaskContext(
+							context.taskContext,
+							context.currentGoal,
+							context.subGoal
+						),
+						signature ?? `execution_failed:${reason}`
+					)
+				}
+			}),
+			notifyGoalFinished: ({ context, event }) => {
+				const output = (event as ThinkingDoneEvent).output
+				if (output?.kind === 'finish') {
+					context.bot?.chat(output.message)
+				}
+			},
 			notifyThinkingFailure: ({ context }) => {
 				if (context.lastReason) {
 					context.bot?.chat(`Не могу продолжить задачу: ${context.lastReason}`)
 				}
 			},
 			notifyLoopAbort: ({ context }) => {
+				if (context.executionAttempts >= 128) {
+					context.bot?.chat(
+						'Останавливаю задачу: исчерпан лимит действий без завершения цели.'
+					)
+					return
+				}
 				if (!context.lastAction || !context.lastReason) {
 					context.bot?.chat(
 						'Я застрял и останавливаю текущую задачу. Жду указаний.'
@@ -950,7 +1033,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				}
 
 				context.bot?.chat(
-					`Я не могу выполнить задачу: ${context.lastAction} завершился ошибкой "${context.lastReason}" несколько раз подряд. Жду указаний.`
+					`Останавливаю задачу после повторных неудач. Последняя: ${context.lastAction} — "${context.lastReason}". Жду указаний.`
 				)
 			}
 		}
@@ -985,7 +1068,11 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 			},
 			START_COMBAT: {
 				target: '#MINECRAFT_BOT.MAIN_ACTIVITY.COMBAT',
-				actions: ['closeActiveWindowSession', 'setCombatTargetFromEvent']
+				actions: [
+					'closeActiveWindowSession',
+					'resetRanged',
+					'setCombatTargetFromEvent'
+				]
 			},
 			STOP_COMBAT: [
 				{
@@ -1012,16 +1099,26 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					target: '#MINECRAFT_BOT.MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING'
 				}
 			],
-			WINDOW_OPENED: {
-				actions: ['recordExecutionSuccess', 'storeWindowSession']
-			},
-			WINDOW_CLOSE_FAILED: {
-				actions: ['recordExecutionFailure', 'markWindowCloseFailed']
+			WINDOW_CLEANUP_FAILED: {
+				actions: ['recoverWindowSession']
 			}
 		},
 		states: {
 			MAIN_ACTIVITY: {
 				initial: 'IDLE',
+				on: {
+					UPDATE_HEALTH: {
+						guard: ({ context, event }) =>
+							event.type === 'UPDATE_HEALTH' &&
+							event.health < context.preferences.healthEmergency &&
+							canAttemptRecovery(context),
+						target: '.URGENT_NEEDS.EMERGENCY_HEALING'
+					},
+					UPDATE_FOOD: {
+						guard: canPreemptForHungerRecovery,
+						target: '.URGENT_NEEDS.EMERGENCY_EATING'
+					}
+				},
 				states: {
 					IDLE: {
 						on: {
@@ -1041,12 +1138,27 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 							]
 						}
 					},
-					hist: {
-						type: 'history',
-						history: 'deep'
+					RESUMING: {
+						always: [
+							{ guard: 'hasCurrentGoal', target: 'TASKS.THINKING' },
+							{ target: 'IDLE' }
+						]
 					},
 					URGENT_NEEDS: {
+						entry: ['closeActiveWindowSession'],
+						exit: ['ownMovementNone'],
 						on: {
+							UPDATE_HEALTH: {},
+							UPDATE_FOOD: {},
+							START_URGENT_NEEDS: {},
+							RECOVERY_FAILED: {
+								target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
+								actions: ['recordRecoveryFailure', 'notifyThinkingFailure']
+							},
+							ERROR: {
+								target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
+								actions: ['recordRecoveryFailure', 'notifyThinkingFailure']
+							},
 							UPDATE_ENTITIES: {
 								actions: ['updateEntities']
 							},
@@ -1058,9 +1170,19 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 						states: {
 							EMERGENCY_EATING: {
 								on: {
-									FOOD_RESTORED: {
-										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.hist'
-									}
+									UPDATE_HEALTH: {
+										guard: ({ context, event }) =>
+											event.type === 'UPDATE_HEALTH' &&
+											event.health < context.preferences.healthEmergency,
+										target: 'EMERGENCY_HEALING'
+									},
+									FOOD_RESTORED: [
+										{ guard: 'isHealthCritical', target: 'EMERGENCY_HEALING' },
+										{
+											target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
+											actions: ['clearRecoveryFailure']
+										}
+									]
 								},
 								invoke: {
 									src: 'emergencyEating',
@@ -1068,18 +1190,24 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 										bot: context.bot!
 									}),
 									onDone: {
-										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.hist'
+										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
+										actions: ['clearRecoveryFailure']
 									},
 									onError: {
-										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.IDLE'
+										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
+										actions: ['recordRecoveryFailure', 'notifyThinkingFailure']
 									}
 								}
 							},
 							EMERGENCY_HEALING: {
 								on: {
-									HEALTH_RESTORED: {
-										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.hist'
-									}
+									HEALTH_RESTORED: [
+										{ guard: 'isHungerCritical', target: 'EMERGENCY_EATING' },
+										{
+											target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
+											actions: ['clearRecoveryFailure']
+										}
+									]
 								},
 								invoke: {
 									src: 'emergencyHealing',
@@ -1087,10 +1215,12 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 										bot: context.bot!
 									}),
 									onDone: {
-										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.hist'
+										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
+										actions: ['clearRecoveryFailure']
 									},
 									onError: {
-										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.IDLE'
+										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
+										actions: ['recordRecoveryFailure', 'notifyThinkingFailure']
 									}
 								}
 							}
@@ -1098,6 +1228,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					},
 					COMBAT: {
 						entry: [
+							'resetRanged',
 							{
 								type: 'logStateEntry',
 								params: { state: 'MAIN_ACTIVITY.COMBAT' }
@@ -1111,6 +1242,18 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 							}
 						],
 						on: {
+							RANGED_UNAVAILABLE: {
+								target: '.MELEE_ATTACKING',
+								actions: ['disableRanged']
+							},
+							ERROR: {
+								target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
+								actions: [
+									'recordCombatFailure',
+									'suppressCombatAutoEntry',
+									'clearCombatTarget'
+								]
+							},
 							UPDATE_ENTITIES: {
 								actions: ['updateEntities']
 							},
@@ -1121,7 +1264,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 								target: '.DECIDING'
 							},
 							ENEMY_BECAME_CLOSE: {
-								target: '.DECIDING'
+								target: '.MELEE_ATTACKING'
 							},
 							NO_ENEMIES: [
 								{
@@ -1162,7 +1305,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 									{
 										target: 'MELEE_ATTACKING',
 										guard: 'isEnemyNearby'
-									}
+									},
+									{ target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING' }
 								]
 							},
 							MELEE_ATTACKING: {
@@ -1736,37 +1880,9 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				type: 'parallel',
 				states: {
 					HEALTH_MONITOR: {
-						on: {
-							UPDATE_HEALTH: [
-								{
-									guard: ({ event, context }) =>
-										event.type === 'UPDATE_HEALTH' &&
-										event.health < context.preferences.healthEmergency,
-									target:
-										'#MINECRAFT_BOT.MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING',
-									actions: ['updateHealth']
-								},
-								{
-									actions: ['updateHealth']
-								}
-							]
-						}
+						on: { UPDATE_HEALTH: { actions: ['updateHealth'] } }
 					},
-					HUNGER_MONITOR: {
-						on: {
-							UPDATE_FOOD: [
-								{
-									guard: canPreemptForHungerRecovery,
-									target:
-										'#MINECRAFT_BOT.MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING',
-									actions: ['updateFood']
-								},
-								{
-									actions: ['updateFood']
-								}
-							]
-						}
-					},
+					HUNGER_MONITOR: { on: { UPDATE_FOOD: { actions: ['updateFood'] } } },
 					ENTITIES_MONITOR: {
 						on: {
 							REMOVE_ENTITY: {

@@ -52,6 +52,7 @@ export interface Bot {
 		forceLook?: boolean | 'ignore' | 'raycast'
 	) => Promise<void>
 	placeBlock: (referenceBlock: Block, faceVector: Vec3) => Promise<void>
+	stopDigging: () => void
 	equip: (item: any, destination: string) => Promise<void>
 	consume: () => Promise<void>
 	craft: (

@@ -145,6 +145,7 @@ class FakeBot extends EventEmitter {
 	quit() {}
 	loadPlugin() {}
 	async dig() {}
+	stopDigging() {}
 	async placeBlock() {}
 	async equip() {}
 	async consume() {}
@@ -265,6 +266,217 @@ const waitForTurn = async () => {
 	await delay(0)
 	await delay(0)
 }
+
+test('critical updates do not restart recovery or overwrite its return destination', async () => {
+	const { actor } = createTestActor()
+	try {
+		actor.send({ type: 'USER_COMMAND', username: 'Steve', text: 'Gather food' })
+		actor.send({ type: 'UPDATE_HEALTH', health: 8 })
+		const recovery = Object.values(actor.getSnapshot().children).find(child =>
+			child?.id.includes('EMERGENCY_HEALING')
+		)
+		assert.ok(recovery)
+		actor.send({ type: 'UPDATE_HEALTH', health: 6 })
+		assert.equal(
+			Object.values(actor.getSnapshot().children).find(child =>
+				child?.id.includes('EMERGENCY_HEALING')
+			),
+			recovery
+		)
+		actor.send({ type: 'UPDATE_FOOD', food: 5 })
+		assert.ok(
+			actor
+				.getSnapshot()
+				.matches({ MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' } })
+		)
+		actor.send({ type: 'UPDATE_HEALTH', health: 20 })
+		actor.send({ type: 'UPDATE_FOOD', food: 20 })
+		actor.send({ type: 'HEALTH_RESTORED' })
+		assert.ok(
+			actor.getSnapshot().matches({ MAIN_ACTIVITY: { TASKS: 'THINKING' } })
+		)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('recovery replans an interrupted navigation without executing empty arguments', async () => {
+	const bot = new FakeBot() as any
+	let turns = 0
+	const actor = createActor(
+		createBotMachine({
+			thinkingActor: fromPromise(async () =>
+				++turns === 1
+					? {
+							kind: 'execute',
+							execution: {
+								toolName: 'navigate_to',
+								args: { position: { x: 10, y: 64, z: 0 } }
+							},
+							subGoal: 'Travel',
+							transcript: []
+						}
+					: new Promise(() => {})
+			),
+			actors: {
+				serviceEntitiesTracking: noopActor,
+				serviceEmergencyHealing: hangingActor
+			}
+		}),
+		{ input: { bot } }
+	)
+	bot.hsm = { getContext: () => actor.getSnapshot().context }
+	actor.start()
+	try {
+		actor.send({ type: 'USER_COMMAND', username: 'Steve', text: 'Travel' })
+		await waitForTurn()
+		actor.send({ type: 'UPDATE_HEALTH', health: 8 })
+		actor.send({ type: 'UPDATE_HEALTH', health: 20 })
+		actor.send({ type: 'HEALTH_RESTORED' })
+		await waitForTurn()
+		assert.equal(turns, 2)
+		assert.equal(actor.getSnapshot().context.failureRepeats, 0)
+		assert.notEqual(
+			actor.getSnapshot().context.lastReason,
+			'Unknown execution failure'
+		)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('alternating failed executions exhaust the task failure budget', async () => {
+	const bot = new FakeBot() as any
+	let turns = 0
+	const actor = createActor(
+		createBotMachine({
+			thinkingActor: fromPromise(async () => ({
+				kind: 'execute',
+				execution: {
+					toolName: 'navigate_to',
+					args: { position: { x: (++turns % 2) + 10, y: 64, z: 0 } }
+				},
+				subGoal: 'Travel',
+				transcript: []
+			})),
+			actors: { serviceEntitiesTracking: noopActor }
+		}),
+		{ input: { bot } }
+	)
+	bot.hsm = { getContext: () => actor.getSnapshot().context }
+	actor.start()
+	try {
+		actor.send({ type: 'USER_COMMAND', username: 'Steve', text: 'Travel' })
+		for (
+			let index = 0;
+			index < 6 && actor.getSnapshot().context.currentGoal;
+			index++
+		) {
+			await waitForTurn()
+			actor.send({ type: 'NAVIGATION_FAILED', reason: 'Unreachable' })
+		}
+		assert.equal(actor.getSnapshot().context.currentGoal, null)
+		assert.ok(turns <= 6)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('successful ping-pong executions cannot run a goal forever', async () => {
+	const bot = new FakeBot() as any
+	let turns = 0
+	const actor = createActor(
+		createBotMachine({
+			thinkingActor: fromPromise(async () => ({
+				kind: 'execute',
+				execution: {
+					toolName: 'navigate_to',
+					args: { position: { x: (++turns % 2) + 10, y: 64, z: 0 } }
+				},
+				subGoal: 'Travel',
+				transcript: []
+			})),
+			actors: { serviceEntitiesTracking: noopActor }
+		}),
+		{ input: { bot } }
+	)
+	bot.hsm = { getContext: () => actor.getSnapshot().context }
+	actor.start()
+	try {
+		actor.send({ type: 'USER_COMMAND', username: 'Steve', text: 'Travel' })
+		for (
+			let index = 0;
+			index < 129 && actor.getSnapshot().context.currentGoal;
+			index++
+		) {
+			await waitForTurn()
+			actor.send({ type: 'ARRIVED' })
+		}
+		assert.equal(actor.getSnapshot().context.currentGoal, null)
+		assert.equal(turns, 128)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('late cleanup of an old window does not complete the new execution', async () => {
+	const bot = new FakeBot() as any
+	let resolveOpen: (value: unknown) => void = () => {}
+	let turns = 0
+	bot.blockAt = () => ({ name: 'furnace', position: createVec3(1, 64, 1) })
+	bot.openFurnace = () =>
+		new Promise(resolve => {
+			resolveOpen = resolve
+		})
+	const actor = createActor(
+		createBotMachine({
+			thinkingActor: fromPromise(async () => ({
+				kind: 'execute',
+				execution:
+					++turns === 1
+						? {
+								toolName: 'open_window',
+								args: { position: { x: 1, y: 64, z: 1 } }
+							}
+						: {
+								toolName: 'navigate_to',
+								args: { position: { x: 10, y: 64, z: 0 } }
+							},
+				subGoal: 'Work',
+				transcript: []
+			})),
+			actors: { serviceEntitiesTracking: noopActor }
+		}),
+		{ input: { bot } }
+	)
+	bot.hsm = {
+		getContext: () => actor.getSnapshot().context,
+		send: (event: any) => actor.send(event)
+	}
+	actor.start()
+	try {
+		actor.send({ type: 'USER_COMMAND', username: 'Steve', text: 'Open' })
+		await waitForTurn()
+		actor.send({ type: 'USER_COMMAND', username: 'Steve', text: 'Travel' })
+		await waitForTurn()
+		const pending = actor.getSnapshot().context.pendingExecution
+		resolveOpen({
+			slots: [],
+			close() {
+				throw new Error('close failed')
+			}
+		})
+		await waitForTurn()
+		assert.equal(actor.getSnapshot().context.pendingExecution, pending)
+		assert.equal(actor.getSnapshot().context.lastResult, null)
+		assert.equal(
+			actor.getSnapshot().context.activeWindowSessionState,
+			'close_failed'
+		)
+	} finally {
+		actor.stop()
+	}
+})
 
 const waitUntil = async (predicate: () => boolean, attempts = 40) => {
 	for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -619,162 +831,156 @@ test('combat chooses MELEE_ATTACKING in close range and assigns pvp ownership', 
 	}
 })
 
-test(
-	'combat keeps the current target locked instead of retargeting every monitor tick',
-	async () => {
-		const bot = new FakeBot() as any
-		bot.utils.getRangeWeapon = () => ({ name: 'bow' })
-		bot.utils.getArrow = () => ({ name: 'arrow' })
+test('combat keeps the current target locked instead of retargeting every monitor tick', async () => {
+	const bot = new FakeBot() as any
+	bot.utils.getRangeWeapon = () => ({ name: 'bow' })
+	bot.utils.getArrow = () => ({ name: 'arrow' })
 
-		const actor = createActor(
-			createBotMachine({
-				thinkingActor: hangingActor,
-				actors: {
-					serviceEntitiesTracking: noopActor,
-					serviceMeleeAttack: noopActor,
-					serviceRangedSkirmish: noopActor,
-					serviceFleeing: noopActor,
-					serviceEmergencyEating: hangingActor,
-					serviceEmergencyHealing: hangingActor
-				}
-			}),
-			{
-				input: { bot }
+	const actor = createActor(
+		createBotMachine({
+			thinkingActor: hangingActor,
+			actors: {
+				serviceEntitiesTracking: noopActor,
+				serviceMeleeAttack: noopActor,
+				serviceRangedSkirmish: noopActor,
+				serviceFleeing: noopActor,
+				serviceEmergencyEating: hangingActor,
+				serviceEmergencyHealing: hangingActor
 			}
+		}),
+		{
+			input: { bot }
+		}
+	)
+
+	bot.hsm = {
+		getContext: () => actor.getSnapshot().context
+	}
+
+	actor.start()
+	const enemyA = {
+		...enemy,
+		id: 101,
+		position: createVec3(8, 64, 0)
+	}
+	const enemyB = {
+		...enemy,
+		id: 102,
+		position: createVec3(6, 64, 0)
+	}
+
+	try {
+		actor.send({
+			type: 'START_COMBAT',
+			target: enemyA as any
+		})
+		await waitForTurn()
+		await waitForTurn()
+
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: 'COMBAT'
+			} as never),
+			true
+		)
+		assert.equal(actor.getSnapshot().context.preferredCombatTargetId, enemyA.id)
+
+		actor.send({
+			type: 'UPDATE_ENTITIES',
+			entities: [enemyA as any, enemyB as any],
+			enemies: [enemyA as any, enemyB as any],
+			players: [],
+			nearestEnemy: {
+				entity: enemyB as any,
+				distance: 6
+			}
+		})
+		await waitForTurn()
+
+		assert.equal(actor.getSnapshot().context.preferredCombatTargetId, enemyA.id)
+		assert.equal(actor.getSnapshot().context.nearestEnemy.entity?.id, enemyA.id)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('melee combat does not thrash into ranged skirmish on small distance jitter', async () => {
+	const bot = new FakeBot() as any
+	bot.utils.getRangeWeapon = () => ({ name: 'bow' })
+	bot.utils.getArrow = () => ({ name: 'arrow' })
+
+	const actor = createActor(
+		createBotMachine({
+			thinkingActor: hangingActor,
+			actors: {
+				serviceEntitiesTracking: noopActor,
+				serviceMeleeAttack: noopActor,
+				serviceRangedSkirmish: noopActor,
+				serviceFleeing: noopActor,
+				serviceEmergencyEating: hangingActor,
+				serviceEmergencyHealing: hangingActor
+			}
+		}),
+		{
+			input: { bot }
+		}
+	)
+
+	bot.hsm = {
+		getContext: () => actor.getSnapshot().context
+	}
+
+	actor.start()
+
+	try {
+		actor.send({
+			type: 'START_COMBAT',
+			target: enemy as any
+		})
+		await waitForTurn()
+
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
+			} as never),
+			true
 		)
 
-		bot.hsm = {
-			getContext: () => actor.getSnapshot().context
-		}
-
-		actor.start()
-		const enemyA = {
-			...enemy,
-			id: 101,
-			position: createVec3(8, 64, 0)
-		}
-		const enemyB = {
-			...enemy,
-			id: 102,
-			position: createVec3(6, 64, 0)
-		}
-
-		try {
-			actor.send({
-				type: 'START_COMBAT',
-				target: enemyA as any
-			})
-			await waitForTurn()
-			await waitForTurn()
-
-			assert.equal(
-				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: 'COMBAT'
-				} as never),
-				true
-			)
-			assert.equal(actor.getSnapshot().context.preferredCombatTargetId, enemyA.id)
-
-			actor.send({
-				type: 'UPDATE_ENTITIES',
-				entities: [enemyA as any, enemyB as any],
-				enemies: [enemyA as any, enemyB as any],
-				players: [],
-				nearestEnemy: {
-					entity: enemyB as any,
-					distance: 6
-				}
-			})
-			await waitForTurn()
-
-			assert.equal(actor.getSnapshot().context.preferredCombatTargetId, enemyA.id)
-			assert.equal(actor.getSnapshot().context.nearestEnemy.entity?.id, enemyA.id)
-		} finally {
-			actor.stop()
-		}
-	}
-)
-
-test(
-	'melee combat does not thrash into ranged skirmish on small distance jitter',
-	async () => {
-		const bot = new FakeBot() as any
-		bot.utils.getRangeWeapon = () => ({ name: 'bow' })
-		bot.utils.getArrow = () => ({ name: 'arrow' })
-
-		const actor = createActor(
-			createBotMachine({
-				thinkingActor: hangingActor,
-				actors: {
-					serviceEntitiesTracking: noopActor,
-					serviceMeleeAttack: noopActor,
-					serviceRangedSkirmish: noopActor,
-					serviceFleeing: noopActor,
-					serviceEmergencyEating: hangingActor,
-					serviceEmergencyHealing: hangingActor
-				}
-			}),
-			{
-				input: { bot }
+		actor.send({
+			type: 'UPDATE_ENTITIES',
+			entities: [
+				{
+					...enemy,
+					position: createVec3(5.2, 64, 0)
+				} as any
+			],
+			enemies: [
+				{
+					...enemy,
+					position: createVec3(5.2, 64, 0)
+				} as any
+			],
+			players: [],
+			nearestEnemy: {
+				entity: {
+					...enemy,
+					position: createVec3(5.2, 64, 0)
+				} as any,
+				distance: 5.2
 			}
+		})
+		await waitForTurn()
+
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
+			} as never),
+			true
 		)
-
-		bot.hsm = {
-			getContext: () => actor.getSnapshot().context
-		}
-
-		actor.start()
-
-		try {
-			actor.send({
-				type: 'START_COMBAT',
-				target: enemy as any
-			})
-			await waitForTurn()
-
-			assert.equal(
-				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
-				} as never),
-				true
-			)
-
-			actor.send({
-				type: 'UPDATE_ENTITIES',
-				entities: [
-					{
-						...enemy,
-						position: createVec3(5.2, 64, 0)
-					} as any
-				],
-				enemies: [
-					{
-						...enemy,
-						position: createVec3(5.2, 64, 0)
-					} as any
-				],
-				players: [],
-				nearestEnemy: {
-					entity: {
-						...enemy,
-						position: createVec3(5.2, 64, 0)
-					} as any,
-					distance: 5.2
-				}
-			})
-			await waitForTurn()
-
-			assert.equal(
-				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
-				} as never),
-				true
-			)
-		} finally {
-			actor.stop()
-		}
+	} finally {
+		actor.stop()
 	}
-)
+})
 
 test('urgent needs returns to TASKS.THINKING when a goal exists', async () => {
 	const { actor } = createTestActor()
@@ -839,373 +1045,352 @@ test('urgent needs returns to IDLE when there is no active goal', async () => {
 	}
 })
 
-test(
-	'UPDATE_HEALTH preempts combat into urgent healing while a melee threat is active',
-	async () => {
-		const { actor } = createTestActor()
+test('UPDATE_HEALTH preempts combat into urgent healing while a melee threat is active', async () => {
+	const { actor } = createTestActor()
 
-		try {
-			actor.send({
-				type: 'START_COMBAT',
-				target: enemy as any
-			})
-			await waitForTurn()
-			await waitForTurn()
+	try {
+		actor.send({
+			type: 'START_COMBAT',
+			target: enemy as any
+		})
+		await waitForTurn()
+		await waitForTurn()
 
-			assert.equal(
-				actor
-					.getSnapshot()
-					.matches({ MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' } } as never),
-				true
-			)
-
-			actor.send({
-				type: 'UPDATE_HEALTH',
-				health: 8
-			})
-			await waitForTurn()
-			await waitForTurn()
-
-			assert.equal(actor.getSnapshot().context.health, 8)
-			assert.equal(
-				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' }
-				} as never),
-				true
-			)
-		} finally {
-			actor.stop()
-		}
-	}
-)
-
-test(
-	'UPDATE_FOOD does not preempt active melee combat while the hostile is still close',
-	async () => {
-		const { actor } = createTestActor()
-
-		try {
-			actor.send({
-				type: 'START_COMBAT',
-				target: enemy as any
-			})
-			await waitForTurn()
-			await waitForTurn()
-
-			assert.equal(
-				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
-				} as never),
-				true
-			)
-
-			actor.send({
-				type: 'UPDATE_FOOD',
-				food: 5
-			})
-			await waitForTurn()
-			await waitForTurn()
-
-			assert.equal(actor.getSnapshot().context.food, 5)
-			assert.equal(
-				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
-				} as never),
-				true
-			)
-		} finally {
-			actor.stop()
-		}
-	}
-)
-
-test(
-	'URGENT_NEEDS remains sticky on UPDATE_ENTITIES while emergency recovery is unresolved',
-	async () => {
-		const { actor } = createTestActor()
-
-		try {
-			actor.send({
-				type: 'START_COMBAT',
-				target: enemy as any
-			})
-			await waitForTurn()
-			await waitForTurn()
-
-			actor.send({
-				type: 'UPDATE_HEALTH',
-				health: 8
-			})
-			await waitForTurn()
-			await waitForTurn()
-
-			assert.equal(
-				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' }
-				} as never),
-				true
-			)
-
-			actor.send({
-				type: 'UPDATE_ENTITIES',
-				entities: [enemy as any],
-				enemies: [enemy as any],
-				players: [],
-				nearestEnemy: {
-					entity: enemy as any,
-					distance: 2
-				}
-			})
-			await waitForTurn()
-			await waitForTurn()
-
-			assert.equal(
-				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' }
-				} as never),
-				true
-			)
-		} finally {
-			actor.stop()
-		}
-	}
-)
-
-test(
-	'URGENT_NEEDS returns to history instead of routing through COMBAT when recovery completes',
-	async () => {
-		const { actor } = createTestActor()
-
-		try {
-			actor.send({
-				type: 'USER_COMMAND',
-				username: 'Steve',
-				text: 'Gather wood'
-			})
-			await waitForTurn()
-			await waitForTurn()
-
-			actor.send({
-				type: 'UPDATE_HEALTH',
-				health: 8
-			})
-			await waitForTurn()
-			await waitForTurn()
-
-			assert.equal(
-				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' }
-				} as never),
-				true
-			)
-
-			actor.send({ type: 'HEALTH_RESTORED' })
-			await waitForTurn()
-			await waitForTurn()
-
-			assert.equal(
-				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: { TASKS: 'THINKING' }
-				} as never),
-				true
-			)
-		} finally {
-			actor.stop()
-		}
-	}
-)
-
-test(
-	'melee attack is reissued when the pvp controller silently loses the target',
-	async () => {
-		const bot = new FakeBot() as any
-		bot.utils.getMeleeWeapon = () => ({ name: 'iron_sword' })
-
-		const actor = createActor(
-			createBotMachine({
-				thinkingActor: hangingActor,
-				actors: {
-					serviceEntitiesTracking: noopActor,
-					serviceRangedSkirmish: noopActor,
-					serviceFleeing: noopActor,
-					serviceEmergencyEating: hangingActor,
-					serviceEmergencyHealing: hangingActor
-				}
-			}),
-			{
-				input: { bot }
-			}
+		assert.equal(
+			actor
+				.getSnapshot()
+				.matches({ MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' } } as never),
+			true
 		)
 
-		bot.hsm = {
-			getContext: () => actor.getSnapshot().context
-		}
+		actor.send({
+			type: 'UPDATE_HEALTH',
+			health: 8
+		})
+		await waitForTurn()
+		await waitForTurn()
 
-		actor.start()
-
-		try {
-			actor.send({
-				type: 'START_COMBAT',
-				target: enemy as any
-			})
-			await waitForTurn()
-			await waitForTurn()
-
-			assert.equal(
-				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
-				} as never),
-				true
-			)
-			await waitUntil(() => bot.pvpAttackCalls > 0)
-			assert.equal(bot.pvpAttackCalls > 0, true)
-			assert.equal(bot.pvp.target?.id, enemy.id)
-
-			bot.pvp.target = undefined
-			await waitUntil(() => bot.pvpAttackCalls >= 2)
-
-			assert.equal(bot.pvpAttackCalls >= 2, true)
-			assert.equal(bot.pvp.target?.id, enemy.id)
-		} finally {
-			actor.stop()
-		}
+		assert.equal(actor.getSnapshot().context.health, 8)
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' }
+			} as never),
+			true
+		)
+	} finally {
+		actor.stop()
 	}
-)
+})
 
-test(
-	'combat-to-urgent handoff force stops pvp before survival takes ownership',
-	async () => {
-		const bot = new FakeBot() as any
-		bot.utils.getMeleeWeapon = () => ({ name: 'iron_sword' })
-		bot.pvp.stop = async () => {
-			bot.pvpStopCalls += 1
-			await delay(0)
-			bot.pathfinder.setGoal(null)
-			bot.pvp.target = undefined
-		}
-		bot.pvp.forceStop = () => {
-			bot.pvpForceStopCalls += 1
-			bot.pvp.target = undefined
-		}
+test('UPDATE_FOOD does not preempt active melee combat while the hostile is still close', async () => {
+	const { actor } = createTestActor()
 
-		const actor = createActor(
-			createBotMachine({
-				thinkingActor: hangingActor,
-				actors: {
-					serviceEntitiesTracking: noopActor,
-					serviceRangedSkirmish: noopActor,
-					serviceEmergencyEating: hangingActor,
-					serviceEmergencyHealing: hangingActor
-				}
-			}),
-			{
-				input: { bot }
-			}
+	try {
+		actor.send({
+			type: 'START_COMBAT',
+			target: enemy as any
+		})
+		await waitForTurn()
+		await waitForTurn()
+
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
+			} as never),
+			true
 		)
 
-		bot.hsm = {
-			getContext: () => actor.getSnapshot().context
-		}
+		actor.send({
+			type: 'UPDATE_FOOD',
+			food: 5
+		})
+		await waitForTurn()
+		await waitForTurn()
 
-		actor.start()
-
-		try {
-			actor.send({
-				type: 'START_COMBAT',
-				target: enemy as any
-			})
-			await waitForTurn()
-			await waitForTurn()
-
-			assert.equal(
-				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
-				} as never),
-				true
-			)
-
-			actor.send({
-				type: 'UPDATE_HEALTH',
-				health: 8
-			})
-			await waitForTurn()
-			await waitForTurn()
-			await delay(10)
-
-			assert.equal(
-				actor.getSnapshot().matches({
-					MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' }
-				} as never),
-				true
-			)
-			assert.equal(bot.pvpForceStopCalls > 0, true)
-		} finally {
-			actor.stop()
-		}
+		assert.equal(actor.getSnapshot().context.food, 5)
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
+			} as never),
+			true
+		)
+	} finally {
+		actor.stop()
 	}
-)
+})
 
-test(
-	'emergency healing does not start eating when a live hostile is already within melee range',
-	async () => {
-		const hostileAtMeleeRange = {
-			...enemy,
-			id: 77,
-			position: createVec3(1, 64, 0)
-		}
-		let eatingCalls = 0
+test('URGENT_NEEDS remains sticky on UPDATE_ENTITIES while emergency recovery is unresolved', async () => {
+	const { actor } = createTestActor()
 
-		const bot = new FakeBot() as any
-		bot.health = 8
-		bot.utils = {
-			...bot.utils,
-			findNearestEnemy: () => hostileAtMeleeRange,
-			eating: async () => {
-				eatingCalls += 1
-			}
-		}
+	try {
+		actor.send({
+			type: 'START_COMBAT',
+			target: enemy as any
+		})
+		await waitForTurn()
+		await waitForTurn()
 
-		const actor = createActor(
-			createBotMachine({
-				thinkingActor: hangingActor,
-				actors: {
-					serviceEntitiesTracking: noopActor,
-					serviceMeleeAttack: noopActor,
-					serviceRangedSkirmish: noopActor,
-					serviceFleeing: noopActor
-				}
-			}),
-			{
-				input: { bot }
-			}
+		actor.send({
+			type: 'UPDATE_HEALTH',
+			health: 8
+		})
+		await waitForTurn()
+		await waitForTurn()
+
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' }
+			} as never),
+			true
 		)
 
-		bot.hsm = {
-			getContext: () => actor.getSnapshot().context
+		actor.send({
+			type: 'UPDATE_ENTITIES',
+			entities: [enemy as any],
+			enemies: [enemy as any],
+			players: [],
+			nearestEnemy: {
+				entity: enemy as any,
+				distance: 2
+			}
+		})
+		await waitForTurn()
+		await waitForTurn()
+
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' }
+			} as never),
+			true
+		)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('URGENT_NEEDS returns to history instead of routing through COMBAT when recovery completes', async () => {
+	const { actor } = createTestActor()
+
+	try {
+		actor.send({
+			type: 'USER_COMMAND',
+			username: 'Steve',
+			text: 'Gather wood'
+		})
+		await waitForTurn()
+		await waitForTurn()
+
+		actor.send({
+			type: 'UPDATE_HEALTH',
+			health: 8
+		})
+		await waitForTurn()
+		await waitForTurn()
+
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' }
+			} as never),
+			true
+		)
+
+		actor.send({ type: 'HEALTH_RESTORED' })
+		await waitForTurn()
+		await waitForTurn()
+
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: { TASKS: 'THINKING' }
+			} as never),
+			true
+		)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('melee attack is reissued when the pvp controller silently loses the target', async () => {
+	const bot = new FakeBot() as any
+	bot.utils.getMeleeWeapon = () => ({ name: 'iron_sword' })
+
+	const actor = createActor(
+		createBotMachine({
+			thinkingActor: hangingActor,
+			actors: {
+				serviceEntitiesTracking: noopActor,
+				serviceRangedSkirmish: noopActor,
+				serviceFleeing: noopActor,
+				serviceEmergencyEating: hangingActor,
+				serviceEmergencyHealing: hangingActor
+			}
+		}),
+		{
+			input: { bot }
 		}
+	)
 
-		actor.start()
+	bot.hsm = {
+		getContext: () => actor.getSnapshot().context
+	}
 
-		try {
-			actor.send({
-				type: 'UPDATE_HEALTH',
-				health: 8
-			})
-			await waitForTurn()
-			await delay(50)
+	actor.start()
 
-			assert.equal(
-				actor
-					.getSnapshot()
-					.matches({ MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' } } as never),
-				true
-			)
-			assert.equal(eatingCalls, 0)
-		} finally {
-			actor.stop()
+	try {
+		actor.send({
+			type: 'START_COMBAT',
+			target: enemy as any
+		})
+		await waitForTurn()
+		await waitForTurn()
+
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
+			} as never),
+			true
+		)
+		await waitUntil(() => bot.pvpAttackCalls > 0)
+		assert.equal(bot.pvpAttackCalls > 0, true)
+		assert.equal(bot.pvp.target?.id, enemy.id)
+
+		bot.pvp.target = undefined
+		await waitUntil(() => bot.pvpAttackCalls >= 2)
+
+		assert.equal(bot.pvpAttackCalls >= 2, true)
+		assert.equal(bot.pvp.target?.id, enemy.id)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('combat-to-urgent handoff force stops pvp before survival takes ownership', async () => {
+	const bot = new FakeBot() as any
+	bot.utils.getMeleeWeapon = () => ({ name: 'iron_sword' })
+	bot.pvp.stop = async () => {
+		bot.pvpStopCalls += 1
+		await delay(0)
+		bot.pathfinder.setGoal(null)
+		bot.pvp.target = undefined
+	}
+	bot.pvp.forceStop = () => {
+		bot.pvpForceStopCalls += 1
+		bot.pvp.target = undefined
+	}
+
+	const actor = createActor(
+		createBotMachine({
+			thinkingActor: hangingActor,
+			actors: {
+				serviceEntitiesTracking: noopActor,
+				serviceRangedSkirmish: noopActor,
+				serviceEmergencyEating: hangingActor,
+				serviceEmergencyHealing: hangingActor
+			}
+		}),
+		{
+			input: { bot }
+		}
+	)
+
+	bot.hsm = {
+		getContext: () => actor.getSnapshot().context
+	}
+
+	actor.start()
+
+	try {
+		actor.send({
+			type: 'START_COMBAT',
+			target: enemy as any
+		})
+		await waitForTurn()
+		await waitForTurn()
+
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
+			} as never),
+			true
+		)
+
+		actor.send({
+			type: 'UPDATE_HEALTH',
+			health: 8
+		})
+		await waitForTurn()
+		await waitForTurn()
+		await delay(10)
+
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' }
+			} as never),
+			true
+		)
+		assert.equal(bot.pvpForceStopCalls > 0, true)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('emergency healing does not start eating when a live hostile is already within melee range', async () => {
+	const hostileAtMeleeRange = {
+		...enemy,
+		id: 77,
+		position: createVec3(1, 64, 0)
+	}
+	let eatingCalls = 0
+
+	const bot = new FakeBot() as any
+	bot.health = 8
+	bot.utils = {
+		...bot.utils,
+		findNearestEnemy: () => hostileAtMeleeRange,
+		eating: async () => {
+			eatingCalls += 1
 		}
 	}
-)
+
+	const actor = createActor(
+		createBotMachine({
+			thinkingActor: hangingActor,
+			actors: {
+				serviceEntitiesTracking: noopActor,
+				serviceMeleeAttack: noopActor,
+				serviceRangedSkirmish: noopActor,
+				serviceFleeing: noopActor
+			}
+		}),
+		{
+			input: { bot }
+		}
+	)
+
+	bot.hsm = {
+		getContext: () => actor.getSnapshot().context
+	}
+
+	actor.start()
+
+	try {
+		actor.send({
+			type: 'UPDATE_HEALTH',
+			health: 8
+		})
+		await waitForTurn()
+		await delay(50)
+
+		assert.equal(
+			actor.getSnapshot().matches({
+				MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' }
+			} as never),
+			true
+		)
+		assert.equal(eatingCalls, 0)
+	} finally {
+		actor.stop()
+	}
+})
 
 test('thinking execution enters a concrete executing substate without crashing', async () => {
 	const thinkingActor = fromPromise(async () => ({
@@ -2472,7 +2657,7 @@ test('open_window abort after open preserves the session when close fails', asyn
 			(actor.getSnapshot().context as any).activeWindowSessionState,
 			'close_failed'
 		)
-		assert.equal((actor.getSnapshot().context as any).lastResult, 'FAILED')
+		assert.equal((actor.getSnapshot().context as any).lastResult, null)
 	} finally {
 		actor.stop()
 	}

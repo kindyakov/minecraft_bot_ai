@@ -91,6 +91,22 @@ Canonical names (see `src/ai/tools/catalog.ts`, `src/ai/tools/names.ts` — code
 
 There are no `call_craft` / `call_smelt` primitives in the current machine. `mine_resource` performs its own batch search and does not require a grounded `inspect_blocks` position first.
 
+## Interruption and failure contracts
+
+Vital monitoring updates context only; `MAIN_ACTIVITY` owns emergency transitions. Repeated critical updates do not restart recovery. Healing takes priority over eating. Recovery returns through `RESUMING` to `TASKS.THINKING` when a goal exists, otherwise to `IDLE`; it never restores an interrupted execution through deep history. Pending execution and mining state are discarded on interruption so the agent must inspect and replan against the live world.
+
+Unavailable food or a recovery error releases the active task with a failure reason instead of locking it in survival. Automatic retries are suppressed until food becomes available (for missing-food failures), vitals recover, or a new goal is issued. Recovery has a 60-second deadline.
+
+Callback services deliver synchronous and asynchronous failures as `ERROR`. They subscribe before startup, serialize each tick handler, clear timers/listeners on exit, and suppress results after cancellation. Breaking also cancels digging and inventory waits; a canceled actor cannot set or clear the next actor's movement goal. Navigation handles `path_update` failures and has a 30-second deadline, as does breaking. Placing, opening windows, and transfers have 15-second deadlines. Continuous `follow_entity` remains active until cancellation or target disappearance.
+
+Ranged equip failure disables ranged combat for the current encounter and falls back to melee. Combat async operations, including startup equip, have a 15-second deadline without limiting the duration of a healthy encounter. A combat service error exits combat and suppresses automatic re-entry. Fleeing uses the movement controller's terrain heuristics; its fallback yaw follows Mineflayer's forward-axis convention.
+
+A goal stops after three consecutive failed executions, including different actions, or after 128 execution attempts without completion. A successful action resets the consecutive-failure count, not the total attempt budget. The global transition-rate guard resets its internal detection state after its 60-second cooldown.
+
+Late cleanup of a canceled window open reports `WINDOW_CLEANUP_FAILED`. This can retain a retryable window session but cannot complete or fail a newer pending execution.
+
+Eating performs one attempt at a time; only the active survival actor owns retries. Movement decisions continue while food is being consumed, so canceling food to flee does not wait for that attempt to settle or schedule an independent retry.
+
 ## AI Loop
 
 `src/ai/loop.ts` does one turn at a time.

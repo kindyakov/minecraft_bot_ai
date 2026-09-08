@@ -6,7 +6,9 @@ import {
 	type BaseServiceState,
 	createStatefulService
 } from '@/hsm/helpers/createStatefulService.js'
+
 import { GoalNear, GoalXZ } from '@/modules/plugins/goals.js'
+
 import { hasMovementController } from '@/utils/combat/movementController'
 import {
 	clearMicroMovement,
@@ -16,11 +18,11 @@ import {
 	stopRangedAttack
 } from '@/utils/combat/runtimeControl'
 import {
+	SURVIVAL_MOVEMENT_DISTANCE,
+	type SurvivalMode,
 	calculateDangerCenter,
 	canFleeToPlayer,
-	resolveSurvivalThreat,
-	SURVIVAL_MOVEMENT_DISTANCE,
-	type SurvivalMode
+	resolveSurvivalThreat
 } from '@/utils/combat/survival'
 
 interface EmergencyRecoveryState extends BaseServiceState {
@@ -31,7 +33,10 @@ interface EmergencyRecoveryState extends BaseServiceState {
 
 const pathGoalReissueMs = 750
 
-const logSurvivalRuntime = (event: string, payload: Record<string, unknown>) => {
+const logSurvivalRuntime = (
+	event: string,
+	payload: Record<string, unknown>
+) => {
 	Logger.debug(`[SURVIVAL] ${event}`, payload)
 }
 
@@ -80,7 +85,14 @@ const ensurePathfinderMode = (bot: any) => {
 
 const getDangerCenter = (bot: any, context: any) => {
 	const position = context.position ?? bot.entity?.position ?? null
-	return calculateDangerCenter(position, context.enemies)
+	const threat = resolveSurvivalThreat(context)
+	const enemies =
+		context.enemies.length > 0
+			? context.enemies
+			: threat.entity
+				? [threat.entity]
+				: []
+	return calculateDangerCenter(position, enemies)
 }
 
 const getFleeYaw = (position: any, dangerCenter: any): number | null => {
@@ -88,13 +100,14 @@ const getFleeYaw = (position: any, dangerCenter: any): number | null => {
 		return null
 	}
 
-	return Math.atan2(position.x - dangerCenter.x, position.z - dangerCenter.z)
+	// Mineflayer forward is (-sin(yaw), -cos(yaw)), not the positive axes.
+	return Math.atan2(dangerCenter.x - position.x, dangerCenter.z - position.z)
 }
 
 const applyMovementFleeSteering = (bot: any, context: any) => {
 	const position = context.position ?? bot.entity?.position ?? null
 	const dangerCenter = getDangerCenter(bot, context)
-	const yaw = getFleeYaw(position, dangerCenter)
+	let yaw = getFleeYaw(position, dangerCenter)
 
 	if (yaw === null) {
 		return false
@@ -102,14 +115,16 @@ const applyMovementFleeSteering = (bot: any, context: any) => {
 
 	enableMicroMovement(bot)
 
-	if (typeof bot.look === 'function') {
-		void bot.look(yaw, bot.entity?.pitch ?? 0, true)
-	}
-
 	if (hasMovementController(bot)) {
 		bot.movement.setGoal(bot.movement.goals.Default)
 		bot.movement.heuristic.get('proximity').target(dangerCenter).avoid(true)
-		void bot.movement.steer(yaw, true)
+		yaw = bot.movement.getYaw(360, 36, 1)
+	}
+	if (!Number.isFinite(yaw))
+		throw new Error('Flee steering returned an invalid yaw')
+	if (hasMovementController(bot)) return bot.movement.steer(yaw, true)
+	if (typeof bot.look === 'function') {
+		return bot.look(yaw, bot.entity?.pitch ?? 0, true)
 	}
 
 	return true
@@ -128,27 +143,26 @@ const activateMovementFlee = ({
 	setState: (updates: Partial<EmergencyRecoveryState>) => void
 	sendBack: (event: any) => void
 }) => {
-	const position = context.position ?? bot.entity?.position ?? null
 	const dangerCenter = getDangerCenter(bot, context)
 
 	if (!dangerCenter) {
 		return false
 	}
 
-	stopPathfinderMovement(bot)
-	if (!applyMovementFleeSteering(bot, context)) {
-		return false
-	}
+	if (state.mode !== 'MOVEMENT') stopPathfinderMovement(bot)
+	const steering = applyMovementFleeSteering(bot, context)
+	if (steering === false) return false
 
 	setMode(state, setState, sendBack, 'MOVEMENT')
 	setState({
 		lastPathGoalKey: null,
 		lastPathGoalIssuedAt: 0
 	})
-	logSurvivalRuntime('movement_flee', {
-		distance: Number(resolveSurvivalThreat(context).distance.toFixed(2))
-	})
-	return true
+	if (state.mode !== 'MOVEMENT')
+		logSurvivalRuntime('movement_flee', {
+			distance: Number(resolveSurvivalThreat(context).distance.toFixed(2))
+		})
+	return steering
 }
 
 const issuePathfinderGoal = ({
@@ -202,7 +216,12 @@ const activatePlayerEscape = ({
 		state,
 		setState,
 		key: `player:${player.id}`,
-		goal: new GoalNear(player.position.x, player.position.y, player.position.z, 3)
+		goal: new GoalNear(
+			player.position.x,
+			player.position.y,
+			player.position.z,
+			3
+		)
 	})
 
 	logSurvivalRuntime('flee_to_player', {
@@ -231,15 +250,16 @@ const activatePathfinderFlee = ({
 		return
 	}
 
-	const dangerCenter =
-		calculateDangerCenter(position, context.enemies) ?? threat.entity.position
+	const dangerCenter = getDangerCenter(bot, context) ?? threat.entity.position
 	const deltaX = position.x - dangerCenter.x
 	const deltaZ = position.z - dangerCenter.z
 	const planarDistance = Math.hypot(deltaX, deltaZ)
 	const directionX = planarDistance > 0.001 ? deltaX / planarDistance : 1
 	const directionZ = planarDistance > 0.001 ? deltaZ / planarDistance : 0
-	const fleeTargetX = position.x + directionX * context.preferences.fleeTargetDistance
-	const fleeTargetZ = position.z + directionZ * context.preferences.fleeTargetDistance
+	const fleeTargetX =
+		position.x + directionX * context.preferences.fleeTargetDistance
+	const fleeTargetZ =
+		position.z + directionZ * context.preferences.fleeTargetDistance
 	const goalX = Math.floor(fleeTargetX)
 	const goalZ = Math.floor(fleeTargetZ)
 
@@ -276,13 +296,14 @@ const activateEatingRecovery = ({
 }) => {
 	resetMovementForEating(bot, state, setState)
 	setMode(state, setState, sendBack, 'EATING')
-	void bot.utils.eating()
 }
 
 const createEmergencyRecoveryService = (kind: 'health' | 'food') =>
 	createStatefulService<EmergencyRecoveryState>({
 		name: kind === 'health' ? 'EmergencyHealing' : 'EmergencyEating',
+		timeoutMs: 60_000,
 		tickInterval: 100,
+		asyncTickInterval: 100,
 		initialState: {
 			mode: 'IDLE',
 			lastPathGoalKey: null,
@@ -347,7 +368,7 @@ const createEmergencyRecoveryService = (kind: 'health' | 'food') =>
 					sendBack
 				})
 
-				if (!moved) {
+				if (moved === false) {
 					activatePathfinderFlee({
 						bot,
 						context,
@@ -356,7 +377,7 @@ const createEmergencyRecoveryService = (kind: 'health' | 'food') =>
 						sendBack
 					})
 				}
-				return
+				return moved
 			}
 
 			if (
@@ -374,7 +395,19 @@ const createEmergencyRecoveryService = (kind: 'health' | 'food') =>
 				return
 			}
 
-			activateEatingRecovery({
+			if (
+				context.food <
+					(kind === 'health' ? 18 : context.preferences.foodRestored) &&
+				bot.utils.getAllFood().length === 0
+			) {
+				sendBack({
+					type: 'RECOVERY_FAILED',
+					reason: 'No food available for recovery',
+					cause: 'no_food'
+				})
+				return
+			}
+			return activateEatingRecovery({
 				bot,
 				state,
 				setState,
@@ -382,9 +415,22 @@ const createEmergencyRecoveryService = (kind: 'health' | 'food') =>
 			})
 		},
 
+		onAsyncTick: async api => {
+			if (api.state.mode !== 'EATING') return
+			try {
+				await api.bot.utils.eating()
+			} catch (error) {
+				// Canceling food to flee is expected, not a failed recovery.
+				if (api.state.mode === 'EATING') throw error
+			}
+		},
+
 		onCleanup: ({ bot, state, setState }) => {
-			resetMovementForEating(bot, state, setState)
-			bot.utils.stopEating?.()
+			try {
+				resetMovementForEating(bot, state, setState)
+			} finally {
+				bot.utils.stopEating?.()
+			}
 		},
 
 		onEvents: () => ({
@@ -397,7 +443,7 @@ const createEmergencyRecoveryService = (kind: 'health' | 'food') =>
 					return
 				}
 
-				applyMovementFleeSteering(api.bot, api.getContext())
+				return applyMovementFleeSteering(api.bot, api.getContext())
 			}
 		})
 	})

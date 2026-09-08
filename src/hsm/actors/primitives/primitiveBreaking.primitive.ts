@@ -1,3 +1,5 @@
+import { setTimeout as delay } from 'node:timers/promises'
+
 import type { Block } from '@/types'
 
 import Logger from '@/config/logger'
@@ -8,8 +10,6 @@ import {
 } from '@/hsm/helpers/createStatefulService'
 
 import { GoalNear } from '@/modules/plugins/goals'
-
-import utils from '@/utils/general/index.general.utils'
 
 interface PrimitiveBreakingState extends BaseServiceState {
 	block: Block | null
@@ -24,6 +24,7 @@ export const primitiveBreaking = createStatefulService<
 	BreakingOptions
 >({
 	name: 'primitiveBreaking',
+	timeoutMs: 30_000,
 	initialState: {
 		block: null
 	},
@@ -87,7 +88,8 @@ export const primitiveBreaking = createStatefulService<
 			if (abortSignal.aborted) return
 
 			// Ждём спавн item'а
-			await utils.sleep(300)
+			await delay(300, undefined, { signal: abortSignal })
+			if (abortSignal.aborted) return
 
 			// Ищем выпавший предмет
 			const item = bot.nearestEntity((e: any) => {
@@ -128,8 +130,10 @@ export const primitiveBreaking = createStatefulService<
 				const collected = await bot.utils.waitForInventoryChange(
 					expectedItemId,
 					countBefore,
-					3000
+					3000,
+					abortSignal
 				)
+				if (abortSignal.aborted) return
 
 				// Останавливаем навигацию
 				bot.pathfinder.setGoal(null)
@@ -153,8 +157,10 @@ export const primitiveBreaking = createStatefulService<
 				await bot.utils.waitForInventoryChange(
 					expectedItemId,
 					countBefore,
-					2000
+					2000,
+					abortSignal
 				)
+				if (abortSignal.aborted) return
 
 				const countAfter = bot.utils.countItemInInventory(expectedItemId)
 				if (countAfter > countBefore) {
@@ -190,7 +196,11 @@ export const primitiveBreaking = createStatefulService<
 	onCleanup: ({ bot }) => {
 		Logger.debug('🧹 [primitiveBreaking] Cleanup')
 		try {
-			bot.pathfinder.setGoal(null)
+			try {
+				bot.stopDigging()
+			} finally {
+				bot.pathfinder.setGoal(null)
+			}
 			Logger.debug('🛑 [primitiveBreaking] Pathfinder остановлен')
 		} catch (error) {
 			Logger.error('❌ [primitiveBreaking] Ошибка при остановке', {

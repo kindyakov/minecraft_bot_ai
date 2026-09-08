@@ -23,6 +23,7 @@ export const primitiveNavigating = createStatefulService<
 	NavigatingParams
 >({
 	name: 'PrimitiveNavigating',
+	timeoutMs: 30_000,
 	initialState: {
 		targetPosition: null
 	},
@@ -39,6 +40,14 @@ export const primitiveNavigating = createStatefulService<
 	},
 
 	onEvents: () => ({
+		path_update: ({ sendBack }, result: { status: string }) => {
+			if (result.status === 'noPath' || result.status === 'timeout') {
+				sendBack({
+					type: 'NAVIGATION_FAILED',
+					reason: `Pathfinder ${result.status}`
+				})
+			}
+		},
 		goal_reached: ({ sendBack }, params) => {
 			Logger.debug('✅ primitiveNavigating goal_reached', { params })
 			sendBack({ type: 'ARRIVED' })
