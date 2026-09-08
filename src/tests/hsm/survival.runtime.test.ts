@@ -8,6 +8,7 @@ import { Vec3 } from 'vec3'
 import { createActor, fromPromise } from 'xstate'
 
 import { createBotMachine } from '../../hsm/machine.js'
+import { publishEntities } from './fixtures/publishEntities'
 
 const hangingActor = fromPromise(async () => {
 	return await new Promise<never>(() => {})
@@ -129,12 +130,12 @@ test('an unfinished eating call does not delay fleeing from a new threat', async
 		actor.send({ type: 'UPDATE_HEALTH', health: 8 })
 		await delay(150)
 		const enemy = createEnemy(2)
-		actor.send({
+		publishEntities(actor, {
 			type: 'UPDATE_ENTITIES',
 			entities: [enemy] as any,
 			enemies: [enemy] as any,
 			players: [],
-			nearestEnemy: { entity: enemy as any, distance: 2 }
+			combatTarget: { entity: enemy as any, distance: 2 }
 		})
 		await delay(150)
 		assert.equal(actor.getSnapshot().context.movementOwner, 'MOVEMENT')
@@ -399,12 +400,12 @@ const enterUrgentHealing = async (
 	enemy: ReturnType<typeof createEnemy>,
 	players: any[] = []
 ) => {
-	actor.send({
+	publishEntities(actor, {
 		type: 'UPDATE_ENTITIES',
 		entities: [enemy as any, ...players],
 		enemies: [enemy as any],
 		players: players as any,
-		nearestEnemy: {
+		combatTarget: {
 			entity: enemy as any,
 			distance: actor
 				.getSnapshot()

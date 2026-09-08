@@ -7,6 +7,7 @@ import { Vec3 } from 'vec3'
 import { createActor, fromPromise } from 'xstate'
 
 import { createBotMachine } from '../../hsm/machine.js'
+import { publishEntities } from './fixtures/publishEntities'
 
 const hangingActor = fromPromise(async () => {
 	return await new Promise<never>(() => {})
@@ -322,12 +323,12 @@ const enterCombat = async (
 	actor: ReturnType<typeof createRuntimeActor>,
 	enemy: ReturnType<typeof createEnemy>
 ) => {
-	actor.send({
+	publishEntities(actor, {
 		type: 'UPDATE_ENTITIES',
 		entities: [enemy as any],
 		enemies: [enemy as any],
 		players: [],
-		nearestEnemy: {
+		combatTarget: {
 			entity: enemy as any,
 			distance: actor
 				.getSnapshot()

@@ -11,22 +11,22 @@ const canUseRanged = ({ context }: MachineGuardParams): boolean => {
 	if (!hasWeaponAndArrows) return false
 
 	// Проверка видимости врага (raycast)
-	if (!context.bot || !context.nearestEnemy?.entity) return false
+	if (!context.bot || !context.combatTarget?.entity) return false
 
-	return canSeeEnemy(context.bot, context.nearestEnemy.entity)
+	return canSeeEnemy(context.bot, context.combatTarget.entity)
 }
 
 const isEnemyInMeleeRange = ({ context }: MachineGuardParams): boolean => {
 	return (
-		context.nearestEnemy.entity !== null &&
-		context.nearestEnemy.distance <= context.preferences.enemyMeleeRange
+		context.combatTarget.entity !== null &&
+		context.combatTarget.distance <= context.preferences.enemyMeleeRange
 	)
 }
 
 const canSkirmishRanged = ({ context, event }: MachineGuardParams): boolean => {
 	return (
-		context.nearestEnemy.entity !== null &&
-		context.nearestEnemy.distance > context.preferences.enemyMeleeRange &&
+		context.combatTarget.entity !== null &&
+		context.combatTarget.distance > context.preferences.enemyMeleeRange &&
 		canUseRanged({ context, event })
 	)
 }

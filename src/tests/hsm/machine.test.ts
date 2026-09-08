@@ -9,6 +9,7 @@ import { runAgentTurn } from '../../ai/loop.js'
 import { createTaskContext } from '../../ai/taskContext.js'
 import { createBotMachine } from '../../hsm/machine.js'
 import type { Bot } from '../../types/index.js'
+import { publishEntities } from './fixtures/publishEntities'
 
 test('model arguments rejected by the real turn are explained to the next HSM turn', async () => {
 	const bot = new FakeBot()
@@ -736,7 +737,7 @@ test('combat returns to IDLE when there is no active goal', async () => {
 	}
 })
 
-test('START_COMBAT seeds nearestEnemy from the event target', async () => {
+test('START_COMBAT seeds combatTarget from the event target', async () => {
 	const { actor } = createTestActor()
 
 	try {
@@ -746,8 +747,8 @@ test('START_COMBAT seeds nearestEnemy from the event target', async () => {
 		})
 		await waitForTurn()
 
-		assert.equal(actor.getSnapshot().context.nearestEnemy.entity, enemy)
-		assert.equal(actor.getSnapshot().context.nearestEnemy.distance, 2)
+		assert.equal(actor.getSnapshot().context.combatTarget.entity, enemy)
+		assert.equal(actor.getSnapshot().context.combatTarget.distance, 2)
 	} finally {
 		actor.stop()
 	}
@@ -802,12 +803,12 @@ test('STOP_COMBAT suppresses auto re-entry into combat until enemies are gone', 
 		actor.send({ type: 'STOP_COMBAT' })
 		await waitForTurn()
 
-		actor.send({
+		publishEntities(actor, {
 			type: 'UPDATE_ENTITIES',
 			entities: [enemy as any],
 			enemies: [enemy as any],
 			players: [],
-			nearestEnemy: {
+			combatTarget: {
 				entity: enemy as any,
 				distance: 2
 			}
@@ -850,12 +851,12 @@ test('autoDefend false prevents entity updates from forcing combat entry', async
 
 	try {
 		actor.getSnapshot().context.preferences.autoDefend = false
-		actor.send({
+		publishEntities(actor, {
 			type: 'UPDATE_ENTITIES',
 			entities: [enemy as any],
 			enemies: [enemy as any],
 			players: [],
-			nearestEnemy: {
+			combatTarget: {
 				entity: enemy as any,
 				distance: 2
 			}
@@ -871,7 +872,7 @@ test('autoDefend false prevents entity updates from forcing combat entry', async
 	}
 })
 
-test('NO_ENEMIES clears nearestEnemy before returning to thinking', async () => {
+test('NO_ENEMIES clears combatTarget before returning to thinking', async () => {
 	const { actor } = createTestActor()
 
 	try {
@@ -891,8 +892,8 @@ test('NO_ENEMIES clears nearestEnemy before returning to thinking', async () => 
 		actor.send({ type: 'NO_ENEMIES' })
 		await waitForTurn()
 
-		assert.equal(actor.getSnapshot().context.nearestEnemy.entity, null)
-		assert.equal(actor.getSnapshot().context.nearestEnemy.distance, Infinity)
+		assert.equal(actor.getSnapshot().context.combatTarget.entity, null)
+		assert.equal(actor.getSnapshot().context.combatTarget.distance, Infinity)
 	} finally {
 		actor.stop()
 	}
@@ -1049,12 +1050,12 @@ test('combat keeps the current target locked instead of retargeting every monito
 		)
 		assert.equal(actor.getSnapshot().context.preferredCombatTargetId, enemyA.id)
 
-		actor.send({
+		publishEntities(actor, {
 			type: 'UPDATE_ENTITIES',
 			entities: [enemyA as any, enemyB as any],
 			enemies: [enemyA as any, enemyB as any],
 			players: [],
-			nearestEnemy: {
+			combatTarget: {
 				entity: enemyB as any,
 				distance: 6
 			}
@@ -1062,7 +1063,7 @@ test('combat keeps the current target locked instead of retargeting every monito
 		await waitForTurn()
 
 		assert.equal(actor.getSnapshot().context.preferredCombatTargetId, enemyA.id)
-		assert.equal(actor.getSnapshot().context.nearestEnemy.entity?.id, enemyA.id)
+		assert.equal(actor.getSnapshot().context.combatTarget.entity?.id, enemyA.id)
 	} finally {
 		actor.stop()
 	}
@@ -1110,7 +1111,7 @@ test('melee combat does not thrash into ranged skirmish on small distance jitter
 			true
 		)
 
-		actor.send({
+		publishEntities(actor, {
 			type: 'UPDATE_ENTITIES',
 			entities: [
 				{
@@ -1125,7 +1126,7 @@ test('melee combat does not thrash into ranged skirmish on small distance jitter
 				} as any
 			],
 			players: [],
-			nearestEnemy: {
+			combatTarget: {
 				entity: {
 					...enemy,
 					position: createVec3(5.2, 64, 0)
@@ -1308,12 +1309,12 @@ test('URGENT_NEEDS remains sticky on UPDATE_ENTITIES while emergency recovery is
 			true
 		)
 
-		actor.send({
+		publishEntities(actor, {
 			type: 'UPDATE_ENTITIES',
 			entities: [enemy as any],
 			enemies: [enemy as any],
 			players: [],
-			nearestEnemy: {
+			combatTarget: {
 				entity: enemy as any,
 				distance: 2
 			}
@@ -2334,12 +2335,12 @@ test('UPDATE_ENTITIES closes an active window before auto-combat preemption', as
 		await waitForTurn()
 		await waitForTurn()
 
-		actor.send({
+		publishEntities(actor, {
 			type: 'UPDATE_ENTITIES',
 			entities: [enemy as any],
 			enemies: [enemy as any],
 			players: [],
-			nearestEnemy: { entity: enemy as any, distance: 2 }
+			combatTarget: { entity: enemy as any, distance: 2 }
 		})
 		await waitForTurn()
 		await waitForTurn()

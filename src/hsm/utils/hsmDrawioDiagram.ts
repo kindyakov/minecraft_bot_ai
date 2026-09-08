@@ -501,7 +501,7 @@ const edgeLayouts: EdgeLayout[] = [
 		id: 'edge-idle-combat',
 		source: 'MAIN_ACTIVITY.IDLE',
 		target: 'MAIN_ACTIVITY.COMBAT',
-		label: 'UPDATE_ENTITIES [autoDefend]',
+		label: 'UPDATE_COMBAT_TARGET [autoDefend]',
 		strokeColor: '#b91c1c'
 	},
 	{
@@ -558,14 +558,14 @@ const edgeLayouts: EdgeLayout[] = [
 		id: 'edge-combat-melee-ranged',
 		source: 'MAIN_ACTIVITY.COMBAT.MELEE_ATTACKING',
 		target: 'MAIN_ACTIVITY.COMBAT.RANGED_SKIRMISHING',
-		label: 'UPDATE_ENTITIES [ranged from melee]',
+		label: 'UPDATE_COMBAT_TARGET [ranged from melee]',
 		strokeColor: '#ea580c'
 	},
 	{
 		id: 'edge-combat-ranged-melee',
 		source: 'MAIN_ACTIVITY.COMBAT.RANGED_SKIRMISHING',
 		target: 'MAIN_ACTIVITY.COMBAT.MELEE_ATTACKING',
-		label: 'UPDATE_ENTITIES [enemy closes / ranged unavailable]',
+		label: 'UPDATE_COMBAT_TARGET [enemy closes / ranged unavailable]',
 		strokeColor: '#dc2626'
 	},
 	{
@@ -588,7 +588,7 @@ const edgeLayouts: EdgeLayout[] = [
 		id: 'edge-tasks-entity-combat',
 		source: 'MAIN_ACTIVITY.TASKS',
 		target: 'MAIN_ACTIVITY.COMBAT',
-		label: 'UPDATE_ENTITIES [auto-enter combat]',
+		label: 'UPDATE_COMBAT_TARGET [auto-enter combat]',
 		dashed: true,
 		strokeColor: '#b91c1c'
 	},

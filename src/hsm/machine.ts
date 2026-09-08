@@ -22,6 +22,7 @@ import { type MachineContext, context } from '@/hsm/context'
 import combatGuards from '@/hsm/guards/combat.guards'
 import { miningGuards } from '@/hsm/guards/mining.guards'
 import type { MachineEvent, MiningTaskData } from '@/hsm/types'
+import { observeThreats } from '@/hsm/utils/threatObservation'
 
 import type { AgentTurnResult } from '@/ai/contracts/agentTurn.js'
 import { appendConversationEntry } from '@/ai/conversationHistory.js'
@@ -203,10 +204,10 @@ const resolveExecutionInput = (
 	}
 }
 
-const isEntityUpdateEvent = (
+const isCombatTargetUpdateEvent = (
 	event: MachineEvent
-): event is Extract<MachineEvent, { type: 'UPDATE_ENTITIES' }> =>
-	event.type === 'UPDATE_ENTITIES'
+): event is Extract<MachineEvent, { type: 'UPDATE_COMBAT_TARGET' }> =>
+	event.type === 'UPDATE_COMBAT_TARGET'
 
 const meleeExitRangeBuffer = 1.5
 
@@ -220,10 +221,10 @@ const eventCanAutoEnterCombat = ({
 	context: MachineContext
 	event: MachineEvent
 }) =>
-	isEntityUpdateEvent(event) &&
+	isCombatTargetUpdateEvent(event) &&
 	context.preferences.autoDefend &&
 	!context.combatStopRequested &&
-	Boolean(event.nearestEnemy.entity)
+	Boolean(event.combatTarget.entity)
 
 const eventEnemyInMeleeRange = ({
 	event,
@@ -232,13 +233,13 @@ const eventEnemyInMeleeRange = ({
 	context: MachineContext
 	event: MachineEvent
 }) =>
-	isEntityUpdateEvent(event) &&
-	Boolean(event.nearestEnemy.entity) &&
-	event.nearestEnemy.distance <= context.preferences.enemyMeleeRange
+	isCombatTargetUpdateEvent(event) &&
+	Boolean(event.combatTarget.entity) &&
+	event.combatTarget.distance <= context.preferences.enemyMeleeRange
 
 const hasCloseMeleeThreat = (context: MachineContext) =>
-	Boolean(context.nearestEnemy.entity) &&
-	context.nearestEnemy.distance <= context.preferences.enemyMeleeRange
+	Boolean(context.combatTarget.entity) &&
+	context.combatTarget.distance <= context.preferences.enemyMeleeRange
 
 const canAttemptRecovery = (context: MachineContext) =>
 	context.recoveryFailure === null ||
@@ -266,9 +267,9 @@ const eventCanSkirmishRanged = ({
 }) => {
 	if (
 		context.rangedUnavailable ||
-		!isEntityUpdateEvent(event) ||
-		!event.nearestEnemy.entity ||
-		event.nearestEnemy.distance <= context.preferences.enemyMeleeRange
+		!isCombatTargetUpdateEvent(event) ||
+		!event.combatTarget.entity ||
+		event.combatTarget.distance <= context.preferences.enemyMeleeRange
 	) {
 		return false
 	}
@@ -278,7 +279,7 @@ const eventCanSkirmishRanged = ({
 
 	return (
 		Boolean(weapon && arrows && context.bot) &&
-		canSeeEnemy(context.bot!, event.nearestEnemy.entity)
+		canSeeEnemy(context.bot!, event.combatTarget.entity)
 	)
 }
 
@@ -290,9 +291,9 @@ const eventCanSkirmishRangedFromMelee = ({
 	event: MachineEvent
 }) => {
 	if (
-		!isEntityUpdateEvent(event) ||
-		!event.nearestEnemy.entity ||
-		event.nearestEnemy.distance <= getMeleeExitRange(context)
+		!isCombatTargetUpdateEvent(event) ||
+		!event.combatTarget.entity ||
+		event.combatTarget.distance <= getMeleeExitRange(context)
 	) {
 		return false
 	}
@@ -353,7 +354,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				context.health < context.preferences.healthEmergency,
 			isHungerCritical: ({ context }) =>
 				context.food < context.preferences.foodEmergency,
-			isEnemyNearby: ({ context }) => context.nearestEnemy.entity !== null,
+			isEnemyNearby: ({ context }) => context.combatTarget.entity !== null,
 			isAgentLoopStuck: ({ context }) =>
 				getGoalStopReason(context.goalExecution) !== null,
 			thinkingProducedRejection: ({ event }) =>
@@ -395,9 +396,9 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 						: 'unknown'
 				Logger.debug(`[HSM] enter ${state}`, {
 					event: event.type,
-					targetId: context.nearestEnemy.entity?.id ?? null,
-					distance: Number.isFinite(context.nearestEnemy.distance)
-						? Number(context.nearestEnemy.distance.toFixed(2))
+					targetId: context.combatTarget.entity?.id ?? null,
+					distance: Number.isFinite(context.combatTarget.distance)
+						? Number(context.combatTarget.distance.toFixed(2))
 						: null
 				})
 			},
@@ -408,9 +409,9 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 						: 'unknown'
 				Logger.debug(`[HSM] exit ${state}`, {
 					event: event.type,
-					targetId: context.nearestEnemy.entity?.id ?? null,
-					distance: Number.isFinite(context.nearestEnemy.distance)
-						? Number(context.nearestEnemy.distance.toFixed(2))
+					targetId: context.combatTarget.entity?.id ?? null,
+					distance: Number.isFinite(context.combatTarget.distance)
+						? Number(context.combatTarget.distance.toFixed(2))
 						: null
 				})
 			},
@@ -516,41 +517,50 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				oxygenLevel: ({ event }) =>
 					event.type === 'UPDATE_OXYGEN' ? event.oxygenLevel : 20
 			}),
-			updateEntities: assign({
-				entities: ({ event }) =>
-					event.type === 'UPDATE_ENTITIES' ? event.entities : [],
-				enemies: ({ event }) =>
-					event.type === 'UPDATE_ENTITIES' ? event.enemies : [],
-				players: ({ event }) =>
-					event.type === 'UPDATE_ENTITIES' ? event.players : [],
-				nearestEnemy: ({ context, event }) => {
-					if (event.type !== 'UPDATE_ENTITIES') {
-						return { entity: null, distance: Infinity }
-					}
-
-					const preferredTarget =
-						context.preferredCombatTargetId === null
-							? null
-							: ([...event.entities, ...event.enemies, ...event.players].find(
-									entity => entity.id === context.preferredCombatTargetId
-								) ?? null)
-
-					if (!preferredTarget) {
-						return event.nearestEnemy
-					}
-
-					return {
-						entity: preferredTarget,
-						distance:
-							context.bot?.entity?.position?.distanceTo(
-								preferredTarget.position
-							) ?? event.nearestEnemy.distance
-					}
-				},
-				combatStopRequested: ({ context, event }) =>
-					event.type === 'UPDATE_ENTITIES'
-						? context.combatStopRequested && Boolean(event.nearestEnemy.entity)
-						: false
+			updateEntities: assign(({ context, event }) => {
+				if (event.type !== 'UPDATE_ENTITIES') return {}
+				return {
+					entities: event.entities,
+					enemies: event.enemies,
+					players: event.players,
+					...(context.bot
+						? observeThreats(
+								context.threats,
+								event.enemies,
+								context.bot.entity.position,
+								Date.now(),
+								context.preferences.threatRetentionMs
+							)
+						: {})
+				}
+			}),
+			updateCombatTarget: assign(({ context, event }) => {
+				if (event.type !== 'UPDATE_COMBAT_TARGET') return {}
+				const preferredTarget =
+					context.preferredCombatTargetId === null
+						? null
+						: ([
+								...context.entities,
+								...context.enemies,
+								...context.players
+							].find(
+								entity =>
+									entity.id === context.preferredCombatTargetId &&
+									entity.isValid !== false
+							) ?? null)
+				return {
+					combatTarget: preferredTarget
+						? {
+								entity: preferredTarget,
+								distance:
+									context.bot?.entity.position.distanceTo(
+										preferredTarget.position
+									) ?? event.combatTarget.distance
+							}
+						: event.combatTarget,
+					combatStopRequested:
+						context.combatStopRequested && Boolean(event.combatTarget.entity)
+				}
 			}),
 			removeEntity: assign(({ context, event }) => {
 				if (event.type !== 'REMOVE_ENTITY') {
@@ -567,26 +577,28 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					players: context.players.filter(
 						entity => entity.id !== event.entity.id
 					),
-					nearestEnemy:
-						context.nearestEnemy.entity?.id === event.entity.id
+					combatTarget:
+						context.combatTarget.entity?.id === event.entity.id
 							? { entity: null, distance: Infinity }
-							: context.nearestEnemy,
+							: context.combatTarget,
 					preferredCombatTargetId:
 						context.preferredCombatTargetId === event.entity.id
 							? null
 							: context.preferredCombatTargetId,
 					combatStopRequested:
-						context.nearestEnemy.entity?.id === event.entity.id
+						context.combatTarget.entity?.id === event.entity.id
 							? false
 							: context.combatStopRequested
 				}
 			}),
 			updateAfterDeath: assign({
+				nearestThreat: null,
+				threats: [],
 				entities: [],
 				enemies: [],
 				players: [],
 				inventory: [],
-				nearestEnemy: {
+				combatTarget: {
 					entity: null,
 					distance: Infinity
 				},
@@ -717,29 +729,32 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				return {
 					preferredCombatTargetId: event.target.id,
 					combatStopRequested: false,
-					nearestEnemy: {
+					combatTarget: {
 						entity: event.target,
 						distance:
 							context.bot?.entity?.position?.distanceTo(
 								event.target.position
-							) ?? context.nearestEnemy.distance
+							) ?? context.combatTarget.distance
 					}
 				}
 			}),
-			setCombatTargetFromEntitiesEvent: assign(({ context, event }) => {
-				if (event.type !== 'UPDATE_ENTITIES' || !event.nearestEnemy.entity) {
+			setCombatTargetFromObservation: assign(({ context, event }) => {
+				if (
+					event.type !== 'UPDATE_COMBAT_TARGET' ||
+					!event.combatTarget.entity
+				) {
 					return {}
 				}
 
 				return {
-					preferredCombatTargetId: event.nearestEnemy.entity.id,
+					preferredCombatTargetId: event.combatTarget.entity.id,
 					combatStopRequested: false,
-					nearestEnemy: {
-						entity: event.nearestEnemy.entity,
+					combatTarget: {
+						entity: event.combatTarget.entity,
 						distance:
 							context.bot?.entity?.position?.distanceTo(
-								event.nearestEnemy.entity.position
-							) ?? event.nearestEnemy.distance
+								event.combatTarget.entity.position
+							) ?? event.combatTarget.distance
 					}
 				}
 			}),
@@ -749,7 +764,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 			clearCombatTarget: assign({
 				movementOwner: 'NONE',
 				preferredCombatTargetId: null,
-				nearestEnemy: { entity: null, distance: Infinity }
+				combatTarget: { entity: null, distance: Infinity }
 			}),
 			ownMovementNone: assign({
 				movementOwner: 'NONE'
@@ -955,18 +970,18 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				states: {
 					IDLE: {
 						on: {
-							UPDATE_ENTITIES: [
+							UPDATE_COMBAT_TARGET: [
 								{
 									guard: eventCanAutoEnterCombat,
 									actions: [
 										'closeActiveWindowSession',
-										'updateEntities',
-										'setCombatTargetFromEntitiesEvent'
+										'updateCombatTarget',
+										'setCombatTargetFromObservation'
 									],
 									target: '#MINECRAFT_BOT.MAIN_ACTIVITY.COMBAT'
 								},
 								{
-									actions: ['updateEntities']
+									actions: ['updateCombatTarget']
 								}
 							]
 						}
@@ -992,8 +1007,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 								target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
 								actions: ['recordRecoveryFailure', 'notifyThinkingFailure']
 							},
-							UPDATE_ENTITIES: {
-								actions: ['updateEntities']
+							UPDATE_COMBAT_TARGET: {
+								actions: ['updateCombatTarget']
 							},
 							SURVIVAL_MODE_CHANGED: {
 								actions: ['syncSurvivalModeOwner']
@@ -1087,8 +1102,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 									'clearCombatTarget'
 								]
 							},
-							UPDATE_ENTITIES: {
-								actions: ['updateEntities']
+							UPDATE_COMBAT_TARGET: {
+								actions: ['updateCombatTarget']
 							},
 							WEAPON_BROKEN: {
 								target: '.DECIDING'
@@ -1157,14 +1172,14 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 									}
 								],
 								on: {
-									UPDATE_ENTITIES: [
+									UPDATE_COMBAT_TARGET: [
 										{
 											guard: eventCanSkirmishRangedFromMelee,
 											target: 'RANGED_SKIRMISHING',
-											actions: ['updateEntities']
+											actions: ['updateCombatTarget']
 										},
 										{
-											actions: ['updateEntities']
+											actions: ['updateCombatTarget']
 										}
 									]
 								},
@@ -1190,22 +1205,22 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 									}
 								],
 								on: {
-									UPDATE_ENTITIES: [
+									UPDATE_COMBAT_TARGET: [
 										{
 											guard: eventEnemyInMeleeRange,
 											target: 'MELEE_ATTACKING',
-											actions: ['updateEntities']
+											actions: ['updateCombatTarget']
 										},
 										{
 											guard: ({ event, context }) =>
-												isEntityUpdateEvent(event) &&
-												Boolean(event.nearestEnemy.entity) &&
+												isCombatTargetUpdateEvent(event) &&
+												Boolean(event.combatTarget.entity) &&
 												!eventCanSkirmishRanged({ event, context }),
 											target: 'MELEE_ATTACKING',
-											actions: ['updateEntities']
+											actions: ['updateCombatTarget']
 										},
 										{
-											actions: ['updateEntities']
+											actions: ['updateCombatTarget']
 										}
 									]
 								},
@@ -1222,18 +1237,18 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 						entry: ['markTaskActive'],
 						exit: ['markTaskInactive'],
 						on: {
-							UPDATE_ENTITIES: [
+							UPDATE_COMBAT_TARGET: [
 								{
 									guard: eventCanAutoEnterCombat,
 									actions: [
 										'closeActiveWindowSession',
-										'updateEntities',
-										'setCombatTargetFromEntitiesEvent'
+										'updateCombatTarget',
+										'setCombatTargetFromObservation'
 									],
 									target: '#MINECRAFT_BOT.MAIN_ACTIVITY.COMBAT'
 								},
 								{
-									actions: ['updateEntities']
+									actions: ['updateCombatTarget']
 								}
 							]
 						},
@@ -1713,6 +1728,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					HUNGER_MONITOR: { on: { UPDATE_FOOD: { actions: ['updateFood'] } } },
 					ENTITIES_MONITOR: {
 						on: {
+							UPDATE_ENTITIES: { actions: ['updateEntities'] },
 							REMOVE_ENTITY: {
 								actions: ['removeEntity']
 							}

@@ -20,9 +20,7 @@ import {
 import {
 	SURVIVAL_MOVEMENT_DISTANCE,
 	type SurvivalMode,
-	calculateDangerCenter,
-	canFleeToPlayer,
-	resolveSurvivalThreat
+	canFleeToPlayer
 } from '@/utils/combat/survival'
 
 interface EmergencyRecoveryState extends BaseServiceState {
@@ -83,31 +81,22 @@ const ensurePathfinderMode = (bot: any) => {
 	}
 }
 
-const getDangerCenter = (bot: any, context: any) => {
-	const position = context.position ?? bot.entity?.position ?? null
-	const threat = resolveSurvivalThreat(context)
-	const enemies =
-		context.enemies.length > 0
-			? context.enemies
-			: threat.entity
-				? [threat.entity]
-				: []
-	return calculateDangerCenter(position, enemies)
-}
-
-const getFleeYaw = (position: any, dangerCenter: any): number | null => {
-	if (!position || !dangerCenter) {
+const getFleeYaw = (position: any, threatPosition: any): number | null => {
+	if (!position || !threatPosition) {
 		return null
 	}
 
 	// Mineflayer forward is (-sin(yaw), -cos(yaw)), not the positive axes.
-	return Math.atan2(dangerCenter.x - position.x, dangerCenter.z - position.z)
+	return Math.atan2(
+		threatPosition.x - position.x,
+		threatPosition.z - position.z
+	)
 }
 
 const applyMovementFleeSteering = (bot: any, context: any) => {
 	const position = context.position ?? bot.entity?.position ?? null
-	const dangerCenter = getDangerCenter(bot, context)
-	let yaw = getFleeYaw(position, dangerCenter)
+	const threatPosition = context.nearestThreat?.position
+	let yaw = getFleeYaw(position, threatPosition)
 
 	if (yaw === null) {
 		return false
@@ -117,7 +106,7 @@ const applyMovementFleeSteering = (bot: any, context: any) => {
 
 	if (hasMovementController(bot)) {
 		bot.movement.setGoal(bot.movement.goals.Default)
-		bot.movement.heuristic.get('proximity').target(dangerCenter).avoid(true)
+		bot.movement.heuristic.get('proximity').target(threatPosition).avoid(true)
 		yaw = bot.movement.getYaw(360, 36, 1)
 	}
 	if (!Number.isFinite(yaw))
@@ -143,9 +132,9 @@ const activateMovementFlee = ({
 	setState: (updates: Partial<EmergencyRecoveryState>) => void
 	sendBack: (event: any) => void
 }) => {
-	const dangerCenter = getDangerCenter(bot, context)
+	const threatPosition = context.nearestThreat?.position
 
-	if (!dangerCenter) {
+	if (!threatPosition) {
 		return false
 	}
 
@@ -160,7 +149,7 @@ const activateMovementFlee = ({
 	})
 	if (state.mode !== 'MOVEMENT')
 		logSurvivalRuntime('movement_flee', {
-			distance: Number(resolveSurvivalThreat(context).distance.toFixed(2))
+			distance: Number((context.nearestThreat?.distance ?? Infinity).toFixed(2))
 		})
 	return steering
 }
@@ -243,16 +232,16 @@ const activatePathfinderFlee = ({
 	setState: (updates: Partial<EmergencyRecoveryState>) => void
 	sendBack: (event: any) => void
 }) => {
-	const threat = resolveSurvivalThreat(context)
+	const threat = context.nearestThreat
 	const position = context.position ?? bot.entity?.position ?? null
 
-	if (!threat.entity || !position) {
+	if (!threat || !position) {
 		return
 	}
 
-	const dangerCenter = getDangerCenter(bot, context) ?? threat.entity.position
-	const deltaX = position.x - dangerCenter.x
-	const deltaZ = position.z - dangerCenter.z
+	const threatPosition = context.nearestThreat?.position ?? threat.position
+	const deltaX = position.x - threatPosition.x
+	const deltaZ = position.z - threatPosition.z
 	const planarDistance = Math.hypot(deltaX, deltaZ)
 	const directionX = planarDistance > 0.001 ? deltaX / planarDistance : 1
 	const directionZ = planarDistance > 0.001 ? deltaZ / planarDistance : 0
@@ -269,12 +258,12 @@ const activatePathfinderFlee = ({
 		bot,
 		state,
 		setState,
-		key: `flee:${threat.entity.id}:${goalX}:${goalZ}`,
+		key: `flee:${threat.entityId}:${goalX}:${goalZ}`,
 		goal: new GoalXZ(goalX, goalZ)
 	})
 
 	logSurvivalRuntime('pathfinder_flee', {
-		enemyId: threat.entity.id,
+		enemyId: threat.entityId,
 		distance: Number(threat.distance.toFixed(2)),
 		to: {
 			x: goalX,
@@ -337,12 +326,12 @@ const createEmergencyRecoveryService = (kind: 'health' | 'food') =>
 				return
 			}
 
-			const threat = resolveSurvivalThreat(context)
+			const threat = context.nearestThreat
 			const position = context.position ?? bot.entity?.position ?? null
 			const player = bot.utils.searchPlayer?.() ?? null
 
 			if (
-				threat.entity &&
+				threat &&
 				canFleeToPlayer(context, position, player) &&
 				threat.distance < context.preferences.safeEatDistance
 			) {
@@ -358,7 +347,7 @@ const createEmergencyRecoveryService = (kind: 'health' | 'food') =>
 				return
 			}
 
-			if (threat.entity && threat.distance < SURVIVAL_MOVEMENT_DISTANCE) {
+			if (threat && threat.distance < SURVIVAL_MOVEMENT_DISTANCE) {
 				bot.utils.stopEating?.()
 				const moved = activateMovementFlee({
 					bot,
@@ -380,10 +369,7 @@ const createEmergencyRecoveryService = (kind: 'health' | 'food') =>
 				return moved
 			}
 
-			if (
-				threat.entity &&
-				threat.distance < context.preferences.safeEatDistance
-			) {
+			if (threat && threat.distance < context.preferences.safeEatDistance) {
 				bot.utils.stopEating?.()
 				activatePathfinderFlee({
 					bot,

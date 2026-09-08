@@ -9,6 +9,14 @@ import {
 import type { WindowRuntime } from '@/ai/runtime/window.js'
 import type { TaskContext } from '@/ai/taskContext.js'
 
+export interface ThreatObservation {
+	entityId: number
+	position: Vec3
+	distance: number
+	lastObservedAt: number
+	observed: boolean
+}
+
 export interface MachineContext {
 	bot: Bot | null
 	health: number
@@ -21,6 +29,8 @@ export interface MachineContext {
 	entities: Entity[]
 	enemies: Entity[]
 	players: Entity[]
+	nearestThreat: ThreatObservation | null
+	threats: ThreatObservation[]
 
 	inventory: Item[]
 	toolDurability: {
@@ -46,6 +56,7 @@ export interface MachineContext {
 		followDistance: number
 		maxDistToEnemy: number
 		maxObservDist: number
+		threatRetentionMs: number
 		combatMode: 'defensive' | 'attack' | 'retreat'
 		safeEatDistance: number
 		fleeTargetDistance: number
@@ -62,7 +73,7 @@ export interface MachineContext {
 		pathfindCacheDuration: number
 	}
 
-	nearestEnemy: {
+	combatTarget: {
 		entity: Entity | null
 		distance: number
 	}
@@ -105,6 +116,8 @@ export const context: MachineContext = {
 	entities: [],
 	enemies: [],
 	players: [],
+	nearestThreat: null,
+	threats: [],
 
 	inventory: [],
 	toolDurability: {
@@ -130,6 +143,7 @@ export const context: MachineContext = {
 		followDistance: 3,
 		maxDistToEnemy: 20,
 		maxObservDist: 50,
+		threatRetentionMs: 2000,
 		combatMode: 'defensive',
 		safeEatDistance: 20,
 		fleeTargetDistance: 15,
@@ -146,7 +160,7 @@ export const context: MachineContext = {
 		pathfindCacheDuration: 3000
 	},
 
-	nearestEnemy: {
+	combatTarget: {
 		entity: null,
 		distance: Infinity
 	},

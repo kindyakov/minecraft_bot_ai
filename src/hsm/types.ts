@@ -36,7 +36,10 @@ export type UpdateEvents =
 			entities: Entity[]
 			enemies: Entity[]
 			players: Entity[]
-			nearestEnemy: { entity: Entity | null; distance: number }
+	  }
+	| {
+			type: 'UPDATE_COMBAT_TARGET'
+			combatTarget: { entity: Entity | null; distance: number }
 	  }
 
 export type UserEvents =

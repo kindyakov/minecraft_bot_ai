@@ -108,7 +108,7 @@ const createCombatContext = (
 	distance: number
 ) => ({
 	bot,
-	nearestEnemy: {
+	combatTarget: {
 		entity: enemy,
 		distance
 	},

@@ -45,7 +45,7 @@ const resolveCombatTarget = (
 	const enemies = Array.isArray(context.enemies) ? context.enemies : []
 
 	if (!position) {
-		return context.nearestEnemy ?? { entity: null, distance: Infinity }
+		return context.combatTarget ?? { entity: null, distance: Infinity }
 	}
 
 	const pickVisibleTarget = (targetId: number | null): Entity | null => {
@@ -66,7 +66,7 @@ const resolveCombatTarget = (
 
 	const stickyTarget =
 		pickVisibleTarget(currentTarget?.id ?? null) ??
-		pickVisibleTarget(context.nearestEnemy.entity?.id ?? null)
+		pickVisibleTarget(context.combatTarget.entity?.id ?? null)
 
 	if (stickyTarget) {
 		return {
@@ -76,11 +76,11 @@ const resolveCombatTarget = (
 	}
 
 	if (
-		context.nearestEnemy?.entity &&
-		Boolean(context.nearestEnemy.entity.isValid) &&
-		context.nearestEnemy.distance <= context.preferences.maxDistToEnemy
+		context.combatTarget?.entity &&
+		Boolean(context.combatTarget.entity.isValid) &&
+		context.combatTarget.distance <= context.preferences.maxDistToEnemy
 	) {
-		return context.nearestEnemy
+		return context.combatTarget
 	}
 
 	const fallback = enemies
