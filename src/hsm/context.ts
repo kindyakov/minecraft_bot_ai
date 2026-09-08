@@ -161,8 +161,6 @@ export const context: MachineContext = {
 	conversationHistory: [],
 	taskContext: {
 		category: 'unknown',
-		relevantInteractables: [],
-		recentFacts: [],
 		rejectedStepSignatures: []
 	},
 	lastAction: null,

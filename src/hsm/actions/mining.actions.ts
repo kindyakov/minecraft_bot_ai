@@ -1,5 +1,7 @@
 import { assign } from 'xstate'
 
+import Logger from '@/config/logger'
+
 import type { MachineContext } from '@/hsm/context'
 import type { MachineEvent, MiningTaskData } from '@/hsm/types'
 
@@ -9,13 +11,13 @@ const getMiningTaskData = (context: MachineContext): MiningTaskData | null =>
 export const miningActions = {
 	entryMining: ({ context }: { context: MachineContext }) => {
 		const data = getMiningTaskData(context)
-		console.log(
+		Logger.debug(
 			`[MINING] Starting mining task: ${data?.blockName ?? 'unknown'} x${data?.count ?? 0}`
 		)
 	},
 
 	exitMining: () => {
-		console.log('[MINING] Exiting mining state')
+		Logger.debug('[MINING] Exiting mining state')
 	},
 
 	storeFoundBlocks: assign<
@@ -175,7 +177,7 @@ export const miningActions = {
 			return
 		}
 
-		console.log(
+		Logger.debug(
 			`[MINING] Task completed: collected ${data.collected}/${data.count} ${data.blockName}`
 		)
 		context.bot?.chat(`Добыто ${data.collected} ${data.blockName}`)
@@ -188,7 +190,7 @@ export const miningActions = {
 			return
 		}
 
-		console.log(
+		Logger.debug(
 			`[MINING] Task failed: collected ${data.collected}/${data.count} ${data.blockName}`
 		)
 		context.bot?.chat(

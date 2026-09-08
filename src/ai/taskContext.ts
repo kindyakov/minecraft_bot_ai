@@ -9,8 +9,6 @@ export type TaskCategory =
 
 export interface TaskContext {
 	category: TaskCategory
-	relevantInteractables: string[]
-	recentFacts: string[]
 	rejectedStepSignatures: string[]
 }
 
@@ -55,30 +53,14 @@ const inferTaskCategory = (
 	return 'unknown'
 }
 
-const getRelevantInteractables = (category: TaskCategory): string[] => {
-	switch (category) {
-		case 'craft':
-			return ['crafting_table']
-		case 'smelt':
-			return ['furnace', 'blast_furnace', 'smoker']
-		default:
-			return []
-	}
-}
-
-const trimFacts = (facts: string[]): string[] => facts.slice(-5)
 const trimRejected = (signatures: string[]): string[] => signatures.slice(-5)
 
 export const createTaskContext = (
 	currentGoal: string | null,
 	subGoal: string | null
 ): TaskContext => {
-	const category = inferTaskCategory(currentGoal, subGoal)
-
 	return {
-		category,
-		relevantInteractables: getRelevantInteractables(category),
-		recentFacts: [],
+		category: inferTaskCategory(currentGoal, subGoal),
 		rejectedStepSignatures: []
 	}
 }
@@ -92,22 +74,7 @@ export const refreshTaskContext = (
 
 	return {
 		...next,
-		recentFacts: trimFacts(taskContext.recentFacts),
 		rejectedStepSignatures: trimRejected(taskContext.rejectedStepSignatures)
-	}
-}
-
-export const appendTaskFact = (
-	taskContext: TaskContext,
-	fact: string | null
-): TaskContext => {
-	if (!fact) {
-		return taskContext
-	}
-
-	return {
-		...taskContext,
-		recentFacts: trimFacts([...taskContext.recentFacts, fact])
 	}
 }
 
@@ -121,35 +88,3 @@ export const appendRejectedStepSignature = (
 		signature
 	])
 })
-
-export const getTaskFactFromExecution = (
-	toolName: string | null,
-	args: Record<string, unknown> | null,
-	result: 'SUCCESS' | 'FAILED' | null,
-	reason: string | null
-): string | null => {
-	if (!toolName) {
-		return null
-	}
-
-	if (result === 'SUCCESS') {
-		switch (toolName) {
-			case 'break_block':
-				return typeof args?.position === 'object'
-					? 'resource_step_succeeded'
-					: 'break_step_succeeded'
-			case 'place_block':
-				return `placed:${String(args?.block_name ?? 'unknown')}`
-			case 'navigate_to':
-				return 'navigation_step_succeeded'
-			case 'follow_entity':
-				return 'follow_step_succeeded'
-		}
-	}
-
-	if (result === 'FAILED' && reason) {
-		return `failed:${toolName}:${reason}`
-	}
-
-	return null
-}

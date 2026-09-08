@@ -1,10 +1,13 @@
-import type { MemoryEntryType } from '@/core/memory/types.js'
-
 import type {
 	InlineToolExecutionContext,
 	InlineToolExecutionResult
 } from '../inlineExecutor.js'
-import { getMemory, toPosition } from '../shared.js'
+import {
+	getMemory,
+	toJsonRecord,
+	toMemoryEntryType,
+	tryToPosition
+} from '../shared.js'
 
 export const executeMemoryTool = async (
 	name: 'memory_save' | 'memory_read' | 'memory_update_data' | 'memory_delete',
@@ -15,17 +18,28 @@ export const executeMemoryTool = async (
 
 	switch (name) {
 		case 'memory_save': {
+			const entryType = toMemoryEntryType(args.type)
+			if (!entryType) {
+				return {
+					ok: false,
+					output: { reason: 'memory_save requires a valid entry type' }
+				}
+			}
+
+			const position = tryToPosition(args.position)
+			if (!position) {
+				return {
+					ok: false,
+					output: { reason: 'memory_save requires a finite position' }
+				}
+			}
+
 			const entry = memory.saveEntry({
-				type: String(args.type) as MemoryEntryType,
-				position: toPosition(args.position as Record<string, unknown>),
+				type: entryType,
+				position,
 				tags: Array.isArray(args.tags) ? args.tags.map(String) : [],
 				description: String(args.description ?? ''),
-				data:
-					args.data &&
-					typeof args.data === 'object' &&
-					!Array.isArray(args.data)
-						? (args.data as Record<string, unknown>)
-						: {}
+				data: toJsonRecord(args.data)
 			})
 
 			return { ok: true, output: { entry } }
@@ -49,23 +63,15 @@ export const executeMemoryTool = async (
 		case 'memory_update_data': {
 			const entry = memory.updateEntryData(
 				String(args.id ?? ''),
-				args.data && typeof args.data === 'object' && !Array.isArray(args.data)
-					? (args.data as Record<string, unknown>)
-					: {}
+				toJsonRecord(args.data)
 			)
 			return { ok: Boolean(entry), output: { updated: Boolean(entry), entry } }
 		}
 		case 'memory_delete': {
 			const deleted = memory.deleteEntry({
 				id: typeof args.id === 'string' ? args.id : undefined,
-				position:
-					args.position && typeof args.position === 'object'
-						? toPosition(args.position as Record<string, unknown>)
-						: undefined,
-				type:
-					typeof args.type === 'string'
-						? (args.type as MemoryEntryType)
-						: undefined
+				position: tryToPosition(args.position) ?? undefined,
+				type: toMemoryEntryType(args.type) ?? undefined
 			})
 			return { ok: deleted, output: { deleted } }
 		}

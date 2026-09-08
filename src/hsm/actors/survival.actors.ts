@@ -1,5 +1,7 @@
 import type { Entity } from '@/types'
 
+import Logger from '@/config/logger'
+
 import {
 	type BaseServiceState,
 	createStatefulService
@@ -30,7 +32,7 @@ interface EmergencyRecoveryState extends BaseServiceState {
 const pathGoalReissueMs = 750
 
 const logSurvivalRuntime = (event: string, payload: Record<string, unknown>) => {
-	console.log(`[SURVIVAL] ${event}`, JSON.stringify(payload))
+	Logger.debug(`[SURVIVAL] ${event}`, payload)
 }
 
 const setMode = (

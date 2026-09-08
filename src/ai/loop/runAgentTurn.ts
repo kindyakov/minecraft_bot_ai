@@ -1,3 +1,4 @@
+import Logger from '@/config/logger'
 import { createAgentClient } from '@/ai/client.js'
 import { assembleAgentPrompt } from '@/ai/prompt.js'
 import { appendRejectedStepSignature } from '@/ai/taskContext.js'
@@ -56,14 +57,33 @@ export const runAgentTurn = async (
 		}
 
 		const roundStart = Date.now()
-		const response = await client.createResponse({
-			instructions: promptAssembly.instructions,
-			input: nextInput,
-			tools: AGENT_TOOLS,
-			promptAssembly,
-			previousResponseId,
-			signal: input.signal
-		})
+		let response
+		try {
+			response = await client.createResponse({
+				instructions: promptAssembly.instructions,
+				input: nextInput,
+				tools: AGENT_TOOLS,
+				promptAssembly,
+				previousResponseId,
+				signal: input.signal
+			})
+		} catch (error) {
+			if (input.signal?.aborted) {
+				throw error
+			}
+
+			const reason =
+				error instanceof Error ? error.message : String(error)
+			Logger.info('[AI] turn_failed', {
+				reason: `Model request failed: ${reason}`,
+				transcript
+			})
+			return {
+				kind: 'failed',
+				reason: `Model request failed: ${reason}`,
+				transcript
+			}
+		}
 		const duration = Date.now() - roundStart
 		transcript.push(`round_${round}_ms:${duration}`)
 
@@ -73,38 +93,29 @@ export const runAgentTurn = async (
 					? response.outputText.trim()
 					: ''
 			if (plainTextOutput && hasGroundedReferences(groundedFacts)) {
-				console.log(
-					'[AI] plain_text_fallback_finish',
-					JSON.stringify({
-						round,
-						responseId: response.id,
-						message: plainTextOutput
-					})
-				)
+				Logger.debug('[AI] plain_text_fallback_finish', {
+					round,
+					responseId: response.id,
+					message: plainTextOutput
+				})
 				const result: AgentTurnResult = {
 					kind: 'finish',
 					message: plainTextOutput,
 					transcript
 				}
-				console.log(
-					'[AI] turn_finish',
-					JSON.stringify({
-						kind: result.kind,
-						message: result.message,
-						transcript
-					})
-				)
+				Logger.info('[AI] turn_finish', {
+					kind: result.kind,
+					message: result.message,
+					transcript
+				})
 				return result
 			}
 
 			if (plainTextOutput) {
-				console.log(
-					'[AI] turn_failed',
-					JSON.stringify({
-						reason: 'Model returned plain text without grounded inspect data',
-						transcript
-					})
-				)
+				Logger.info('[AI] turn_failed', {
+					reason: 'Model returned plain text without grounded inspect data',
+					transcript
+				})
 				return {
 					kind: 'failed',
 					reason: 'Model returned plain text without grounded inspect data',
@@ -113,14 +124,11 @@ export const runAgentTurn = async (
 			}
 
 			if (modelRetries < MAX_MODEL_RETRIES) {
-				console.log(
-					'[AI] retry_no_tool_call',
-					JSON.stringify({
-						round,
-						responseId: response.id,
-						retry: modelRetries + 1
-					})
-				)
+				Logger.debug('[AI] retry_no_tool_call', {
+					round,
+					responseId: response.id,
+					retry: modelRetries + 1
+				})
 				modelRetries += 1
 				previousResponseId = response.id
 				nextInput =
@@ -128,13 +136,10 @@ export const runAgentTurn = async (
 				continue
 			}
 
-			console.log(
-				'[AI] turn_failed',
-				JSON.stringify({
-					reason: 'Model did not return a tool call',
-					transcript
-				})
-			)
+			Logger.info('[AI] turn_failed', {
+				reason: 'Model did not return a tool call',
+				transcript
+			})
 			return {
 				kind: 'failed',
 				reason: 'Model did not return a tool call',
@@ -152,14 +157,11 @@ export const runAgentTurn = async (
 
 			if (isExecutionToolName(toolCall.name)) {
 				if (execution || sawInlineTool || finishMessage) {
-					console.log(
-						'[AI] turn_failed',
-						JSON.stringify({
-							reason:
-								'Model mixed execution and informational tools in one response',
-							transcript
-						})
-					)
+					Logger.info('[AI] turn_failed', {
+						reason:
+							'Model mixed execution and informational tools in one response',
+						transcript
+					})
 					return {
 						kind: 'failed',
 						reason:
@@ -179,13 +181,10 @@ export const runAgentTurn = async (
 					groundedFacts
 				)
 				if (executionValidationError) {
-					console.log(
-						'[AI] turn_failed',
-						JSON.stringify({
-							reason: executionValidationError,
-							transcript
-						})
-					)
+					Logger.info('[AI] turn_failed', {
+						reason: executionValidationError,
+						transcript
+					})
 					input.taskContext = appendRejectedStepSignature(
 						input.taskContext,
 						executionSignature(execution.toolName, execution.args)
@@ -196,26 +195,20 @@ export const runAgentTurn = async (
 						transcript
 					}
 				}
-				console.log(
-					'[AI] execution_selected',
-					JSON.stringify({
-						round,
-						toolName: execution.toolName,
-						args: execution.args
-					})
-				)
+				Logger.debug('[AI] execution_selected', {
+					round,
+					toolName: execution.toolName,
+					args: execution.args
+				})
 				continue
 			}
 
 			if (isControlToolName(toolCall.name)) {
 				if (execution || sawInlineTool || finishMessage) {
-					console.log(
-						'[AI] turn_failed',
-						JSON.stringify({
-							reason: 'Model returned conflicting terminal actions',
-							transcript
-						})
-					)
+					Logger.info('[AI] turn_failed', {
+						reason: 'Model returned conflicting terminal actions',
+						transcript
+					})
 					return {
 						kind: 'failed',
 						reason: 'Model returned conflicting terminal actions',
@@ -229,24 +222,18 @@ export const runAgentTurn = async (
 						: typeof toolCall.arguments.summary === 'string'
 							? toolCall.arguments.summary
 							: response.outputText || 'Goal finished'
-				console.log(
-					'[AI] finish_selected',
-					JSON.stringify({
-						round,
-						message: finishMessage
-					})
-				)
+				Logger.debug('[AI] finish_selected', {
+					round,
+					message: finishMessage
+				})
 				continue
 			}
 
 			if (!isInlineToolName(toolCall.name)) {
-				console.log(
-					'[AI] turn_failed',
-					JSON.stringify({
-						reason: `Unknown tool requested: ${toolCall.name}`,
-						transcript
-					})
-				)
+				Logger.info('[AI] turn_failed', {
+					reason: `Unknown tool requested: ${toolCall.name}`,
+					transcript
+				})
 				return {
 					kind: 'failed',
 					reason: `Unknown tool requested: ${toolCall.name}`,
@@ -260,13 +247,10 @@ export const runAgentTurn = async (
 				input.taskContext
 			)
 			if (inlineValidationError) {
-				console.log(
-					'[AI] turn_failed',
-					JSON.stringify({
-						reason: inlineValidationError,
-						transcript
-					})
-				)
+				Logger.info('[AI] turn_failed', {
+					reason: inlineValidationError,
+					transcript
+				})
 				return {
 					kind: 'failed',
 					reason: inlineValidationError,
@@ -274,8 +258,10 @@ export const runAgentTurn = async (
 				}
 			}
 
-			sawInlineTool = true
-			const result = await executeInlineToolCall(
+		sawInlineTool = true
+		let result
+		try {
+			result = await executeInlineToolCall(
 				toolCall.name,
 				toolCall.arguments,
 				{
@@ -284,6 +270,18 @@ export const runAgentTurn = async (
 					activeWindowSessionState: input.activeWindowSessionState ?? null
 				}
 			)
+		} catch (error) {
+			const reason = error instanceof Error ? error.message : String(error)
+			Logger.info('[AI] turn_failed', {
+				reason: `Inline tool "${toolCall.name}" threw: ${reason}`,
+				transcript
+			})
+			return {
+				kind: 'failed',
+				reason: `Inline tool "${toolCall.name}" threw: ${reason}`,
+				transcript
+			}
+		}
 			inlineOutputs.push({
 				type: 'function_call_output',
 				call_id: toolCall.callId,
@@ -304,16 +302,13 @@ export const runAgentTurn = async (
 				),
 				transcript
 			}
-			console.log(
-				'[AI] turn_finish',
-				JSON.stringify({
-					kind: result.kind,
-					toolName: result.execution.toolName,
-					args: result.execution.args,
-					subGoal: result.subGoal,
-					transcript
-				})
-			)
+			Logger.info('[AI] turn_finish', {
+				kind: result.kind,
+				toolName: result.execution.toolName,
+				args: result.execution.args,
+				subGoal: result.subGoal,
+				transcript
+			})
 			return result
 		}
 
@@ -323,25 +318,19 @@ export const runAgentTurn = async (
 				message: finishMessage,
 				transcript
 			}
-			console.log(
-				'[AI] turn_finish',
-				JSON.stringify({
-					kind: result.kind,
-					message: result.message,
-					transcript
-				})
-			)
+			Logger.info('[AI] turn_finish', {
+				kind: result.kind,
+				message: result.message,
+				transcript
+			})
 			return result
 		}
 
 		if (inlineOutputs.length === 0) {
-			console.log(
-				'[AI] turn_failed',
-				JSON.stringify({
-					reason: 'Model requested no actionable tool output',
-					transcript
-				})
-			)
+			Logger.info('[AI] turn_failed', {
+				reason: 'Model requested no actionable tool output',
+				transcript
+			})
 			return {
 				kind: 'failed',
 				reason: 'Model requested no actionable tool output',
@@ -353,13 +342,10 @@ export const runAgentTurn = async (
 		nextInput = inlineOutputs
 	}
 
-	console.log(
-		'[AI] turn_failed',
-		JSON.stringify({
-			reason: 'Inline tool round limit exceeded',
-			transcript
-		})
-	)
+	Logger.info('[AI] turn_failed', {
+		reason: 'Inline tool round limit exceeded',
+		transcript
+	})
 	return {
 		kind: 'failed',
 		reason: 'Inline tool round limit exceeded',

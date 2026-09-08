@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 import type { AgentPromptAssembly } from '@/ai/prompt.js'
@@ -6,6 +6,10 @@ import type { AgentPromptAssembly } from '@/ai/prompt.js'
 import type { AgentToolDefinition } from '../contracts/agentClient.js'
 
 const REQUEST_DEBUG_DIR = path.resolve(process.cwd(), 'logs', 'ai-requests')
+const MAX_DEBUG_DUMP_FILES = 50
+
+export const shouldWriteRequestDebugDump = (): boolean =>
+	process.env.AI_DEBUG_DUMP === '1'
 
 type DebugSection = {
 	title: string
@@ -217,5 +221,22 @@ export const writeRequestDebugDump = async (params: {
 		.replace(/[:.]/g, '-')}.md`
 	const filePath = path.join(REQUEST_DEBUG_DIR, fileName)
 	await writeFile(filePath, params.markdown, 'utf8')
+	await pruneRequestDebugDumps(params.filePrefix)
 	return filePath
+}
+
+const pruneRequestDebugDumps = async (
+	filePrefix: 'responses-request' | 'chat-request'
+): Promise<void> => {
+	const entries = await readdir(REQUEST_DEBUG_DIR)
+	const dumps = entries
+		.filter(name => name.startsWith(filePrefix) && name.endsWith('.md'))
+		.sort()
+	const excess = dumps.slice(
+		0,
+		Math.max(0, dumps.length - MAX_DEBUG_DUMP_FILES)
+	)
+	await Promise.all(
+		excess.map(name => unlink(path.join(REQUEST_DEBUG_DIR, name)))
+	)
 }

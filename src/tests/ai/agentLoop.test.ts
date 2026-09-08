@@ -1084,6 +1084,315 @@ test('runAgentTurn finishes with plain text after grounded inspect data was gath
 	assert.equal(result.message, 'Дом находится на отмеченной позиции.')
 })
 
+test('runAgentTurn converts a model request error into a failed turn', async () => {
+	const requestError = new Error('Request failed with status 400')
+	;(requestError as unknown as { status: number }).status = 400
+	const client = {
+		createResponse: async () => {
+			throw requestError
+		}
+	} as any
+
+	const memory = {
+		readEntries: () => [],
+		saveEntry: () => null,
+		updateEntryData: () => null,
+		deleteEntry: () => false
+	} as any
+
+	const bot = {
+		memory,
+		health: 20,
+		food: 20,
+		oxygenLevel: 20,
+		entity: { position: createVec3(0, 64, 0) },
+		game: { dimension: 'overworld' },
+		time: { isDay: true, timeOfDay: 1000 },
+		inventory: {
+			slots: Array.from({ length: 46 }, () => null),
+			items: () => []
+		},
+		getEquipmentDestSlot: () => 36,
+		blockAt: () => null,
+		findBlocks: () => [],
+		entities: {},
+		closeWindow: () => {}
+	} as any
+
+	const result = await runAgentTurn({
+		bot,
+		memory,
+		currentGoal: 'Что у тебя в инвентаре?',
+		subGoal: null,
+		lastAction: null,
+		lastResult: null,
+		lastReason: null,
+		errorHistory: [],
+		taskContext: createTaskContext('Что у тебя в инвентаре?', null),
+		client
+	})
+
+	assert.equal(result.kind, 'failed')
+	if (result.kind !== 'failed') {
+		assert.fail('Expected failed result')
+	}
+	assert.match(result.reason, /Model request failed/)
+})
+
+test('runAgentTurn converts an inline tool throw into a failed turn', async () => {
+	const client = {
+		createResponse: async () => ({
+			id: 'resp_throw',
+			outputText: '',
+			toolCalls: [
+				{
+					callId: 'call_1',
+					name: 'memory_read',
+					arguments: {}
+				}
+			]
+		})
+	} as any
+
+	const bot = {
+		health: 20,
+		food: 20,
+		oxygenLevel: 20,
+		entity: { position: createVec3(0, 64, 0) },
+		game: { dimension: 'overworld' },
+		time: { isDay: true, timeOfDay: 1000 },
+		inventory: {
+			slots: Array.from({ length: 46 }, () => null),
+			items: () => []
+		},
+		getEquipmentDestSlot: () => 36,
+		blockAt: () => null,
+		findBlocks: () => [],
+		entities: {},
+		closeWindow: () => {}
+	} as any
+
+	const result = await runAgentTurn({
+		bot,
+		memory: undefined as any,
+		currentGoal: 'Где дом?',
+		subGoal: null,
+		lastAction: null,
+		lastResult: null,
+		lastReason: null,
+		errorHistory: [],
+		taskContext: createTaskContext('Где дом?', null),
+		client
+	})
+
+	assert.equal(result.kind, 'failed')
+	if (result.kind !== 'failed') {
+		assert.fail('Expected failed result')
+	}
+	assert.match(result.reason, /Inline tool "memory_read" threw/)
+})
+
+test('runAgentTurn rejects memory_save without a finite position', async () => {
+	const client = {
+		createResponse: async () => ({
+			id: 'resp_save',
+			outputText: '',
+			toolCalls: [
+				{
+					callId: 'call_1',
+					name: 'memory_save',
+					arguments: {
+						type: 'location',
+						tags: ['home'],
+						description: 'Base',
+						data: {}
+					}
+				}
+			]
+		})
+	} as any
+
+	const memory = {
+		readEntries: () => [],
+		saveEntry: () => null,
+		updateEntryData: () => null,
+		deleteEntry: () => false
+	} as any
+
+	const bot = {
+		memory,
+		health: 20,
+		food: 20,
+		oxygenLevel: 20,
+		entity: { position: createVec3(0, 64, 0) },
+		game: { dimension: 'overworld' },
+		time: { isDay: true, timeOfDay: 1000 },
+		inventory: {
+			slots: Array.from({ length: 46 }, () => null),
+			items: () => []
+		},
+		getEquipmentDestSlot: () => 36,
+		blockAt: () => null,
+		findBlocks: () => [],
+		entities: {},
+		closeWindow: () => {}
+	} as any
+
+	const result = await runAgentTurn({
+		bot,
+		memory,
+		currentGoal: 'Запомни дом',
+		subGoal: null,
+		lastAction: null,
+		lastResult: null,
+		lastReason: null,
+		errorHistory: [],
+		taskContext: createTaskContext('Запомни дом', null),
+		client
+	})
+
+	assert.equal(result.kind, 'failed')
+	if (result.kind !== 'failed') {
+		assert.fail('Expected failed result')
+	}
+	assert.match(result.reason, /finite position/)
+})
+
+test('runAgentTurn rejects memory_save with an unknown entry type', async () => {
+	const client = {
+		createResponse: async () => ({
+			id: 'resp_save_type',
+			outputText: '',
+			toolCalls: [
+				{
+					callId: 'call_1',
+					name: 'memory_save',
+					arguments: {
+						type: 'landmark',
+						position: { x: 1, y: 64, z: 1 },
+						tags: [],
+						description: 'Base',
+						data: {}
+					}
+				}
+			]
+		})
+	} as any
+
+	const memory = {
+		readEntries: () => [],
+		saveEntry: () => {
+			throw new Error('saveEntry must not be called for invalid args')
+		},
+		updateEntryData: () => null,
+		deleteEntry: () => false
+	} as any
+
+	const bot = {
+		memory,
+		health: 20,
+		food: 20,
+		oxygenLevel: 20,
+		entity: { position: createVec3(0, 64, 0) },
+		game: { dimension: 'overworld' },
+		time: { isDay: true, timeOfDay: 1000 },
+		inventory: {
+			slots: Array.from({ length: 46 }, () => null),
+			items: () => []
+		},
+		getEquipmentDestSlot: () => 36,
+		blockAt: () => null,
+		findBlocks: () => [],
+		entities: {},
+		closeWindow: () => {}
+	} as any
+
+	const result = await runAgentTurn({
+		bot,
+		memory,
+		currentGoal: 'Запомни дом',
+		subGoal: null,
+		lastAction: null,
+		lastResult: null,
+		lastReason: null,
+		errorHistory: [],
+		taskContext: createTaskContext('Запомни дом', null),
+		client
+	})
+
+	assert.equal(result.kind, 'failed')
+	if (result.kind !== 'failed') {
+		assert.fail('Expected failed result')
+	}
+	assert.match(result.reason, /one of: container, location, resource, danger/)
+})
+
+test('runAgentTurn rejects transfer_item with unknown zones and bad count', async () => {
+	const client = {
+		createResponse: async () => ({
+			id: 'resp_transfer_zone',
+			outputText: '',
+			toolCalls: [
+				{
+					callId: 'call_1',
+					name: 'transfer_item',
+					arguments: {
+						source_zone: 'backpack',
+						dest_zone: 'backpack',
+						item_name: 'iron_ore',
+						count: -2
+					}
+				}
+			]
+		})
+	} as any
+
+	const memory = {
+		readEntries: () => [],
+		saveEntry: () => null,
+		updateEntryData: () => null,
+		deleteEntry: () => false
+	} as any
+
+	const bot = {
+		memory,
+		health: 20,
+		food: 20,
+		oxygenLevel: 20,
+		entity: { position: createVec3(0, 64, 0) },
+		game: { dimension: 'overworld' },
+		time: { isDay: true, timeOfDay: 1000 },
+		inventory: {
+			slots: Array.from({ length: 46 }, () => null),
+			items: () => []
+		},
+		getEquipmentDestSlot: () => 36,
+		blockAt: () => null,
+		findBlocks: () => [],
+		entities: {},
+		closeWindow: () => {}
+	} as any
+
+	const result = await runAgentTurn({
+		bot,
+		memory,
+		currentGoal: 'Разложи руду',
+		subGoal: null,
+		lastAction: null,
+		lastResult: null,
+		lastReason: null,
+		errorHistory: [],
+		taskContext: createTaskContext('Разложи руду', null),
+		client
+	})
+
+	assert.equal(result.kind, 'failed')
+	if (result.kind !== 'failed') {
+		assert.fail('Expected failed result')
+	}
+	assert.match(result.reason, /source_zone/)
+})
+
 test('runAgentTurn still fails when the model returns no tool call and no plain-text response', async () => {
 	const responses = [
 		{

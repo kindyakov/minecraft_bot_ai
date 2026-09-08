@@ -4,6 +4,8 @@ import type { AnyActorLogic } from 'xstate'
 
 import type { Bot, Entity } from '@/types'
 
+import Logger from '@/config/logger'
+
 import { miningActions } from '@/hsm/actions/mining.actions'
 import combatActors from '@/hsm/actors/combat.actors'
 import monitoringActors from '@/hsm/actors/monitoring.actors'
@@ -27,9 +29,7 @@ import { runAgentTurn } from '@/ai/loop.js'
 import { closeWindowSession } from '@/ai/runtime/window.js'
 import {
 	appendRejectedStepSignature,
-	appendTaskFact,
 	createTaskContext,
-	getTaskFactFromExecution,
 	refreshTaskContext
 } from '@/ai/taskContext.js'
 
@@ -133,10 +133,10 @@ const tryCloseActiveWindowSession = (context: MachineContext): boolean => {
 		closeWindowSession(context.bot, session)
 		return true
 	} catch (error) {
-		console.error(
-			'[HSM] failed to close active window session',
-			error instanceof Error ? error.message : String(error)
-		)
+		Logger.error('[HSM] failed to close active window session', {
+			error:
+				error instanceof Error ? (error.stack ?? error.message) : String(error)
+		})
 		return false
 	}
 }
@@ -461,43 +461,34 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					params && typeof params === 'object' && 'state' in params
 						? String(params.state)
 						: 'unknown'
-				console.log(
-					`[HSM] enter ${state}`,
-					JSON.stringify({
-						event: event.type,
-						targetId: context.nearestEnemy.entity?.id ?? null,
-						distance: Number.isFinite(context.nearestEnemy.distance)
-							? Number(context.nearestEnemy.distance.toFixed(2))
-							: null
-					})
-				)
+				Logger.debug(`[HSM] enter ${state}`, {
+					event: event.type,
+					targetId: context.nearestEnemy.entity?.id ?? null,
+					distance: Number.isFinite(context.nearestEnemy.distance)
+						? Number(context.nearestEnemy.distance.toFixed(2))
+						: null
+				})
 			},
 			logStateExit: ({ context, event }, params: unknown) => {
 				const state =
 					params && typeof params === 'object' && 'state' in params
 						? String(params.state)
 						: 'unknown'
-				console.log(
-					`[HSM] exit ${state}`,
-					JSON.stringify({
-						event: event.type,
-						targetId: context.nearestEnemy.entity?.id ?? null,
-						distance: Number.isFinite(context.nearestEnemy.distance)
-							? Number(context.nearestEnemy.distance.toFixed(2))
-							: null
-					})
-				)
+				Logger.debug(`[HSM] exit ${state}`, {
+					event: event.type,
+					targetId: context.nearestEnemy.entity?.id ?? null,
+					distance: Number.isFinite(context.nearestEnemy.distance)
+						? Number(context.nearestEnemy.distance.toFixed(2))
+						: null
+				})
 			},
 			logThinkingStart: ({ context }) => {
-				console.log(
-					'[AI] thinking_start',
-					JSON.stringify({
-						goal: context.currentGoal,
-						subGoal: context.subGoal,
-						lastAction: context.lastAction,
-						lastResult: context.lastResult
-					})
-				)
+				Logger.debug('[AI] thinking_start', {
+					goal: context.currentGoal,
+					subGoal: context.subGoal,
+					lastAction: context.lastAction,
+					lastResult: context.lastResult
+				})
 			},
 			logThinkingExecution: ({ event }) => {
 				const output = (event as ThinkingDoneEvent).output
@@ -505,15 +496,12 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					return
 				}
 
-				console.log(
-					'[AI] thinking_done',
-					JSON.stringify({
-						kind: output.kind,
-						toolName: output.execution.toolName,
-						args: output.execution.args,
-						subGoal: output.subGoal
-					})
-				)
+				Logger.debug('[AI] thinking_done', {
+					kind: output.kind,
+					toolName: output.execution.toolName,
+					args: output.execution.args,
+					subGoal: output.subGoal
+				})
 			},
 			logThinkingFinish: ({ event }) => {
 				const output = (event as ThinkingDoneEvent).output
@@ -521,13 +509,10 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					return
 				}
 
-				console.log(
-					'[AI] thinking_done',
-					JSON.stringify({
-						kind: output.kind,
-						message: output.message
-					})
-				)
+				Logger.debug('[AI] thinking_done', {
+					kind: output.kind,
+					message: output.message
+				})
 			},
 			logThinkingFailure: ({ event }) => {
 				const output = (event as ThinkingDoneEvent).output
@@ -535,24 +520,18 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					return
 				}
 
-				console.log(
-					'[AI] thinking_done',
-					JSON.stringify({
-						kind: output.kind,
-						reason: output.reason,
-						transcript: output.transcript
-					})
-				)
+				Logger.info('[AI] thinking_done', {
+					kind: output.kind,
+					reason: output.reason,
+					transcript: output.transcript
+				})
 			},
 			logThinkingError: ({ event }) => {
 				const error =
 					(event as { error?: unknown }).error ?? 'Unknown thinking error'
-				console.log(
-					'[AI] thinking_error',
-					JSON.stringify({
-						error: error instanceof Error ? error.message : String(error)
-					})
-				)
+				Logger.error('[AI] thinking_error', {
+					error: error instanceof Error ? error.message : String(error)
+				})
 			},
 			updatePosition: assign({
 				position: ({ event }) =>
@@ -569,12 +548,9 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 						return 20
 					}
 
-					console.log(
-						`[HSM] health ${context.health} -> ${event.health}`,
-						JSON.stringify({
-							event: event.type
-						})
-					)
+					Logger.debug(`[HSM] health ${context.health} -> ${event.health}`, {
+						event: event.type
+					})
 
 					return event.health
 				}
@@ -585,12 +561,9 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 						return 20
 					}
 
-					console.log(
-						`[HSM] food ${context.food} -> ${event.food}`,
-						JSON.stringify({
-							event: event.type
-						})
-					)
+					Logger.debug(`[HSM] food ${context.food} -> ${event.food}`, {
+						event: event.type
+					})
 
 					return event.food
 				}
@@ -917,18 +890,10 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				failureSignature: null,
 				failureRepeats: 0,
 				lastToolTranscript: [event.type],
-				taskContext: appendTaskFact(
-					refreshTaskContext(
-						context.taskContext,
-						context.currentGoal,
-						context.subGoal
-					),
-					getTaskFactFromExecution(
-						context.pendingExecution?.toolName ?? null,
-						context.pendingExecution?.args ?? null,
-						'SUCCESS',
-						null
-					)
+				taskContext: refreshTaskContext(
+					context.taskContext,
+					context.currentGoal,
+					context.subGoal
 				)
 			})),
 			recordExecutionFailure: assign(({ context, event }) => {
@@ -954,25 +919,17 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					failureSignature: signature,
 					failureRepeats: repeats,
 					errorHistory: [...context.errorHistory, reason].slice(-3),
-					lastToolTranscript: [event.type],
-					taskContext: appendTaskFact(
-						appendRejectedStepSignature(
-							refreshTaskContext(
-								context.taskContext,
-								context.currentGoal,
-								context.subGoal
-							),
-							signature ?? `execution_failed:${reason}`
-						),
-						getTaskFactFromExecution(
-							context.pendingExecution?.toolName ?? null,
-							context.pendingExecution?.args ?? null,
-							'FAILED',
-							reason
-						)
-					)
-				}
-			}),
+				lastToolTranscript: [event.type],
+				taskContext: appendRejectedStepSignature(
+					refreshTaskContext(
+						context.taskContext,
+						context.currentGoal,
+						context.subGoal
+					),
+					signature ?? `execution_failed:${reason}`
+				)
+			}
+		}),
 		notifyGoalFinished: ({ context, event }) => {
 			const output = (event as ThinkingDoneEvent).output
 			if (output?.kind === 'finish') {

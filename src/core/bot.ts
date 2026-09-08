@@ -105,7 +105,10 @@ class MinecraftBot extends EventEmitter {
 			this.bot.quit(reason)
 			this.bot = null
 		} catch (error) {
-			console.error(error)
+			Logger.error('Ошибка остановки бота', {
+				error: error instanceof Error ? error.message : String(error),
+				stack: error instanceof Error ? error.stack : undefined
+			})
 		}
 	}
 

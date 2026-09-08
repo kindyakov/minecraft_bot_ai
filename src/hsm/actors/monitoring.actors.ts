@@ -1,5 +1,7 @@
 import type { Entity } from '@/types'
 
+import Logger from '@/config/logger'
+
 import { createStatefulService } from '@/hsm/helpers/createStatefulService'
 import { isEntityOfType } from '@/hsm/utils/isEntityOfType'
 
@@ -53,7 +55,7 @@ const serviceEntitiesTracking = createStatefulService({
 		for (const enemy of attackCandidates) {
 			// Проверяем отмену
 			if (abortSignal.aborted) {
-				console.log('⚠️ [serviceEntitiesTracking] Async операция отменена')
+				Logger.debug('⚠️ [serviceEntitiesTracking] Async операция отменена')
 				return
 			}
 

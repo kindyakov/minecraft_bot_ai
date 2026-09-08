@@ -1,5 +1,7 @@
 import type { Entity } from '@/types'
 
+import Logger from '@/config/logger'
+
 import {
 	type BaseServiceState,
 	createStatefulService
@@ -34,7 +36,7 @@ export const primitiveFollowing = createStatefulService<
 		const { target, distance = 3 } = api.input
 
 		if (!target) {
-			console.error('❌ [primitiveFollowing] Не предоставлена цель')
+			Logger.error('❌ [primitiveFollowing] Не предоставлена цель')
 			api.sendBack({
 				type: 'FOLLOWING_FAILED',
 				reason: 'Не предоставлена цель'
@@ -49,7 +51,7 @@ export const primitiveFollowing = createStatefulService<
 			// Это сущность
 			targetEntity = target as Entity
 		} else {
-			console.error(
+			Logger.error(
 				'❌ [primitiveFollowing] GoalFollow работает только с Entity'
 			)
 			api.sendBack({
@@ -65,7 +67,7 @@ export const primitiveFollowing = createStatefulService<
 			isFollowing: true
 		})
 
-		console.log(
+		Logger.debug(
 			`🏃 [primitiveFollowing] Начинаю следование за ${targetEntity.name || targetEntity.type} на дистанции ${distance} блоков`
 		)
 
@@ -73,7 +75,7 @@ export const primitiveFollowing = createStatefulService<
 		const followGoal = new GoalFollow(targetEntity, distance)
 		api.bot.pathfinder.setGoal(followGoal, true) // true = dynamic goal
 
-		console.log('🗺️ [primitiveFollowing] Pathfinder запущен с GoalFollow')
+		Logger.debug('🗺️ [primitiveFollowing] Pathfinder запущен с GoalFollow')
 	},
 
 	onTick: api => {
@@ -87,7 +89,7 @@ export const primitiveFollowing = createStatefulService<
 			const stillExists = api.bot.entities[entity.id]
 
 			if (!stillExists) {
-				console.log('⚠️ [primitiveFollowing] Цель исчезла')
+				Logger.warn('⚠️ [primitiveFollowing] Цель исчезла')
 				api.bot.pathfinder.setGoal(null)
 				api.setState({ isFollowing: false })
 				api.sendBack({
@@ -105,14 +107,17 @@ export const primitiveFollowing = createStatefulService<
 	},
 
 	onCleanup: ({ bot, setState }) => {
-		console.log('🧹 [primitiveFollowing] Cleanup')
+		Logger.debug('🧹 [primitiveFollowing] Cleanup')
 
 		// Останавливаем pathfinder
 		try {
 			bot.pathfinder.setGoal(null)
-			console.log('🛑 [primitiveFollowing] Pathfinder остановлен')
+			Logger.debug('🛑 [primitiveFollowing] Pathfinder остановлен')
 		} catch (error) {
-			console.error('❌ [primitiveFollowing] Ошибка при остановке:', error)
+			Logger.error('❌ [primitiveFollowing] Ошибка при остановке', {
+				error: error instanceof Error ? error.message : String(error),
+				stack: error instanceof Error ? error.stack : undefined
+			})
 		}
 
 		setState({ isFollowing: false, target: null })

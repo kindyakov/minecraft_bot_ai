@@ -2,6 +2,8 @@ import { Weapons } from 'minecrafthawkeye'
 
 import type { Entity, Item } from '@/types'
 
+import Logger from '@/config/logger'
+
 import {
 	type BaseServiceState,
 	createStatefulService
@@ -24,7 +26,7 @@ interface RangedSkirmishState extends BaseServiceState {
 }
 
 const logCombatRuntime = (event: string, payload: Record<string, unknown>) => {
-	console.log(`[COMBAT] ${event}`, JSON.stringify(payload))
+	Logger.debug(`[COMBAT] ${event}`, payload)
 }
 
 const isPvpTargetActive = (bot: any, enemy: Entity) => bot.pvp?.target?.id === enemy.id
@@ -108,10 +110,10 @@ const issueMeleeAttack = (
 
 	if (attackResult instanceof Promise) {
 		void attackResult.catch((error: unknown) => {
-			console.error(
-				'[COMBAT] melee_attack_failed',
-				error instanceof Error ? error.message : String(error)
-			)
+			Logger.error('[COMBAT] melee_attack_failed', {
+				error:
+					error instanceof Error ? (error.stack ?? error.message) : String(error)
+			})
 			sendBack({
 				type: 'ERROR',
 				error: error instanceof Error ? error.message : String(error)
@@ -176,7 +178,7 @@ const serviceMeleeAttack = createStatefulService<MeleeAttackState>({
 			return
 		}
 
-		console.log(`Melee equipped: ${meleeWeapon.name}`)
+		Logger.debug(`Melee equipped: ${meleeWeapon.name}`)
 	},
 
 	onTick: ({ context, state, bot, sendBack, setState }) => {

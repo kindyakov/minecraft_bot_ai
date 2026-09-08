@@ -1,6 +1,8 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
+import Logger from '@/config/logger'
+
 import { buildHsmDrawioDiagram } from '@/hsm/utils/hsmDrawioDiagram.js'
 
 const outputDirectory = resolve(process.cwd(), 'docs', 'diagrams')
@@ -12,17 +14,11 @@ const main = async () => {
 	await mkdir(outputDirectory, { recursive: true })
 	await writeFile(drawioOutputPath, diagram.xml, 'utf8')
 
-	console.log(
-		JSON.stringify(
-			{
-				path: drawioOutputPath,
-				stateCount: diagram.statePaths.length,
-				animatedEdgeCount: diagram.animatedEdgeIds.length
-			},
-			null,
-			2
-		)
-	)
+	Logger.info('HSM diagram generated', {
+		path: drawioOutputPath,
+		stateCount: diagram.statePaths.length,
+		animatedEdgeCount: diagram.animatedEdgeIds.length
+	})
 }
 
 await main()

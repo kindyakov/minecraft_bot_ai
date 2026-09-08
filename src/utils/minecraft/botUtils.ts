@@ -1,5 +1,7 @@
 import type { Bot, Entity, Item } from '@/types'
 
+import Logger from '@/config/logger'
+
 type Priority = 'none' | 'low' | 'medium' | 'high' | 'critical'
 
 export class BotUtils {
@@ -211,7 +213,7 @@ export class BotUtils {
 		this._eatingPromise = (async () => {
 			try {
 				if (this._bot.food >= 20) {
-					console.log('Голод полный, жду регенерации здоровья...')
+					Logger.debug('Голод полный, жду регенерации здоровья...')
 					if (this._bot.health < 20) {
 						this.scheduleEatingRetry()
 					}
@@ -222,7 +224,7 @@ export class BotUtils {
 					return
 				}
 
-				console.log('Ищу еду в инвентаре...')
+				Logger.debug('Ищу еду в инвентаре...')
 
 				const allItems = this.getAllItems()
 				const foodChoices = this._bot.autoEat.findBestChoices(
@@ -236,8 +238,8 @@ export class BotUtils {
 				}
 
 				const bestFood = foodChoices[0]!
-				console.log(`Выбрал еду: ${bestFood.name}`)
-				console.log('🍖 Начинаю есть...')
+				Logger.debug(`Выбрал еду: ${bestFood.name}`)
+				Logger.debug('🍖 Начинаю есть...')
 
 				await this._bot.autoEat.eat({
 					food: bestFood,
@@ -246,7 +248,7 @@ export class BotUtils {
 					equipOldItem: true
 				})
 
-				console.log(
+				Logger.debug(
 					`Поел! HP: ${this._bot.health.toFixed(1)}, Food: ${this._bot.food}, Saturation: ${this._bot.foodSaturation.toFixed(1)}`
 				)
 
@@ -256,7 +258,10 @@ export class BotUtils {
 			} catch (error) {
 				const errorMessage =
 					error instanceof Error ? error.message : String(error)
-				console.log(`Ошибка при еде: ${errorMessage}`)
+				Logger.error('Ошибка при еде', {
+					error: errorMessage,
+					stack: error instanceof Error ? error.stack : undefined
+				})
 				if (this._bot.health < 20) {
 					this.scheduleEatingRetry()
 				}

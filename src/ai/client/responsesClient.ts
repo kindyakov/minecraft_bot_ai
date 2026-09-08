@@ -2,6 +2,7 @@ import OpenAI from 'openai'
 import type { Responses } from 'openai/resources/responses/responses'
 
 import defaultConfig from '@/config/config'
+import Logger from '@/config/logger'
 
 import type {
 	AgentModelClient,
@@ -12,8 +13,10 @@ import type {
 import { mapParsedToolCalls } from './parsers.js'
 import {
 	buildResponsesRequestDebugMarkdown,
+	shouldWriteRequestDebugDump,
 	writeRequestDebugDump
 } from './requestDebugDump.js'
+import { withApiRetry } from './retry.js'
 
 export class OpenAIResponsesClient implements AgentModelClient {
 	private readonly client: OpenAIResponsesSdkLike
@@ -54,33 +57,36 @@ export class OpenAIResponsesClient implements AgentModelClient {
 			max_output_tokens: this.maxOutputTokens,
 			tool_choice: 'auto' as const
 		}
-		const requestDumpPath = await writeRequestDebugDump({
-			filePrefix: 'responses-request',
-			markdown: buildResponsesRequestDebugMarkdown({
-				model: requestBody.model,
-				instructions: request.instructions,
-				input: request.input,
-				tools: request.tools,
-				promptAssembly: request.promptAssembly,
-				parallelToolCalls: requestBody.parallel_tool_calls,
-				previousResponseId: request.previousResponseId ?? undefined,
-				maxOutputTokens: requestBody.max_output_tokens,
-				toolChoice: requestBody.tool_choice
+		if (shouldWriteRequestDebugDump()) {
+			const requestDumpPath = await writeRequestDebugDump({
+				filePrefix: 'responses-request',
+				markdown: buildResponsesRequestDebugMarkdown({
+					model: requestBody.model,
+					instructions: request.instructions,
+					input: request.input,
+					tools: request.tools,
+					promptAssembly: request.promptAssembly,
+					parallelToolCalls: requestBody.parallel_tool_calls,
+					previousResponseId: request.previousResponseId ?? undefined,
+					maxOutputTokens: requestBody.max_output_tokens,
+					toolChoice: requestBody.tool_choice
+				})
 			})
-		})
-		console.log(
-			'[AI] model_request_dump',
-			JSON.stringify({
+			Logger.debug('[AI] model_request_dump', {
 				path: requestDumpPath
 			})
-		)
+		}
 
-		const response = await this.client.responses.create(
-			requestBody,
-			{
-				timeout: this.timeoutMs,
-				signal: request.signal
-			}
+		const response = await withApiRetry(
+			() =>
+				this.client.responses.create(
+					requestBody,
+					{
+						timeout: this.timeoutMs,
+						signal: request.signal
+					}
+				),
+			{ signal: request.signal }
 		)
 
 		return {

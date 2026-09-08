@@ -3,7 +3,12 @@ import { Vec3 as Vec3Class } from 'vec3'
 
 import type { Bot } from '@/types'
 
-import type { MemoryEntryType, MemoryPosition } from '@/core/memory/types.js'
+import type { MemoryManager } from '@/core/memory/index.js'
+import type {
+	JsonValue,
+	MemoryEntryType,
+	MemoryPosition
+} from '@/core/memory/types.js'
 
 export const positionSchema = {
 	type: 'object',
@@ -27,16 +32,41 @@ export const vectorSchema = {
 	required: ['x', 'y', 'z']
 } satisfies Record<string, unknown>
 
-export const getMemory = (bot: Bot) => bot.memory as any
-
-export const toPosition = (value: Record<string, unknown>): MemoryPosition => ({
-	x: Number(value.x ?? 0),
-	y: Number(value.y ?? 0),
-	z: Number(value.z ?? 0)
-})
+export const getMemory = (bot: Bot): MemoryManager => bot.memory
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
 	Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+const isJsonValue = (value: unknown): value is JsonValue => {
+	if (value === null) {
+		return true
+	}
+
+	switch (typeof value) {
+		case 'string':
+		case 'number':
+		case 'boolean':
+			return true
+		case 'object':
+			return Array.isArray(value)
+				? value.every(isJsonValue)
+				: Object.values(value as Record<string, unknown>).every(isJsonValue)
+		default:
+			return false
+	}
+}
+
+export const toJsonRecord = (value: unknown): Record<string, JsonValue> => {
+	if (!isRecord(value)) {
+		return {}
+	}
+
+	const entries = Object.entries(value).filter((entry): entry is [
+		string,
+		JsonValue
+	] => isJsonValue(entry[1]))
+	return Object.fromEntries(entries)
+}
 
 export const tryToPosition = (value: unknown): MemoryPosition | null => {
 	if (!isRecord(value)) {
@@ -80,4 +110,15 @@ export const toBlocksScope = (value: unknown): InspectBlocksScope => {
 	return 'all'
 }
 
-export type { MemoryEntryType, MemoryPosition }
+export const MEMORY_ENTRY_TYPES: MemoryEntryType[] = [
+	'container',
+	'location',
+	'resource',
+	'danger'
+]
+
+export const toMemoryEntryType = (value: unknown): MemoryEntryType | null =>
+	typeof value === 'string' &&
+	(MEMORY_ENTRY_TYPES as string[]).includes(value)
+		? (value as MemoryEntryType)
+		: null

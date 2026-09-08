@@ -1,3 +1,5 @@
+import Logger from '@/config/logger'
+
 import {
 	formatSchematicSummary,
 	inspectSchematicFile
@@ -7,7 +9,7 @@ const main = async () => {
 	const paths = process.argv.slice(2)
 
 	if (paths.length === 0) {
-		console.error(
+		Logger.error(
 			'Usage: npm run inspect-schematic -- <path-to-file.schem> [more-files...]'
 		)
 		process.exitCode = 1
@@ -18,15 +20,18 @@ const main = async () => {
 		const filePath = paths[index]!
 		const summary = await inspectSchematicFile(filePath)
 		if (index > 0) {
-			console.log('')
+			Logger.info('')
 		}
-		console.log(formatSchematicSummary(summary))
+		Logger.info(formatSchematicSummary(summary))
 	}
 }
 
 main().catch(error => {
-	console.error(
-		error instanceof Error ? error.message : 'Unknown schematic inspection error'
+	Logger.error(
+		error instanceof Error ? error.message : 'Unknown schematic inspection error',
+		{
+			stack: error instanceof Error ? error.stack : undefined
+		}
 	)
 	process.exitCode = 1
 })

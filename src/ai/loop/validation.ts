@@ -2,6 +2,7 @@ import type { Bot } from '@/types'
 
 import type { PendingExecution } from '../contracts/execution.js'
 import type { TaskContext } from '../taskContext.js'
+import { MEMORY_ENTRY_TYPES, toMemoryEntryType } from '../tools/shared.js'
 import {
 	type GroundedTurnFacts,
 	entityNameTypePairKey,
@@ -11,6 +12,44 @@ import {
 	tryParsePosition
 } from './grounding.js'
 import { executionSignature } from './transcript.js'
+
+const WINDOW_ZONES = [
+	'player_inventory',
+	'hotbar',
+	'container',
+	'input',
+	'fuel',
+	'output'
+]
+
+const UNSUPPORTED_WORKSTATIONS_BY_CATEGORY: Record<string, string[]> = {
+	craft: ['stonecutter']
+}
+
+const isUnsupportedWorkstationValue = (
+	category: string,
+	args: Record<string, unknown>
+): boolean => {
+	const blocked = UNSUPPORTED_WORKSTATIONS_BY_CATEGORY[category] ?? []
+	if (blocked.length === 0) {
+		return false
+	}
+
+	const tags = Array.isArray(args.tags) ? args.tags.map(String) : []
+	const description = String(args.description ?? '').toLowerCase()
+	const interactable = String(
+		(args.data as Record<string, unknown> | undefined)?.interactable ?? ''
+	).toLowerCase()
+	const values = [
+		...tags.map(tag => tag.toLowerCase()),
+		description,
+		interactable
+	]
+
+	return blocked.some(workstation =>
+		values.some(value => value.includes(workstation))
+	)
+}
 
 const getNavigateBlockName = (
 	bot: Bot,
@@ -37,27 +76,46 @@ export const validateInlineTool = (
 	args: Record<string, unknown>,
 	taskContext: TaskContext
 ): string | null => {
-	if (name !== 'memory_save') {
+	if (name === 'memory_save') {
+		if (!toMemoryEntryType(args.type)) {
+			return `Inline tool "memory_save" requires type to be one of: ${MEMORY_ENTRY_TYPES.join(', ')}`
+		}
+
+		if (!tryParsePosition(args.position)) {
+			return 'Inline tool "memory_save" requires a finite position {x, y, z}'
+		}
+
+		if (
+			taskContext.category === 'craft' &&
+			isUnsupportedWorkstationValue(taskContext.category, args)
+		) {
+			return 'Unsupported workstation memory save is not relevant to crafting runtime'
+		}
+
 		return null
 	}
 
-	if (taskContext.category !== 'craft') {
+	if (name === 'memory_delete') {
+		if (typeof args.id !== 'string' && !tryParsePosition(args.position)) {
+			return 'Inline tool "memory_delete" requires an id or a finite position {x, y, z}'
+		}
+
 		return null
 	}
 
-	const tags = Array.isArray(args.tags) ? args.tags.map(String) : []
-	const description = String(args.description ?? '').toLowerCase()
-	const interactable = String(
-		(args.data as Record<string, unknown> | undefined)?.interactable ?? ''
-	).toLowerCase()
-	const values = [
-		...tags.map(tag => tag.toLowerCase()),
-		description,
-		interactable
-	]
-
-	if (values.some(value => value.includes('stonecutter'))) {
-		return 'Unsupported workstation memory save is not relevant to crafting runtime'
+	if (
+		name === 'inspect_blocks' ||
+		name === 'inspect_entities' ||
+		name === 'memory_read'
+	) {
+		if (
+			args.max_distance !== undefined &&
+			(typeof args.max_distance !== 'number' ||
+				!Number.isFinite(args.max_distance) ||
+				args.max_distance <= 0)
+		) {
+			return `Inline tool "${name}" requires max_distance to be a positive finite number`
+		}
 	}
 
 	return null
@@ -82,7 +140,12 @@ export const validateExecutionTool = (
 		execution.toolName === 'navigate_to'
 	) {
 		const blockName = getNavigateBlockName(bot, execution.args)
-		if (blockName === 'stonecutter') {
+		if (
+			blockName &&
+			(UNSUPPORTED_WORKSTATIONS_BY_CATEGORY[taskContext.category] ?? []).includes(
+				blockName
+			)
+		) {
 			return 'Navigate target points to an unsupported workstation for crafting tasks'
 		}
 	}
@@ -162,7 +225,36 @@ export const validateExecutionTool = (
 			}
 			return null
 		}
-		case 'transfer_item':
+		case 'transfer_item': {
+			const sourceZone = execution.args.source_zone
+			const destZone = execution.args.dest_zone
+			if (
+				typeof sourceZone !== 'string' ||
+				!WINDOW_ZONES.includes(sourceZone)
+			) {
+				return `Execution tool "transfer_item" requires source_zone to be one of: ${WINDOW_ZONES.join(', ')}`
+			}
+			if (typeof destZone !== 'string' || !WINDOW_ZONES.includes(destZone)) {
+				return `Execution tool "transfer_item" requires dest_zone to be one of: ${WINDOW_ZONES.join(', ')}`
+			}
+			if (sourceZone === destZone) {
+				return 'Execution tool "transfer_item" requires source_zone and dest_zone to differ'
+			}
+			if (
+				typeof execution.args.item_name !== 'string' ||
+				execution.args.item_name.trim().length === 0
+			) {
+				return 'Execution tool "transfer_item" requires a non-empty item_name'
+			}
+			if (
+				typeof execution.args.count !== 'number' ||
+				!Number.isInteger(execution.args.count) ||
+				execution.args.count <= 0
+			) {
+				return 'Execution tool "transfer_item" requires count to be a positive integer'
+			}
+			return null
+		}
 		case 'close_window':
 			return null
 		default:

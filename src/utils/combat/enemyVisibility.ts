@@ -2,6 +2,8 @@ import pathFinderPkg from 'mineflayer-pathfinder'
 
 import type { Bot, Entity } from '@/types'
 
+import Logger from '@/config/logger'
+
 import { GoalNear } from '@/modules/plugins/goals'
 
 const { Movements } = pathFinderPkg
@@ -58,16 +60,10 @@ export function canSeeEnemy(bot: Bot, enemy: Entity): boolean {
 		}
 
 		// Нашли solid блок - видимость заблокирована
-		// console.log(
-		// 	`🚫 [canSeeEnemy] ${enemy.name || enemy.username || 'враг'} НЕ ВИДЕН (блокирует ${blockAtPos.name})`
-		// )
 		return false
 	}
 
 	// Нет solid блоков на линии → ВИДИМ
-	// console.log(
-	// 	`👁️ [canSeeEnemy] ${enemy.name || enemy.username || 'враг'} ВИДЕН (прямая видимость)`
-	// )
 	return true
 }
 
@@ -108,9 +104,6 @@ async function isEnemyReachable(
 
 	// Проверка кеша
 	if (cached && now - cached.timestamp < cacheDuration) {
-		// console.log(
-		// 	`📦 [isEnemyReachable] ${enemy.name || 'враг'} (из кеша: ${cached.reachable ? 'ДОСТИЖИМ' : 'НЕ достижим'})`
-		// )
 		return cached.reachable
 	}
 
@@ -128,9 +121,6 @@ async function isEnemyReachable(
 
 	// Враг на 4+ блока ниже И под ним solid блок → в яме, недостижим
 	if (heightDiff >= 4 && blockBelowEnemy && blockBelowEnemy.material) {
-		// console.log(
-		// 	`⚡ [isEnemyReachable] БЫСТРАЯ ПРОВЕРКА: враг в яме (на ${heightDiff.toFixed(1)} блок(ов) ниже, под ним ${blockBelowEnemy.name}), недостижим без копания`
-		// )
 		pathfindCache.set(enemy.id, {
 			reachable: false,
 			pathLength: Infinity,
@@ -188,9 +178,6 @@ async function isEnemyReachable(
 
 		// Проверяем результат поиска
 		if (!path || path.status !== 'success') {
-			// console.log(
-			// 	`❌ [isEnemyReachable] ${enemy.name || 'враг'} НЕ ДОСТИЖИМ (статус: ${path?.status || 'null'})`
-			// )
 			pathfindCache.set(enemy.id, {
 				reachable: false,
 				pathLength: Infinity,
@@ -203,9 +190,9 @@ async function isEnemyReachable(
 		const pathLength = path.path?.length || 0
 
 		if (pathLength === 0) {
-			console.log(
-				`❌ [isEnemyReachable] ${enemy.name || 'враг'} НЕ ДОСТИЖИМ (путь пустой)`
-			)
+			Logger.debug('❌ [isEnemyReachable] Враг недостижим: путь пустой', {
+				enemy: enemy.name || 'враг'
+			})
 			pathfindCache.set(enemy.id, {
 				reachable: false,
 				pathLength: 0,
@@ -215,9 +202,11 @@ async function isEnemyReachable(
 		}
 
 		if (pathLength > maxPathLength) {
-			console.log(
-				`⚠️ [isEnemyReachable] ${enemy.name || 'враг'} НЕ ДОСТИЖИМ (путь ${pathLength} > макс ${maxPathLength})`
-			)
+			Logger.debug('⚠️ [isEnemyReachable] Враг недостижим: путь слишком длинный', {
+				enemy: enemy.name || 'враг',
+				pathLength,
+				maxPathLength
+			})
 			pathfindCache.set(enemy.id, {
 				reachable: false,
 				pathLength,
@@ -226,9 +215,10 @@ async function isEnemyReachable(
 			return false
 		}
 
-		console.log(
-			`✅ [isEnemyReachable] ${enemy.name || 'враг'} ДОСТИЖИМ (путь: ${pathLength} блоков)`
-		)
+		Logger.debug('✅ [isEnemyReachable] Враг достижим', {
+			enemy: enemy.name || 'враг',
+			pathLength
+		})
 		pathfindCache.set(enemy.id, {
 			reachable: true,
 			pathLength,
@@ -236,9 +226,11 @@ async function isEnemyReachable(
 		})
 		return true
 	} catch (error) {
-		console.log(
-			`⚠️ [isEnemyReachable] Ошибка проверки пути: ${error instanceof Error ? error.message : String(error)}`
-		)
+		Logger.warn('⚠️ [isEnemyReachable] Ошибка проверки пути', {
+			enemy: enemy.name || 'враг',
+			error: error instanceof Error ? error.message : String(error),
+			stack: error instanceof Error ? error.stack : undefined
+		})
 		pathfindCache.set(enemy.id, {
 			reachable: false,
 			pathLength: Infinity,
@@ -273,9 +265,6 @@ export async function canAttackEnemy(
 	// УРОВЕНЬ 1: Проверка дистанции (быстро)
 	const distance = bot.entity.position.distanceTo(enemy.position)
 	if (distance > maxDistance) {
-		// console.log(
-		// 	`📏 [canAttackEnemy] ${enemy.name || 'враг'} слишком далеко (${distance.toFixed(1)} > ${maxDistance})`
-		// )
 		return false
 	}
 
@@ -297,7 +286,7 @@ export async function canAttackEnemy(
  */
 function clearPathfindCache(): void {
 	pathfindCache.clear()
-	console.log('🧹 [clearPathfindCache] Кеш pathfinder очищен')
+	Logger.debug('🧹 [clearPathfindCache] Кеш pathfinder очищен')
 }
 
 /**
@@ -316,8 +305,8 @@ export function cleanupPathfindCache(maxAge: number = 5000): void {
 	}
 
 	if (cleaned > 0) {
-		console.log(
-			`🧹 [cleanupPathfindCache] Удалено ${cleaned} устаревших записей`
-		)
+		Logger.debug('🧹 [cleanupPathfindCache] Удалены устаревшие записи', {
+			cleaned
+		})
 	}
 }

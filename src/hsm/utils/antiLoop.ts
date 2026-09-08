@@ -1,3 +1,5 @@
+import Logger from '@/config/logger'
+
 interface AntiLoopGuardConfig {
 	maxTransitionsPerSecond: number
 	emergencyStopAfter: number
@@ -65,19 +67,15 @@ export class AntiLoopGuard {
 
 	reportLoop(reason: string): void {
 		this.loopDetected = true
-		console.error('')
-		console.error('═'.repeat(60))
-		console.error('🔁 LOOP DETECTED - AntiLoopGuard 🔁')
-		console.error('═'.repeat(60))
-		console.error(`Reason: ${reason}`)
-		console.error(`Total updates: ${this.totalUpdates}`)
-		console.error('')
-		console.error('Last 20 updates:')
-		this.updateHistory.slice(-20).forEach((u, i) => {
-			const time = new Date(u.timestamp).toISOString().split('T')[1]
-			console.error(`  ${i + 1}. [${time}] ${u.signature}`)
+		Logger.error('🔁 LOOP DETECTED - AntiLoopGuard', {
+			reason,
+			totalUpdates: this.totalUpdates,
+			recentUpdates: this.updateHistory.slice(-20).map((update, index) => ({
+				index: index + 1,
+				timestamp: new Date(update.timestamp).toISOString(),
+				signature: update.signature
+			}))
 		})
-		console.error('═'.repeat(60))
 	}
 
 	reset(): void {

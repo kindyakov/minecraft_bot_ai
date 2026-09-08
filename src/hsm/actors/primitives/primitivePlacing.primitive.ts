@@ -2,6 +2,8 @@ import { Vec3 as Vec3Class } from 'vec3'
 
 import type { Block, Vec3 } from '@/types'
 
+import Logger from '@/config/logger'
+
 import {
 	type BaseServiceState,
 	createStatefulService
@@ -35,13 +37,13 @@ export const primitivePlacing = createStatefulService<
 		const faceDirection = faceVector ?? new Vec3Class(0, 1, 0)
 
 		if (!blockName) {
-			console.error('❌ [primitivePlacing] Не предоставлен blockName')
+			Logger.error('❌ [primitivePlacing] Не предоставлен blockName')
 			sendBack({ type: 'PLACING_FAILED', reason: 'Не предоставлен blockName' })
 			return
 		}
 
 		if (!position) {
-			console.error('❌ [primitivePlacing] Не предоставлен position')
+			Logger.error('❌ [primitivePlacing] Не предоставлен position')
 			sendBack({ type: 'PLACING_FAILED', reason: 'Не предоставлен position' })
 			return
 		}
@@ -52,7 +54,7 @@ export const primitivePlacing = createStatefulService<
 			// Проверка отмены
 			if (abortSignal.aborted) return
 
-			console.log(
+			Logger.debug(
 				`🧱 [primitivePlacing] Размещение ${blockName} на позиции ${position}`
 			)
 
@@ -60,7 +62,7 @@ export const primitivePlacing = createStatefulService<
 			const blockData = bot.registry.blocksByName[blockName]
 
 			if (!blockData) {
-				console.error(`❌ [primitivePlacing] Неизвестный блок: ${blockName}`)
+				Logger.error(`❌ [primitivePlacing] Неизвестный блок: ${blockName}`)
 				sendBack({
 					type: 'PLACING_FAILED',
 					reason: `Неизвестный блок: ${blockName}`
@@ -72,7 +74,7 @@ export const primitivePlacing = createStatefulService<
 			const blockCount = bot.utils.countItemInInventory(blockData.id)
 
 			if (blockCount < 1) {
-				console.error(
+				Logger.error(
 					`❌ [primitivePlacing] Нет ${blockName} в инвентаре для строительства`
 				)
 				sendBack({
@@ -88,7 +90,7 @@ export const primitivePlacing = createStatefulService<
 			const referenceBlock = bot.blockAt(referencePos)
 
 			if (!referenceBlock) {
-				console.error(
+				Logger.error(
 					`❌ [primitivePlacing] Ни один опорный блок не найден по ${referencePos}`
 				)
 				sendBack({
@@ -103,7 +105,7 @@ export const primitivePlacing = createStatefulService<
 			// Проверяем расстояние до позиции размещения
 			const distance = bot.entity.position.distanceTo(position)
 			if (distance > 4.5) {
-				console.error(
+				Logger.error(
 					`❌ [primitivePlacing] Позиция слишком далеко (${distance.toFixed(1)}m)`
 				)
 				sendBack({
@@ -122,7 +124,7 @@ export const primitivePlacing = createStatefulService<
 				.find((item: any) => item.type === blockData.id)
 
 			if (!blockItem) {
-				console.error(`❌ [primitivePlacing] blockItem не найден в инвентаре`)
+				Logger.error(`❌ [primitivePlacing] blockItem не найден в инвентаре`)
 				sendBack({
 					type: 'PLACING_FAILED',
 					reason: 'blockItem не найден в инвентаре'
@@ -135,10 +137,10 @@ export const primitivePlacing = createStatefulService<
 			// Проверка отмены
 			if (abortSignal.aborted) return
 
-		// Размещаем блок
-		await bot.placeBlock(referenceBlock, faceDirection)
+			// Размещаем блок
+			await bot.placeBlock(referenceBlock, faceDirection)
 
-			console.log(
+			Logger.debug(
 				`✅ [primitivePlacing] Блок ${blockName} размещён на ${position}`
 			)
 
@@ -149,11 +151,14 @@ export const primitivePlacing = createStatefulService<
 			})
 		} catch (error) {
 			if (abortSignal.aborted) {
-				console.log('⚠️ [primitivePlacing] Aborted')
+				Logger.debug('⚠️ [primitivePlacing] Aborted')
 				return
 			}
 
-			console.error('❌ [primitivePlacing] Error:', error)
+			Logger.error('❌ [primitivePlacing] Error', {
+				error: error instanceof Error ? error.message : String(error),
+				stack: error instanceof Error ? error.stack : undefined
+			})
 			sendBack({
 				type: 'PLACING_FAILED',
 				reason: error instanceof Error ? error.message : 'Unknown error'

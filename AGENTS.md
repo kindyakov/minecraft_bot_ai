@@ -15,7 +15,7 @@ Tests live under `src/tests/` grouped by subsystem (`ai`, `building`, `config`, 
 ## Architecture Notes
 
 The task system is not a hardcoded `MINING/FARMING/CRAFTING` planner. The bot runs an `AGENT_LOOP` inside `TASKS` with the shape `IDLE -> THINKING -> EXECUTING -> DECIDE_NEXT`.
-`THINKING` builds a deterministic minimal snapshot (`src/ai/snapshot.ts`: vitals, position, dimension, active window session, last action/result/reason, error history) and calls `runAgentTurn()` for one tool decision. World facts (inventory, blocks, entities, window contents) come only from inspect tools, never from the snapshot.
+`THINKING` builds a deterministic minimal snapshot (`src/ai/snapshot.ts`: vitals, position, dimension, active window session, last action/result/reason, error history) and calls `runAgentTurn()` for one tool decision. Transient provider errors (429/5xx/timeout) are retried with backoff inside the clients (`src/ai/client/retry.ts`); turn-level errors become `failed`, never escape as exceptions. World facts (inventory, blocks, entities, window contents) come only from inspect tools, never from the snapshot.
 `EXECUTING` resolves one pending execution tool to a concrete primitive state, records success/failure into machine context, and always goes to `DECIDE_NEXT`. `DECIDE_NEXT` returns to `THINKING` while `currentGoal` is set, unless the anti-loop guard (`failureRepeats >= 3`) aborts the run via `notifyLoopAbort + clearGoal` back to `IDLE`.
 
 Canonical tool contract (`src/ai/tools/catalog.ts`, `src/ai/tools/names.ts`). Code wins over docs when they disagree:

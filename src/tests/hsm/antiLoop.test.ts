@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import Logger from '../../config/logger.js'
 import { AntiLoopGuard } from '../../hsm/utils/antiLoop.js'
 
 test('AntiLoopGuard ignores repeated updates with the same state signature', () => {
@@ -21,8 +22,8 @@ test('AntiLoopGuard ignores repeated updates with the same state signature', () 
 })
 
 test('AntiLoopGuard trips on update flood and recovers after reset', () => {
-	const originalConsoleError = console.error
-	console.error = () => {}
+	const originalLoggerError = Logger.error
+	Logger.error = () => {}
 	try {
 		const guard = new AntiLoopGuard({
 			maxTransitionsPerSecond: 2,
@@ -42,6 +43,6 @@ test('AntiLoopGuard trips on update flood and recovers after reset', () => {
 		assert.equal(guard.getStats().loopDetected, false)
 		assert.equal(guard.recordUpdate('STATE_D'), true)
 	} finally {
-		console.error = originalConsoleError
+		Logger.error = originalLoggerError
 	}
 })

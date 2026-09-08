@@ -1,5 +1,7 @@
 import type { Block, Entity, Vec3 } from '@/types'
 
+import Logger from '@/config/logger'
+
 import {
 	type BaseServiceState,
 	createStatefulService
@@ -32,28 +34,31 @@ export const primitiveNavigating = createStatefulService<
 			return
 		}
 		const { x, y, z } = (target as Entity | Block).position ?? (target as Vec3)
-		console.log('🏃 primitiveNavigating to:', x, y, z)
+		Logger.debug('🏃 primitiveNavigating to', { x, y, z })
 		bot.pathfinder.setGoal(new GoalNear(x, y, z, range))
 	},
 
 	onEvents: () => ({
 		goal_reached: ({ sendBack }, params) => {
-			console.log('✅ primitiveNavigating goal_reached to:', params)
+			Logger.debug('✅ primitiveNavigating goal_reached', { params })
 			sendBack({ type: 'ARRIVED' })
 		},
 		path_stop: ({ sendBack }, params) => {
-			console.log('❌ primitiveNavigating path_stop:', params)
+			Logger.warn('❌ primitiveNavigating path_stop', { params })
 			sendBack({ type: 'NAVIGATION_FAILED' })
 		}
 	}),
 
 	onCleanup: ({ bot }) => {
-		console.log('🧹 [primitiveNavigating] Cleanup')
+		Logger.debug('🧹 [primitiveNavigating] Cleanup')
 		try {
 			bot.pathfinder.setGoal(null)
-			console.log('🛑 [primitiveNavigating] Pathfinder остановлен')
+			Logger.debug('🛑 [primitiveNavigating] Pathfinder остановлен')
 		} catch (error) {
-			console.error('❌ [primitiveNavigating] Ошибка при остановке:', error)
+			Logger.error('❌ [primitiveNavigating] Ошибка при остановке', {
+				error: error instanceof Error ? error.message : String(error),
+				stack: error instanceof Error ? error.stack : undefined
+			})
 		}
 	}
 })

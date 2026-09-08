@@ -1,5 +1,7 @@
 import type { Bot } from '@/types'
 
+import Logger from '@/config/logger'
+
 export const stopMeleeAttack = (
 	bot: Bot,
 	reason: string,
@@ -14,10 +16,10 @@ export const stopMeleeAttack = (
 	const stopResult = (bot as any).pvp?.stop?.()
 	if (stopResult instanceof Promise) {
 		void stopResult.catch((error: unknown) => {
-			console.error(
-				'[COMBAT] melee_stop_failed',
-				error instanceof Error ? error.message : String(error)
-			)
+			Logger.error('[COMBAT] melee_stop_failed', {
+				error: error instanceof Error ? error.message : String(error),
+				stack: error instanceof Error ? error.stack : undefined
+			})
 		})
 	}
 

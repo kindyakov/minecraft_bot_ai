@@ -1,5 +1,7 @@
 import type { Bot } from '@/types'
 
+import Logger from '@/config/logger'
+
 import type { MemoryPosition } from '@/core/memory/types.js'
 
 export type WindowKind =
@@ -352,7 +354,7 @@ export const closeWindowSessionSafely = (
 		const reason =
 			error instanceof Error ? error.message : 'Unknown window close error'
 
-		console.warn('[AI] failed to close temporary window session', reason)
+		Logger.warn('[AI] failed to close temporary window session', { reason })
 		return { ok: false, reason }
 	}
 }

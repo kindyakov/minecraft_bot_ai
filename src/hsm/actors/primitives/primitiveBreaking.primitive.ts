@@ -1,5 +1,7 @@
 import type { Block } from '@/types'
 
+import Logger from '@/config/logger'
+
 import {
 	type BaseServiceState,
 	createStatefulService
@@ -30,7 +32,7 @@ export const primitiveBreaking = createStatefulService<
 		const { block } = input
 
 		if (!block) {
-			console.error('❌ primitiveBreaking: No block provided')
+			Logger.error('❌ primitiveBreaking: No block provided')
 			sendBack({ type: 'BREAKING_FAILED', reason: 'No block' })
 			return
 		}
@@ -47,7 +49,7 @@ export const primitiveBreaking = createStatefulService<
 			// Проверка отмены
 			if (abortSignal.aborted) return
 
-			console.log(
+			Logger.debug(
 				`⛏️ [primitiveBreaking] Breaking ${block.name} at ${block.position}`
 			)
 
@@ -55,7 +57,7 @@ export const primitiveBreaking = createStatefulService<
 			const expectedItemDrop = block.drops?.[0]
 
 			if (!expectedItemDrop) {
-				console.log(
+				Logger.debug(
 					'⚠️ [primitiveBreaking] Блока нет в списке дропов, пропускаем сбор'
 				)
 				await bot.dig(block)
@@ -73,13 +75,13 @@ export const primitiveBreaking = createStatefulService<
 
 			// Запоминаем количество до копания
 			const countBefore = bot.utils.countItemInInventory(expectedItemId)
-			console.log(
+			Logger.debug(
 				`📊 [primitiveBreaking] ${block.name} в инвентаре до копания: ${countBefore}`
 			)
 
 			// Копаем блок
 			await bot.dig(block)
-			console.log(`✅ [primitiveBreaking] Блок сломан: ${block.name}`)
+			Logger.debug(`✅ [primitiveBreaking] Блок сломан: ${block.name}`)
 
 			// Проверка отмены после копания
 			if (abortSignal.aborted) return
@@ -95,14 +97,14 @@ export const primitiveBreaking = createStatefulService<
 			})
 
 			if (!item) {
-				console.log(
+				Logger.debug(
 					'⚠️ [primitiveBreaking] Объект Item, не найденный в world после копания блока'
 				)
 
 				// Проверяем инвентарь на всякий случай
 				const countAfter = bot.utils.countItemInInventory(expectedItemId)
 				if (countAfter > countBefore) {
-					console.log(
+					Logger.debug(
 						`✅ [primitiveBreaking] Item автоматически собран (+${countAfter - countBefore})`
 					)
 				}
@@ -112,13 +114,13 @@ export const primitiveBreaking = createStatefulService<
 			}
 
 			const distance = bot.entity.position.distanceTo(item.position)
-			console.log(
+			Logger.debug(
 				`📦 [primitiveBreaking] Найден объект Item в мире на расстоянии: ${distance.toFixed(2)}`
 			)
 
 			// Если item далеко - идём к нему
 			if (distance >= 0.5) {
-				console.log(`🏃 [primitiveBreaking] Навигация к объекту Item...`)
+				Logger.debug(`🏃 [primitiveBreaking] Навигация к объекту Item...`)
 				const { x, y, z } = item.position
 				bot.pathfinder.setGoal(new GoalNear(x, y, z, 0.5))
 
@@ -134,16 +136,16 @@ export const primitiveBreaking = createStatefulService<
 
 				if (collected) {
 					const countAfter = bot.utils.countItemInInventory(expectedItemId)
-					console.log(
+					Logger.debug(
 						`✅ [primitiveBreaking] Объект Item собран (+${countAfter - countBefore})`
 					)
 				} else {
-					console.log(
+					Logger.warn(
 						`⚠️ [primitiveBreaking] Не удалось забрать объект Item (тайм-аут)`
 					)
 				}
 			} else {
-				console.log(
+				Logger.debug(
 					`✅ [primitiveBreaking] Объект Item близко, ожидание автоподбора...`
 				)
 
@@ -156,11 +158,11 @@ export const primitiveBreaking = createStatefulService<
 
 				const countAfter = bot.utils.countItemInInventory(expectedItemId)
 				if (countAfter > countBefore) {
-					console.log(
+					Logger.debug(
 						`✅ [primitiveBreaking] Объект Item собран (+${countAfter - countBefore})`
 					)
 				} else {
-					console.log(
+					Logger.warn(
 						`⚠️ [primitiveBreaking] Не удалось забрать объект Item (тайм-аут)`
 					)
 				}
@@ -170,11 +172,14 @@ export const primitiveBreaking = createStatefulService<
 			sendBack({ type: 'BROKEN' })
 		} catch (error) {
 			if (abortSignal.aborted) {
-				console.log('⚠️ [primitiveBreaking] Aborted')
+				Logger.debug('⚠️ [primitiveBreaking] Aborted')
 				return
 			}
 
-			console.error('❌ [primitiveBreaking] Error:', error)
+			Logger.error('❌ [primitiveBreaking] Error', {
+				error: error instanceof Error ? error.message : String(error),
+				stack: error instanceof Error ? error.stack : undefined
+			})
 			sendBack({
 				type: 'BREAKING_FAILED',
 				reason: error instanceof Error ? error.message : 'Unknown error'
@@ -183,12 +188,15 @@ export const primitiveBreaking = createStatefulService<
 	},
 
 	onCleanup: ({ bot }) => {
-		console.log('🧹 [primitiveBreaking] Cleanup')
+		Logger.debug('🧹 [primitiveBreaking] Cleanup')
 		try {
 			bot.pathfinder.setGoal(null)
-			console.log('🛑 [primitiveBreaking] Pathfinder остановлен')
+			Logger.debug('🛑 [primitiveBreaking] Pathfinder остановлен')
 		} catch (error) {
-			console.error('❌ [primitiveBreaking] Ошибка при остановке:', error)
+			Logger.error('❌ [primitiveBreaking] Ошибка при остановке', {
+				error: error instanceof Error ? error.message : String(error),
+				stack: error instanceof Error ? error.stack : undefined
+			})
 		}
 	}
 })

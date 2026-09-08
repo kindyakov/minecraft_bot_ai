@@ -10,7 +10,7 @@ export interface RuntimePosition {
 
 export interface BlockInspectionFact {
 	name: string
-	kind: 'interactable' | 'resource'
+	kind: 'interactable' | 'resource' | 'other'
 	position: RuntimePosition
 	distance: number
 }
@@ -55,6 +55,8 @@ const RESOURCE_KEYWORDS = [
 const DEFAULT_BLOCK_LIMIT = 12
 const DEFAULT_ENTITY_LIMIT = 10
 const DEFAULT_MAX_DISTANCE = 32
+const MAX_INSPECT_DISTANCE = 64
+const BLOCK_CANDIDATE_OVERFETCH = 4
 
 const isFiniteNumber = (value: unknown): value is number =>
 	typeof value === 'number' && Number.isFinite(value)
@@ -106,8 +108,15 @@ const classifyBlockKind = (
 const isValidMaxDistance = (value: unknown): value is number =>
 	isFiniteNumber(value) && value > 0
 
-const normalizeMaxDistance = (value: unknown): number =>
-	isValidMaxDistance(value) ? value : DEFAULT_MAX_DISTANCE
+const hasValidOrigin = (bot: Bot): boolean =>
+	toPosition(bot.entity?.position) !== null
+const normalizeMaxDistance = (value: unknown): number => {
+	if (!isValidMaxDistance(value)) {
+		return DEFAULT_MAX_DISTANCE
+	}
+
+	return Math.min(value, MAX_INSPECT_DISTANCE)
+}
 
 const normalizeLimit = (value: unknown, fallback: number): number => {
 	if (!isFiniteNumber(value) || value <= 0) {
@@ -167,9 +176,8 @@ export const inspectNearbyBlocks = (
 	const targetBlockNames = options?.targetBlockNames
 	const maxDistance = normalizeMaxDistance(options?.maxDistance)
 	const limit = normalizeLimit(options?.limit, DEFAULT_BLOCK_LIMIT)
-	const origin = toPosition(bot.entity?.position)
 
-	if (!origin || typeof bot.findBlocks !== 'function') {
+	if (!hasValidOrigin(bot) || typeof bot.findBlocks !== 'function') {
 		return []
 	}
 
@@ -187,7 +195,7 @@ export const inspectNearbyBlocks = (
 			return Boolean(kind && matchesBlockScope(scope, kind))
 		},
 		maxDistance,
-		count: Math.max(limit * 4, limit)
+		count: limit * BLOCK_CANDIDATE_OVERFETCH
 	})
 
 	const facts = candidates
@@ -205,18 +213,18 @@ export const inspectNearbyBlocks = (
 				return null
 			}
 
-			const kind = classifyBlockKind(block.name)
-			const isTargetMatch = targetBlockNames?.includes(block.name)
-			if (!isTargetMatch && (!kind || !matchesBlockScope(scope, kind))) {
-				return null
-			}
+		const kind = classifyBlockKind(block.name)
+		const isTargetMatch = targetBlockNames?.includes(block.name)
+		if (!isTargetMatch && (!kind || !matchesBlockScope(scope, kind))) {
+			return null
+		}
 
-			return {
-				name: block.name,
-				kind: kind ?? 'resource',
-				position: resolvedPosition,
-				distance: roundDistance(bot.entity.position.distanceTo(block.position))
-			} satisfies BlockInspectionFact
+		return {
+			name: block.name,
+			kind: kind ?? 'other',
+			position: resolvedPosition,
+			distance: roundDistance(bot.entity.position.distanceTo(block.position))
+		} satisfies BlockInspectionFact
 		})
 		.filter((fact): fact is BlockInspectionFact => Boolean(fact))
 		.sort((left, right) => left.distance - right.distance)
@@ -233,9 +241,8 @@ export const inspectNearbyEntities = (
 ): EntityInspectionFact[] => {
 	const maxDistance = normalizeMaxDistance(options?.maxDistance)
 	const limit = normalizeLimit(options?.limit, DEFAULT_ENTITY_LIMIT)
-	const origin = toPosition(bot.entity?.position)
 
-	if (!origin || !bot.entities) {
+	if (!hasValidOrigin(bot) || !bot.entities) {
 		return []
 	}
 

@@ -2,6 +2,8 @@ import { fromCallback } from 'xstate'
 
 import type { Bot } from '@/types'
 
+import Logger from '@/config/logger'
+
 import type { MachineContext } from '@/hsm/context'
 import type { MachineEvent } from '@/hsm/types'
 
@@ -99,10 +101,10 @@ export function createStatefulService<
 					const result = config.onStart(api)
 					if (result instanceof Promise) {
 						result.catch(error => {
-							console.error(
-								`❌ [${config.name}] Async Error in onStart:`,
-								error
-							)
+							Logger.error(`❌ [${config.name}] Async Error in onStart`, {
+								error: error instanceof Error ? error.message : String(error),
+								stack: error instanceof Error ? error.stack : undefined
+							})
 							sendBack({
 								type: 'ERROR',
 								error: error instanceof Error ? error.message : String(error)
@@ -110,7 +112,10 @@ export function createStatefulService<
 						})
 					}
 				} catch (error) {
-					console.error(`❌ Error in ${config.name} onStart:`, error)
+					Logger.error(`❌ Error in ${config.name} onStart`, {
+						error: error instanceof Error ? error.message : String(error),
+						stack: error instanceof Error ? error.stack : undefined
+					})
 				}
 			}
 
@@ -130,7 +135,10 @@ export function createStatefulService<
 
 						config.onTick!(api)
 					} catch (error) {
-						console.error(`❌ Error in ${config.name} onTick:`, error)
+						Logger.error(`❌ Error in ${config.name} onTick`, {
+							error: error instanceof Error ? error.message : String(error),
+							stack: error instanceof Error ? error.stack : undefined
+						})
 						sendBack({
 							type: 'ERROR',
 							error: error instanceof Error ? error.message : String(error)
@@ -161,21 +169,20 @@ export function createStatefulService<
 					} catch (error) {
 						if (error instanceof Error) {
 							if (error.name === 'AbortError') {
-								console.log(`⚠️ ${config.name}: async операция отменена`)
+								Logger.debug(`⚠️ ${config.name}: async операция отменена`)
 								return
 							}
 
-							console.error(
-								`❌ Error in ${config.name} onAsyncTick:`,
-								error.message
-							)
+							Logger.error(`❌ Error in ${config.name} onAsyncTick`, {
+								error: error.message,
+								stack: error.stack
+							})
 							sendBack({ type: 'ERROR', error: error.message })
 						} else {
 							const errorMessage = String(error)
-							console.error(
-								`❌ Error in ${config.name} onAsyncTick:`,
-								errorMessage
-							)
+							Logger.error(`❌ Error in ${config.name} onAsyncTick`, {
+								error: errorMessage
+							})
 							sendBack({ type: 'ERROR', error: errorMessage })
 						}
 					} finally {
@@ -207,9 +214,12 @@ export function createStatefulService<
 
 							handler(api, ...args)
 						} catch (error) {
-							console.error(
-								`❌ Error in ${config.name} event ${eventName}:`,
-								error
+							Logger.error(
+								`❌ Error in ${config.name} event ${eventName}`,
+								{
+									error: error instanceof Error ? error.message : String(error),
+									stack: error instanceof Error ? error.stack : undefined
+								}
 							)
 						}
 					}
@@ -233,7 +243,10 @@ export function createStatefulService<
 
 						config.onReceive!(api)
 					} catch (error) {
-						console.error(`❌ Error in ${config.name} onReceive:`, error)
+						Logger.error(`❌ Error in ${config.name} onReceive`, {
+							error: error instanceof Error ? error.message : String(error),
+							stack: error instanceof Error ? error.stack : undefined
+						})
 					}
 				})
 			}
@@ -270,7 +283,10 @@ export function createStatefulService<
 							abortSignal: abortController.signal
 						})
 					} catch (error) {
-						console.error(`❌ Error in ${config.name} onCleanup:`, error)
+						Logger.error(`❌ Error in ${config.name} onCleanup`, {
+							error: error instanceof Error ? error.message : String(error),
+							stack: error instanceof Error ? error.stack : undefined
+						})
 					}
 				}
 			}

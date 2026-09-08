@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 
 import defaultConfig from '@/config/config'
+import Logger from '@/config/logger'
 
 import type {
 	AgentModelClient,
@@ -18,8 +19,10 @@ import {
 } from './parsers.js'
 import {
 	buildChatRequestDebugMarkdown,
+	shouldWriteRequestDebugDump,
 	writeRequestDebugDump
 } from './requestDebugDump.js'
+import { withApiRetry } from './retry.js'
 
 export class OpenAICompatibleChatClient implements AgentModelClient {
 	private readonly client: OpenAICompatibleChatSdkLike
@@ -112,37 +115,41 @@ export class OpenAICompatibleChatClient implements AgentModelClient {
 			messages: this.history,
 			tools: toChatTools(request.tools),
 			tool_choice: 'auto' as const,
+			parallel_tool_calls: false,
 			max_tokens: this.maxTokens,
 			temperature: 0,
 			stream: false
 		}
-		const requestDumpPath = await writeRequestDebugDump({
-			filePrefix: 'chat-request',
-			markdown: buildChatRequestDebugMarkdown({
-				model: requestBody.model,
-				messages: this.history,
-				tools: request.tools,
-				toolChoice: requestBody.tool_choice,
-				maxTokens: requestBody.max_tokens,
-				temperature: requestBody.temperature,
-				stream: requestBody.stream,
-				systemPrompt: request.instructions,
-				promptAssembly: request.promptAssembly
+		if (shouldWriteRequestDebugDump()) {
+			const requestDumpPath = await writeRequestDebugDump({
+				filePrefix: 'chat-request',
+				markdown: buildChatRequestDebugMarkdown({
+					model: requestBody.model,
+					messages: this.history,
+					tools: request.tools,
+					toolChoice: requestBody.tool_choice,
+					maxTokens: requestBody.max_tokens,
+					temperature: requestBody.temperature,
+					stream: requestBody.stream,
+					systemPrompt: request.instructions,
+					promptAssembly: request.promptAssembly
+				})
 			})
-		})
-		console.log(
-			'[AI] model_request_dump',
-			JSON.stringify({
+			Logger.debug('[AI] model_request_dump', {
 				path: requestDumpPath
 			})
-		)
+		}
 
-		const response = await this.client.chat.completions.create(
-			requestBody,
-			{
-				timeout: this.timeoutMs,
-				signal: request.signal
-			}
+		const response = await withApiRetry(
+			() =>
+				this.client.chat.completions.create(
+					requestBody,
+					{
+						timeout: this.timeoutMs,
+						signal: request.signal
+					}
+				),
+			{ signal: request.signal }
 		)
 
 		const message = getFirstChatChoiceMessage(response)
