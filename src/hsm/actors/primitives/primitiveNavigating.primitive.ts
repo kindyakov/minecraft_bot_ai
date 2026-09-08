@@ -12,7 +12,7 @@ interface NavigatingState extends BaseServiceState {
 }
 
 interface NavigatingParams {
-	target: Vec3 | Entity | Block
+	target: Vec3 | Entity | Block | null
 	range?: number
 }
 

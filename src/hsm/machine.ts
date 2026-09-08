@@ -1,17 +1,6 @@
-import { appendConversationEntry } from '@/ai/conversationHistory.js'
-import type { AgentTurnResult } from '@/ai/contracts/agentTurn.js'
-import type { PendingExecution } from '@/ai/contracts/execution.js'
-import { runAgentTurn } from '@/ai/loop.js'
-import { closeWindowSession } from '@/ai/runtime/window.js'
-import {
-	appendRejectedStepSignature,
-	appendTaskFact,
-	createTaskContext,
-	getTaskFactFromExecution,
-	refreshTaskContext
-} from '@/ai/taskContext.js'
 import { Vec3 as Vec3Class } from 'vec3'
 import { assign, fromPromise, setup } from 'xstate'
+import type { AnyActorLogic } from 'xstate'
 
 import type { Bot, Entity } from '@/types'
 
@@ -31,6 +20,18 @@ import { type MachineContext, context } from '@/hsm/context'
 import combatGuards from '@/hsm/guards/combat.guards'
 import { miningGuards } from '@/hsm/guards/mining.guards'
 import type { MachineEvent, MiningTaskData } from '@/hsm/types'
+import { appendConversationEntry } from '@/ai/conversationHistory.js'
+import type { AgentTurnResult } from '@/ai/contracts/agentTurn.js'
+import type { PendingExecution } from '@/ai/contracts/execution.js'
+import { runAgentTurn } from '@/ai/loop.js'
+import { closeWindowSession } from '@/ai/runtime/window.js'
+import {
+	appendRejectedStepSignature,
+	appendTaskFact,
+	createTaskContext,
+	getTaskFactFromExecution,
+	refreshTaskContext
+} from '@/ai/taskContext.js'
 
 import { canSeeEnemy } from '@/utils/combat/enemyVisibility'
 import { hasMovementController } from '@/utils/combat/movementController'
@@ -161,46 +162,53 @@ const resolveExecutionActor = (context: MachineContext) => {
 	}
 }
 
-const resolveExecutionInput = (context: MachineContext) => {
+type ExecutionActorInput = {
+	bot: Bot | null
+	options: Record<string, unknown>
+}
+
+const resolveExecutionInput = (
+	context: MachineContext
+): ExecutionActorInput => {
 	const bot = context.bot
 	const execution = context.pendingExecution
 
 	if (!bot || !execution) {
 		return {
-			bot: bot as Bot,
+			bot,
 			options: {}
 		}
 	}
 
 	switch (execution.toolName) {
-		case 'navigate_to':
-			return {
-				bot,
-				options: {
-					target: tryGetPositionArg(execution, 'position') as any,
-					range:
-						typeof execution.args.range === 'number'
-							? execution.args.range
-							: undefined
-				}
-			}
-		case 'break_block': {
-			const targetPosition = tryGetPositionArg(execution, 'position')
-			const block = targetPosition ? bot.blockAt(targetPosition) : null
-			return {
-				bot,
-				options: {
-					block: block as any
-				}
+	case 'navigate_to':
+		return {
+			bot,
+			options: {
+				target: tryGetPositionArg(execution, 'position'),
+				range:
+					typeof execution.args.range === 'number'
+						? execution.args.range
+						: undefined
 			}
 		}
-		case 'open_window':
-			return {
-				bot,
-				options: {
-					position: tryGetPositionArg(execution, 'position') as any
-				}
+		case 'break_block': {
+			const targetPosition = tryGetPositionArg(execution, 'position')
+		const block = targetPosition ? bot.blockAt(targetPosition) : null
+		return {
+			bot,
+			options: {
+				block
 			}
+		}
+		}
+	case 'open_window':
+		return {
+			bot,
+			options: {
+				position: tryGetPositionArg(execution, 'position')
+			}
+		}
 		case 'transfer_item':
 			return {
 				bot,
@@ -219,19 +227,19 @@ const resolveExecutionInput = (context: MachineContext) => {
 				bot,
 				options: {}
 			}
-		case 'place_block':
-			return {
-				bot,
-				options: {
-					blockName: String(execution.args.block_name ?? ''),
-					position: tryGetPositionArg(execution, 'position') as any,
-					faceVector:
-						execution.args.face_vector &&
-						typeof execution.args.face_vector === 'object'
-							? (tryGetPositionArg(execution, 'face_vector') as any)
-							: undefined
-				}
+	case 'place_block':
+		return {
+			bot,
+			options: {
+				blockName: String(execution.args.block_name ?? ''),
+				position: tryGetPositionArg(execution, 'position'),
+				faceVector:
+					execution.args.face_vector &&
+					typeof execution.args.face_vector === 'object'
+						? (tryGetPositionArg(execution, 'face_vector') ?? undefined)
+						: undefined
 			}
+		}
 		case 'follow_entity': {
 			const requestedName = normalizeEntitySelector(execution.args.entity_name)
 			const requestedType = normalizeEntitySelector(execution.args.entity_type)
@@ -267,16 +275,16 @@ const resolveExecutionInput = (context: MachineContext) => {
 					Boolean(requestedName || requestedType) && matchesName && matchesType
 				)
 			})
-			return {
-				bot,
-				options: {
-					target: target as any,
-					distance:
-						typeof execution.args.distance === 'number'
-							? execution.args.distance
-							: undefined
-				}
+		return {
+			bot,
+			options: {
+				target,
+				distance:
+					typeof execution.args.distance === 'number'
+						? execution.args.distance
+						: undefined
 			}
+		}
 		}
 		default:
 			return {
@@ -377,8 +385,12 @@ const eventCanSkirmishRangedFromMelee = ({
 }
 
 interface MachineFactoryOptions {
-	thinkingActor?: any
-	actors?: Record<string, any>
+	thinkingActor?: AnyActorLogic
+	actors?: Record<string, AnyActorLogic>
+}
+
+type ThinkingDoneEvent = {
+	output?: AgentTurnResult
 }
 
 export const createBotMachine = (options?: MachineFactoryOptions) => {
@@ -420,11 +432,11 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 			isHungerCritical: ({ context }) =>
 				context.food < context.preferences.foodEmergency,
 			isEnemyNearby: ({ context }) => context.nearestEnemy.entity !== null,
-			isAgentLoopStuck: ({ context }) => context.failureRepeats >= 3,
-			thinkingProducedExecution: ({ event }: any) =>
-				event.output?.kind === 'execute',
-			thinkingProducedFinish: ({ event }: any) =>
-				event.output?.kind === 'finish',
+		isAgentLoopStuck: ({ context }) => context.failureRepeats >= 3,
+		thinkingProducedExecution: ({ event }) =>
+			(event as ThinkingDoneEvent).output?.kind === 'execute',
+		thinkingProducedFinish: ({ event }) =>
+			(event as ThinkingDoneEvent).output?.kind === 'finish',
 			isNavigateExecution: ({ context }) =>
 				context.pendingExecution?.toolName === 'navigate_to',
 			isBreakExecution: ({ context }) =>
@@ -488,8 +500,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				)
 			},
 			logThinkingExecution: ({ event }) => {
-				const output = (event as any).output as AgentTurnResult
-				if (output.kind !== 'execute') {
+				const output = (event as ThinkingDoneEvent).output
+				if (!output || output.kind !== 'execute') {
 					return
 				}
 
@@ -504,8 +516,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				)
 			},
 			logThinkingFinish: ({ event }) => {
-				const output = (event as any).output as AgentTurnResult
-				if (output.kind !== 'finish') {
+				const output = (event as ThinkingDoneEvent).output
+				if (!output || output.kind !== 'finish') {
 					return
 				}
 
@@ -518,8 +530,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				)
 			},
 			logThinkingFailure: ({ event }) => {
-				const output = (event as any).output as AgentTurnResult
-				if (output.kind !== 'failed') {
+				const output = (event as ThinkingDoneEvent).output
+				if (!output || output.kind !== 'failed') {
 					return
 				}
 
@@ -718,8 +730,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				}
 			}),
 			appendFinishConversationEntry: assign(({ context, event }) => {
-				const output = (event as any).output as AgentTurnResult
-				if (output.kind !== 'finish') {
+				const output = (event as ThinkingDoneEvent).output
+				if (!output || output.kind !== 'finish') {
 					return {}
 				}
 
@@ -861,8 +873,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				}
 			}),
 			storeThinkingExecution: assign(({ context, event }) => {
-				const output = (event as any).output as AgentTurnResult
-				if (output.kind !== 'execute') {
+				const output = (event as ThinkingDoneEvent).output
+				if (!output || output.kind !== 'execute') {
 					return {}
 				}
 
@@ -878,8 +890,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				}
 			}),
 			storeThinkingFailure: assign(({ context, event }) => {
-				const output = (event as any).output as AgentTurnResult
-				if (output.kind !== 'failed') {
+				const output = (event as ThinkingDoneEvent).output
+				if (!output || output.kind !== 'failed') {
 					return {}
 				}
 
@@ -961,12 +973,12 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					)
 				}
 			}),
-			notifyGoalFinished: ({ context, event }) => {
-				const output = (event as any).output as AgentTurnResult
-				if (output.kind === 'finish') {
-					context.bot?.chat(output.message)
-				}
-			},
+		notifyGoalFinished: ({ context, event }) => {
+			const output = (event as ThinkingDoneEvent).output
+			if (output?.kind === 'finish') {
+				context.bot?.chat(output.message)
+			}
+		},
 			notifyThinkingFailure: ({ context }) => {
 				if (context.lastReason) {
 					context.bot?.chat(`Не могу продолжить задачу: ${context.lastReason}`)

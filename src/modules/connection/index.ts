@@ -1,27 +1,25 @@
-import Logger from '../../config/logger'
-import type { Bot } from '../../types'
-import { initPlugins, loadPlugins } from '../plugins/index.plugins'
+import type { Bot } from '@/types'
 
-export const initConnection = (bot: Bot) => {
-	try {
-		loadPlugins(bot)
+import Logger from '@/config/logger'
 
-		bot.once('spawn', () => {
-			initPlugins(bot)
-			Logger.info('Бот заспавнился')
-			bot.emit('botReady')
-		})
+import { initPlugins, loadPlugins } from '@/modules/plugins/index.plugins'
 
-		bot.on('end', reason => {
-			Logger.warn(`Бот отключился: ${reason}`)
-			bot.emit('botDisconnected', reason)
-		})
+export const initConnection = (bot: Bot): void => {
+	loadPlugins(bot)
 
-		bot.on('error', err => {
-			Logger.error('Ошибка бота:', err)
-			bot.emit('botError', err)
-		})
-	} catch (error) {
-		throw error
-	}
+	bot.once('spawn', () => {
+		initPlugins(bot)
+		Logger.info('Бот заспавнился')
+		bot.emit('botReady')
+	})
+
+	bot.on('end', reason => {
+		Logger.warn(`Бот отключился: ${reason}`)
+		bot.emit('botDisconnected', reason)
+	})
+
+	bot.on('error', err => {
+		Logger.error('Ошибка бота:', err)
+		bot.emit('botError', err)
+	})
 }

@@ -1,5 +1,7 @@
 # Memory
 
+Language versions: [English](memory-guide.md) | [Русский](memory-guide.ru.md)
+
 The bot uses SQLite for long-term memory.
 The database file is created per bot name at:
 

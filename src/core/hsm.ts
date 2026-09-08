@@ -16,6 +16,7 @@ class BotStateMachine {
 	private pathfindCacheCleanupInterval?: NodeJS.Timeout
 	private readonly pendingEvents: MachineEvent[] = []
 	private isReady = false
+	private antiLoopTripped = false
 
 	constructor(bot: Bot) {
 		this.bot = bot
@@ -70,15 +71,20 @@ class BotStateMachine {
 
 	private setupAntiLoopObserver(): void {
 		this.actor.subscribe((snapshot: any) => {
+			if (this.antiLoopTripped) {
+				return
+			}
+
 			const signature = JSON.stringify(snapshot?.value ?? 'unknown')
 			const isAllowed = this.antiLoopGuard.recordUpdate(signature)
 
 			if (!isAllowed) {
-				this.actor.stop()
+				this.antiLoopTripped = true
 				this.bot.chat('⚠️ Произошла критическая ошибка! Остановка...')
+				this.send({ type: 'STOP_CURRENT_GOAL' })
 				setTimeout(() => {
-					process.exit(1)
-				}, 1000)
+					this.antiLoopTripped = false
+				}, 60_000)
 			}
 		})
 	}

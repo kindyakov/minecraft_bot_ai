@@ -2,6 +2,7 @@
 
 > **Focus:** quality
 > **Generated:** 2026-04-06
+> **Синхронизация (2026-09-08):** таблица файлов ниже приведена к фактическому составу `src/tests/` (добавлены `building`, `profile`, mining- и diagram-тесты). Канон — листинг каталога.
 > **Codebase:** voxel-pilot
 
 ## Test Framework
@@ -37,21 +38,31 @@ src/tests/
 ├── ai/                          # AI agent loop, client, snapshot tests
 │   ├── agentLoop.test.ts
 │   ├── AgentLoopGuard.test.ts
+│   ├── prompt.test.ts
+│   ├── requestDebugDump.test.ts
 │   ├── snapshot.test.ts
 │   └── windowRuntime.test.ts
+├── building/                    # Schematic inspection tests
+│   └── schematicInspection.test.ts
 ├── config/                      # Configuration validation tests
 │   └── config.test.ts
-├── core/                        # Core bot, command handler, memory tests
+├── core/                        # Core bot, command handler, memory, profile tests
 │   ├── ChatClient.test.ts
 │   ├── CommandHandler.test.ts
 │   ├── OpenAIClient.test.ts
-│   └── memory/
-│       └── MemoryManager.test.ts
-├── hsm/                         # State machine and combat tests
+│   ├── memory/
+│   │   └── MemoryManager.test.ts
+│   └── profile/
+│       └── ProfileMemoryStore.test.ts
+├── hsm/                         # State machine and combat/survival/mining tests
 │   ├── antiLoop.test.ts
+│   ├── blockAnalysis.test.ts
 │   ├── combat.runtime.test.ts
 │   ├── combatRegression.test.ts
-│   └── machine.test.ts
+│   ├── hsmDrawioDiagram.test.ts
+│   ├── machine.test.ts
+│   ├── primitiveSearchBlock.primitive.test.ts
+│   └── survival.runtime.test.ts
 └── utils/                       # Utility function tests
     └── enemyVisibility.test.ts
 ```
@@ -379,22 +390,30 @@ releaseRetry()
 
 ## Test File Summary
 
-| File                                          | Lines  | Tests  | Focus                                                         |
-| --------------------------------------------- | ------ | ------ | ------------------------------------------------------------- |
-| `src/tests/ai/agentLoop.test.ts`              | ~600   | 12     | AI tool grounding, validation, turn logic                     |
-| `src/tests/ai/AgentLoopGuard.test.ts`         | ~50    | 1      | Anti-loop guard behavior                                      |
-| `src/tests/ai/snapshot.test.ts`               | ~100   | 2      | Snapshot building, window session rendering                   |
-| `src/tests/ai/windowRuntime.test.ts`          | varies | varies | Window session runtime behavior                               |
-| `src/tests/config/config.test.ts`             | ~40    | 1      | Config parsing, env validation                                |
-| `src/tests/core/CommandHandler.test.ts`       | ~80    | 5      | Chat command parsing                                          |
-| `src/tests/core/ChatClient.test.ts`           | varies | varies | Chat client behavior                                          |
-| `src/tests/core/OpenAIClient.test.ts`         | ~50    | 1      | OpenAI response mapping                                       |
-| `src/tests/core/memory/MemoryManager.test.ts` | ~80    | 3      | SQLite CRUD, legacy migration                                 |
-| `src/tests/hsm/machine.test.ts`               | ~500+  | 20+    | HSM state transitions, combat, urgent needs, window lifecycle |
-| `src/tests/hsm/antiLoop.test.ts`              | ~30    | 1      | Anti-loop guard                                               |
-| `src/tests/hsm/combat.runtime.test.ts`        | varies | varies | Combat runtime behavior                                       |
-| `src/tests/hsm/combatRegression.test.ts`      | ~200   | 7      | Combat service cleanup, eating dedup, visibility              |
-| `src/tests/utils/enemyVisibility.test.ts`     | varies | varies | Enemy visibility logic                                        |
+| File                                          | Focus                                                         |
+| --------------------------------------------- | ------------------------------------------------------------- |
+| `src/tests/ai/agentLoop.test.ts`              | AI tool grounding, validation, turn logic                     |
+| `src/tests/ai/AgentLoopGuard.test.ts`         | Anti-loop guard behavior                                      |
+| `src/tests/ai/prompt.test.ts`                 | Agent prompt construction                                     |
+| `src/tests/ai/requestDebugDump.test.ts`       | Model request debug dumps                                     |
+| `src/tests/ai/snapshot.test.ts`               | Snapshot building, window session rendering                   |
+| `src/tests/ai/windowRuntime.test.ts`          | Window session runtime behavior                               |
+| `src/tests/building/schematicInspection.test.ts` | Schematic inspection                                       |
+| `src/tests/config/config.test.ts`             | Config parsing, env validation                                |
+| `src/tests/core/CommandHandler.test.ts`       | Chat command parsing                                          |
+| `src/tests/core/ChatClient.test.ts`           | Chat client behavior                                          |
+| `src/tests/core/OpenAIClient.test.ts`         | OpenAI response mapping                                       |
+| `src/tests/core/memory/MemoryManager.test.ts` | SQLite CRUD                                                   |
+| `src/tests/core/profile/ProfileMemoryStore.test.ts` | Player profile store                                   |
+| `src/tests/hsm/machine.test.ts`               | HSM state transitions, combat, urgent needs, window lifecycle |
+| `src/tests/hsm/antiLoop.test.ts`              | Anti-loop guard                                               |
+| `src/tests/hsm/blockAnalysis.test.ts`         | Mining block analysis utilities                               |
+| `src/tests/hsm/primitiveSearchBlock.primitive.test.ts` | Search primitive                                    |
+| `src/tests/hsm/combat.runtime.test.ts`        | Combat runtime behavior                                       |
+| `src/tests/hsm/combatRegression.test.ts`      | Combat service cleanup, eating dedup, visibility              |
+| `src/tests/hsm/survival.runtime.test.ts`      | Survival runtime behavior                                     |
+| `src/tests/hsm/hsmDrawioDiagram.test.ts`      | Generated diagram matches machine states                      |
+| `src/tests/utils/enemyVisibility.test.ts`     | Enemy visibility logic                                        |
 
 ---
 

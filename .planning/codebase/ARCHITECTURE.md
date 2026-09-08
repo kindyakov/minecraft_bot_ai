@@ -2,6 +2,7 @@
 
 > **Focus:** architecture
 > **Generated:** 2026-04-06
+> **Синхронизация (2026-09-08):** ложные утверждения ниже исправлены (состав боя, число инструментов, grounded-исключение `mine_resource`). Канон — код и `AGENTS.md`.
 > **Codebase:** voxel-pilot (Minecraft AI bot)
 
 ## Pattern Overview
@@ -14,7 +15,7 @@ The bot is a Mineflayer client augmented with an XState v5 hierarchical state ma
 
 - **Hierarchical parallel state machine** — `MAIN_ACTIVITY` (IDLE / TASKS / COMBAT / URGENT_NEEDS) runs alongside `MONITORING` (health, hunger, entity tracking)
 - **AI-driven task execution** — LLM receives a deterministic snapshot and returns one tool decision per turn
-- **Grounded tool execution** — execution tools (`navigate_to`, `break_block`, etc.) require world facts grounded by inline inspection tools in the same turn
+- **Grounded tool execution** — execution tools (`navigate_to`, `break_block`, etc.) require world facts grounded by inline inspection tools in the same turn; `mine_resource` is the exception and performs its own batch search
 - **Combat pre-emption** — any state can be interrupted by combat when an enemy enters range
 - **Anti-loop protection** — state transitions are monitored; excessive looping triggers an emergency shutdown
 - **Persistent memory** — SQLite-backed long-term memory for locations, containers, resources, and experience
@@ -48,7 +49,7 @@ The bot is a Mineflayer client augmented with an XState v5 hierarchical state ma
 **AI Agent Loop:**
 
 - Purpose: LLM-driven decision making for task execution
-- Location: `src/ai/loop.ts`, `src/ai/tools.ts`, `src/ai/snapshot.ts`, `src/ai/client.ts`
+- Location: `src/ai/loop/` (via `src/ai/loop.ts` facade), `src/ai/tools/`, `src/ai/snapshot.ts`, `src/ai/client/`
 - Contains: `runAgentTurn`, tool definitions, snapshot builder, OpenAI client adapters
 - Depends on: `openai` SDK, `MemoryManager`, runtime inspection modules
 - Used by: `defaultThinkingActor` in `src/hsm/machine.ts`
@@ -97,7 +98,7 @@ The bot is a Mineflayer client augmented with an XState v5 hierarchical state ma
 4. Snapshot is built from bot state, goal context, feedback errors, and active window session
 5. LLM client (OpenAI Responses API or Chat Completions API) receives system prompt + snapshot + tool definitions
 6. Inline tools (`memory_read`, `inspect_blocks`, `inspect_entities`, `inspect_inventory`, `inspect_window`) execute within the turn, grounding world facts
-7. LLM returns one execution tool (`navigate_to`, `break_block`, `place_block`, `follow_entity`, `open_window`, `transfer_item`, `close_window`) or `finish_goal`
+7. LLM returns one execution tool (`navigate_to`, `break_block`, `mine_resource`, `place_block`, `follow_entity`, `open_window`, `transfer_item`, `close_window`) or `finish_goal`
 8. HSM transitions to `TASKS.EXECUTING` → resolves to the correct primitive actor
 9. Primitive actor runs (pathfinding, block breaking, etc.) and emits success/failure event
 10. HSM records result, transitions to `DECIDE_NEXT`, which either loops back to `THINKING` or returns to `IDLE`
@@ -107,7 +108,7 @@ The bot is a Mineflayer client augmented with an XState v5 hierarchical state ma
 1. `serviceEntitiesTracking` (monitoring actor, 100ms tick) scans entities, filters enemies, checks reachability via pathfinding
 2. Sends `UPDATE_ENTITIES` with nearest reachable enemy
 3. If `autoDefend` is enabled and enemy is in range, HSM transitions to `COMBAT`
-4. `DECIDING` state uses guards to route to: `FLEEING`, `MELEE_ATTACKING`, `RANGED_SKIRMISHING`, or `APPROACHING`
+4. `DECIDING` state uses guards to route to: `MELEE_ATTACKING` or `RANGED_SKIRMISHING` (there are no `FLEEING` / `APPROACHING` states in the current machine)
 5. Combat actors run on their own tick intervals (250-500ms) and emit events when enemy distance changes
 6. Combat can be pre-empted by urgent needs (health/food critical)
 
@@ -140,9 +141,9 @@ The bot is a Mineflayer client augmented with an XState v5 hierarchical state ma
 - Purpose: Define the set of tools the LLM can call, categorized as inline, execution, or control
 - Categories:
   - **Inline tools** (8): `memory_save`, `memory_read`, `memory_update_data`, `memory_delete`, `inspect_inventory`, `inspect_blocks`, `inspect_entities`, `inspect_window` — execute within the thinking turn
-  - **Execution tools** (7): `navigate_to`, `break_block`, `place_block`, `follow_entity`, `open_window`, `transfer_item`, `close_window` — transition HSM to a primitive state
+  - **Execution tools** (8): `navigate_to`, `break_block`, `mine_resource`, `place_block`, `follow_entity`, `open_window`, `transfer_item`, `close_window` — transition HSM to a primitive state
   - **Control tool** (1): `finish_goal` — ends the current goal
-- Pattern: Grounded execution — execution tools require world facts from inline tools in the same turn
+- Pattern: Grounded execution — execution tools require world facts from inline tools in the same turn, except `mine_resource`, which performs its own batch search
 
 **Primitive Actors (`src/hsm/actors/primitives/*.primitive.ts`):**
 
@@ -155,6 +156,7 @@ The bot is a Mineflayer client augmented with an XState v5 hierarchical state ma
   - `src/hsm/actors/primitives/primitiveCloseWindow.primitive.ts` — close container
   - `src/hsm/actors/primitives/primitiveTransferItem.primitive.ts` — move items between zones
   - `src/hsm/actors/primitives/primitiveFollowing.primitive.ts` — follow entity
+  - `src/hsm/actors/primitives/primitiveSearchBlock.primitive.ts` — batch block search for MINING
 - Pattern: Each primitive is a `fromPromise` or `fromCallback` actor that receives bot + options and emits typed events
 
 **Stateful Service Factory (`src/hsm/helpers/createStatefulService.ts`):**

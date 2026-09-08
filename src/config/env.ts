@@ -21,7 +21,9 @@ const schema = {
 		AI_MODEL: { type: 'string', minLength: 1 },
 		AI_API_KEY: { type: 'string' },
 		AI_TIMEOUT_MS: { type: 'string', pattern: '^[0-9]+$' },
-		AI_MAX_TOKENS: { type: 'string', pattern: '^[0-9]+$' }
+		AI_MAX_TOKENS: { type: 'string', pattern: '^[0-9]+$' },
+		MINECRAFT_VIEWER_PORT: { type: 'string', pattern: '^[0-9]+$' },
+		MINECRAFT_WEB_INVENTORY_PORT: { type: 'string', pattern: '^[0-9]+$' }
 	},
 	required: [
 		'MINECRAFT_HOST',

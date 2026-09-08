@@ -2,6 +2,7 @@
 
 > **Focus:** architecture
 > **Generated:** 2026-04-06
+> **Синхронизация (2026-09-08):** тело документа пока на английском, но ложные утверждения ниже исправлены. Канон — код и `AGENTS.md`. Устаревшие ссылки на `.codex/agents` заменены на `.agents/skills`.
 > **Codebase:** voxel-pilot (Minecraft AI bot)
 
 ## Directory Layout
@@ -11,10 +12,14 @@ voxel-pilot/
 ├── src/                      # All source code
 │   ├── index.ts              # Entrypoint — bootstrap and SIGINT handler
 │   ├── ai/                   # AI agent loop, LLM clients, tool definitions
-│   │   ├── loop.ts           # runAgentTurn — main AI decision cycle
-│   │   ├── tools.ts          # Tool definitions, inline/execution/control categorization
-│   │   ├── client.ts         # OpenAIResponsesClient, OpenAICompatibleChatClient
-│   │   ├── snapshot.ts       # buildSnapshot — deterministic state summary for LLM
+│   │   ├── loop.ts           # thin facade, re-exports runAgentTurn from loop/
+│   │   ├── tools.ts          # thin facade, re-exports catalog/executors/names
+│   │   ├── client.ts         # thin facade, re-exports client adapters
+│   │   ├── contracts/        # shared agent/HSM contracts (execution, agentTurn, agentClient)
+│   │   ├── tools/            # catalog.ts, names.ts, inlineExecutor.ts, executors/
+│   │   ├── client/           # OpenAIResponsesClient, OpenAICompatibleChatClient
+│   │   ├── loop/             # runAgentTurn orchestration + validation
+│   │   ├── snapshot.ts       # buildSnapshot — minimal cycle-state summary for LLM
 │   │   ├── taskContext.ts    # Task context tracking, grounded facts
 │   │   ├── AgentLoopGuard.ts # Anti-stuck guard for agent loop
 │   │   └── runtime/          # Runtime inspection helpers
@@ -36,18 +41,24 @@ voxel-pilot/
 │   │   ├── context.ts        # MachineContext interface + default context
 │   │   ├── types.ts          # MachineEvent types, guard/action signatures
 │   │   ├── actors/           # Invoked actors
-│   │   │   ├── combat.actors.ts      # Melee, ranged, approaching, fleeing
+│   │   │   ├── combat.actors.ts      # Melee, ranged services
 │   │   │   ├── monitoring.actors.ts  # Entity tracking service
-│   │   │   └── primitives/   # Primitive action actors
+│   │   │   ├── survival.actors.ts    # Emergency eating/healing services
+│   │   │   └── primitives/   # Primitive action actors (8: navigating, breaking, placing,
+│   │   │       │             # following, openWindow, transferItem, closeWindow, searchBlock)
 │   │   │       ├── primitiveBreaking.primitive.ts
 │   │   │       ├── primitiveCloseWindow.primitive.ts
 │   │   │       ├── primitiveFollowing.primitive.ts
 │   │   │       ├── primitiveNavigating.primitive.ts
 │   │   │       ├── primitiveOpenWindow.primitive.ts
 │   │   │       ├── primitivePlacing.primitive.ts
+│   │   │       ├── primitiveSearchBlock.primitive.ts
 │   │   │       └── primitiveTransferItem.primitive.ts
 │   │   ├── guards/           # Guard functions
-│   │   │   └── combat.guards.ts
+│   │   │   ├── combat.guards.ts
+│   │   │   └── mining.guards.ts
+│   │   ├── actions/          # Action collections
+│   │   │   └── mining.actions.ts
 │   │   ├── helpers/          # HSM utilities
 │   │   │   └── createStatefulService.ts
 │   │   └── utils/            # Low-level HSM helpers
@@ -83,18 +94,19 @@ voxel-pilot/
 │   │   └── minecraft/
 │   │       └── botUtils.ts   # BotUtils class (food, weapons, arrows)
 │   └── tests/                # Test suites by subsystem
-│       ├── ai/               # Agent loop, snapshot, window runtime tests
+│       ├── ai/               # Agent loop, guard, snapshot, prompt, window runtime tests
+│       ├── building/         # Schematic inspection tests
 │       ├── config/           # Config validation tests
-│       ├── core/             # Command handler, OpenAI client, memory tests
-│       │   └── memory/       # MemoryManager CRUD tests
-│       ├── hsm/              # Machine, combat, anti-loop tests
+│       ├── core/             # Command handler, OpenAI client, memory, profile tests
+│       │   ├── memory/       # MemoryManager CRUD tests
+│       │   └── profile/      # ProfileMemoryStore tests
+│       ├── hsm/              # Machine, combat, survival, mining, diagram tests
 │       └── utils/            # Enemy visibility tests
 ├── data/                     # Runtime state (SQLite databases)
 ├── dist/                     # Compiled JavaScript output
 ├── logs/                     # Winston log files
-├── docs/                     # Documentation
-├── .codex/agents/            # Subagent definitions (TOML)
-├── .agents/skills/           # Agent skills
+├── docs/                     # Documentation (EN + RU mirrors; tasks/ holds active runtime notes)
+├── .agents/skills/           # Agent skills (pinned by skills-lock.json)
 ├── package.json              # Dependencies and scripts
 ├── tsconfig.json             # TypeScript config with path aliases
 ├── .prettierrc               # Code formatting config
@@ -166,10 +178,11 @@ voxel-pilot/
 - Generated: Yes, at runtime
 - Committed: No
 
-**`.codex/agents/` — Subagent Definitions:**
+**`.agents/skills/` — Agent Skills:**
 
-- Purpose: Project-specific subagent configurations for Codex
-- Contains: TOML files defining agent roles (`hardening-worker`, `hsm-mapper`, `mineflayer-archivist`, `reviewer-hardline`, `test-writer`)
+- Purpose: Project skills for AI agents, pinned by `skills-lock.json`
+- Contains: `xstate/SKILL.md` (XState v5) plus shared engineering/productivity skills
+- Note: there is no `.codex/agents/` directory; older references to it are stale
 
 ## Key File Locations
 
@@ -186,23 +199,26 @@ voxel-pilot/
 
 **Core Logic:**
 
-- `src/hsm/machine.ts`: Full XState machine definition (~700 lines)
+- `src/hsm/machine.ts`: Full XState machine definition (~1800 lines)
 - `src/hsm/context.ts`: MachineContext interface and default values
-- `src/ai/loop.ts`: Agent turn execution with grounded tool validation
-- `src/ai/tools.ts`: Tool definitions (16 tools across 3 categories)
+- `src/ai/loop/`: Agent turn execution with grounded tool validation (via `src/ai/loop.ts` facade)
+- `src/ai/tools/catalog.ts` + `src/ai/tools/names.ts`: Tool definitions (17 tools: 8 inline + 8 execution + `finish_goal`)
 - `src/core/memory/index.ts`: MemoryManager with SQLite CRUD operations
 
 **HSM Actors:**
 
-- `src/hsm/actors/combat.actors.ts`: Melee, ranged, approaching, fleeing services
+- `src/hsm/actors/combat.actors.ts`: Melee and ranged-skirmish services
 - `src/hsm/actors/monitoring.actors.ts`: Entity tracking service
-- `src/hsm/actors/primitives/*.primitive.ts`: 7 primitive action actors
+- `src/hsm/actors/survival.actors.ts`: Emergency eating/healing services
+- `src/hsm/actors/primitives/*.primitive.ts`: 8 primitive action actors (incl. `primitiveSearchBlock` for MINING batch search)
 
 **Testing:**
 
-- `src/tests/ai/`: Agent loop, guard, snapshot, window runtime tests
-- `src/tests/hsm/`: Machine, combat runtime, combat regression, anti-loop tests
+- `src/tests/ai/`: Agent loop, guard, snapshot, prompt, debug-dump, window runtime tests
+- `src/tests/building/`: Schematic inspection tests
+- `src/tests/hsm/`: Machine, combat runtime, combat regression, survival runtime, mining (blockAnalysis, primitiveSearchBlock), diagram, anti-loop tests
 - `src/tests/core/memory/`: MemoryManager CRUD tests
+- `src/tests/core/profile/`: ProfileMemoryStore tests
 
 ## Naming Conventions
 
@@ -250,10 +266,12 @@ voxel-pilot/
 
 **New AI Tool:**
 
-- Add tool definition to `AGENT_TOOLS` array in `src/ai/tools.ts`
-- Add tool name to appropriate union type (`InlineToolName`, `ExecutionToolName`, or `ControlToolName`)
-- If inline: add handler to `executeInlineToolCall()` switch in `src/ai/tools.ts`
-- If execution: add primitive actor in `src/hsm/actors/primitives/`, wire into `resolveExecutionActor()` and `resolveExecutionInput()` in `src/hsm/machine.ts`
+- Add tool definition to `AGENT_TOOLS` array in `src/ai/tools/catalog.ts`
+- Add tool name to appropriate union type in `src/ai/contracts/execution.ts` (mirrored in `src/ai/tools/names.ts`)
+- Add a `summarizeExecution` case in `src/ai/tools/summary.ts`
+- Update `validateExecutionTool` in `src/ai/loop/`
+- If inline: add handler to the inline executors in `src/ai/tools/executors/`
+- If execution: add primitive actor in `src/hsm/actors/primitives/`, wire into `resolveExecutionActor()` and `resolveExecutionInput()` plus the `RESOLVE` state in `src/hsm/machine.ts`
 - Add corresponding event types to `src/hsm/types.ts`
 
 **New HSM State:**
@@ -318,17 +336,12 @@ voxel-pilot/
 - Committed: No
 - Structure: `bot.log` (all levels), `error.log` (errors only), rotated at 10MB, 5 files max
 
-**`.codex/agents/`:**
-
-- Purpose: Subagent role definitions for Codex AI
-- Contains: TOML files with agent responsibilities
-- Current agents: `hardening-worker`, `hsm-mapper`, `mineflayer-archivist`, `reviewer-hardline`, `test-writer`
-
 **`.agents/skills/`:**
 
-- Purpose: Agent skill definitions (e.g., XState v5 skill)
-- Contains: `xstate/SKILL.md` and potentially others
+- Purpose: Agent skill definitions, pinned by `skills-lock.json`
+- Contains: `xstate/SKILL.md` (XState v5) plus shared engineering/productivity skills
+- Note: there is no `.codex/agents/` directory; older references to it are stale
 
 ---
 
-_Structure analysis: 2026-04-06_
+_Structure analysis: 2026-04-06, sync fixes 2026-09-08_

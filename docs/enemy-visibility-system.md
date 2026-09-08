@@ -1,5 +1,7 @@
 # Combat Visibility
 
+Language versions: [English](enemy-visibility-system.md) | [Русский](enemy-visibility-system.ru.md)
+
 This document covers the current shared combat visibility helpers in `src/utils/combat/enemyVisibility.ts`.
 
 ## Functions

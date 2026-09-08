@@ -14,7 +14,7 @@ interface PrimitiveBreakingState extends BaseServiceState {
 }
 
 interface BreakingOptions {
-	block: Block
+	block: Block | null
 }
 
 export const primitiveBreaking = createStatefulService<

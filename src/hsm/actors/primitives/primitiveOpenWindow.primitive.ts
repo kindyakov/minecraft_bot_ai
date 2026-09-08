@@ -16,7 +16,7 @@ interface OpenWindowState {
 }
 
 interface OpenWindowOptions {
-	position: MemoryPosition
+	position: MemoryPosition | null
 }
 
 export const primitiveOpenWindow = createStatefulService<

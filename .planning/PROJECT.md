@@ -1,81 +1,81 @@
 # VoxelPilot
 
-## What This Is
+## Что это
 
-VoxelPilot is an open-source Minecraft companion bot for solo survival players. It acts as an in-game assistant rather than a roleplay friend: it accepts player goals, uses an LLM-driven decision loop to choose the next bounded action, and executes work through a Mineflayer runtime governed by an XState HSM. The product goal is to improve vanilla survival play with a bot that can help, protect, gather, and support the player without turning into an unreliable black box.
+VoxelPilot — открытый Minecraft-бот-компаньон для соло-выживания. Он работает как внутриигровой ассистент, а не ролеплей-друг: принимает голы игрока, через LLM-цикл решений выбирает следующее ограниченное действие и выполняет работу через Mineflayer-рантайм под управлением XState HSM. Цель продукта — улучшить ванильное выживание ботом, который помогает, защищает, добывает и поддерживает игрока, не превращаясь в ненадёжный чёрный ящик.
 
-## Core Value
+## Ключевая ценность
 
-The bot must remain functionally useful and structurally intact even when the LLM hallucinates, times out, or returns bad decisions.
+Бот обязан оставаться функционально полезным и структурно целым, даже когда LLM галлюцинирует, таймаутится или возвращает плохие решения.
 
-## Requirements
+## Требования
 
-### Validated
+### Проверенные
 
-- ✓ The repository already boots a Mineflayer-based bot runtime with a structured `src/core` startup path.
-- ✓ The project already contains plugin wiring for major runtime integrations under `src/modules/plugins/`.
-- ✓ The bot already has a SQLite-backed long-term memory layer in `src/core/memory/`.
-- ✓ The codebase already has targeted automated coverage for HSM, AI, combat, memory, config, and command-handling subsystems.
+- ✓ В репозитории уже поднимается Mineflayer-рантайм со структурированным стартом в `src/core`.
+- ✓ В проекте уже есть подключение плагинов основных рантайм-интеграций в `src/modules/plugins/`.
+- ✓ У бота уже есть слой долговременной памяти на SQLite в `src/core/memory/`.
+- ✓ В кодовой базе уже есть точечное авто-покрытие подсистем HSM, AI, боя, памяти, конфига и обработки команд.
 
-### Active
+### Активные
 
-- [ ] Stabilize the HSM so invalid AI output or runtime failures do not corrupt bot state.
-- [ ] Deliver a bounded MVP tool surface for the LLM with strong validation and predictable execution semantics.
-- [ ] Prove that long-lived memory is useful and stable across real gameplay sessions.
-- [ ] Make the bot capable of completing core solo-survival helper tasks in real gameplay, not only in isolated tests.
-- [ ] Validate combat assistance and player-help flows without breaking task continuity.
+- [ ] Стабилизировать HSM, чтобы невалидный вывод AI или сбои рантайма не портили состояние бота.
+- [ ] Поставить ограниченную MVP-поверхность инструментов для LLM с сильной валидацией и предсказуемой семантикой исполнения.
+- [ ] Доказать, что долгоживущая память полезна и стабильна между реальными игровыми сессиями.
+- [ ] Сделать бота способным закрывать базовые соло-задачи выживания в реальной игре, а не только в изолированных тестах.
+- [ ] Проверить помощь в бою и сценарии помощи игроку без разрыва непрерывности задач.
 
-### Out of Scope
+### Вне скоупа
 
-- Multi-agent coordination between several bots on the same server — not part of the MVP.
-- A real-time web UI / HSM inspector — useful later, but not part of the current milestone.
-- Broad future macro-capabilities such as dedicated `FARMING` and `BUILDING` state families — defer until the MVP runtime is stable.
-- Replacing the current architectural stack with a different runtime model — keep the existing foundation and harden it.
+- Координация нескольких ботов на одном сервере — не часть MVP.
+- Веб-UI реального времени / инспектор HSM — пригодится позже, но не часть текущего майлстоуна.
+- Широкие будущие макро-способности вроде выделенных семейств состояний `FARMING` и `BUILDING` — отложить до стабилизации MVP-рантайма.
+- Замена текущего архитектурного стека другой моделью рантайма — сохраняем существующий фундамент и закаляем его.
 
-## Context
+## Контекст
 
-The current repository already contains the main architectural pillars: Mineflayer runtime integration, an XState HSM, an AI loop that consumes deterministic snapshots, a long-term SQLite memory layer, and plugin-based runtime extensions. What is still missing is not “more architecture slides” but a disciplined MVP slice that proves the bot works as a dependable solo-survival assistant in actual gameplay.
+В репозитории уже есть главные архитектурные опоры: интеграция Mineflayer-рантайма, XState HSM, AI-цикл на детерминированных снимках, слой долговременной памяти на SQLite и плагинные расширения рантайма. Не хватает не «ещё слайдов про архитектуру», а дисциплинированного MVP-среза, который докажет, что бот работает как надёжный соло-ассистент в реальной игре.
 
-The public audience is open-source users who want a helper bot for survival Minecraft. That means the project cannot optimize only for synthetic tests or local hacks. The runtime must be robust, the AI interface must be bounded, and milestone acceptance must include real in-game validation by a player.
+Публичная аудитория — open-source пользователи, которым нужен бот-помощник для выживания в Minecraft. Значит, проект нельзя оптимизировать только под синтетические тесты или локальные хаки. Рантайм обязан быть робастным, интерфейс AI — ограниченным, а приёмка майлстоуна обязана включать реальную внутриигровую проверку игроком.
 
-## Constraints
+## Ограничения
 
-- **Architecture**: Preserve `mineflayer + XState + LLM tool loop + SQLite memory` as the core system shape.
-- **Integrity**: The HSM is the runtime authority and must not be bypassed or weakened by LLM-driven behavior.
-- **Providers**: MVP AI integrations are limited to OpenAI-compatible providers.
-- **Verification**: Passing tests is necessary but insufficient; milestone acceptance also requires in-game validation.
-- **Scope**: MVP is a solo-companion runtime, not a platform for multi-bot orchestration or visualization tooling.
-- **Open source**: The repo and docs should remain understandable for public contributors and users.
+- **Архитектура**: сохранить связку `mineflayer + XState + LLM tool loop + SQLite memory` как форму ядра системы.
+- **Целостность**: HSM — runtime-авторитет, его нельзя обходить или ослаблять LLM-поведением.
+- **Провайдеры**: MVP AI-интеграции ограничены OpenAI-совместимыми провайдерами.
+- **Верификация**: проходящих тестов необходимо, но недостаточно; приёмка майлстоуна требует ещё и внутриигровой проверки.
+- **Скоуп**: MVP — это рантайм соло-компаньона, а не платформа для мультибот-оркестрации или визуализации.
+- **Открытость**: репо и доки должны оставаться понятными публичным контрибьюторам и пользователям (публичное — на EN и RU, разработка — на русском).
 
-## Key Decisions
+## Ключевые решения
 
-| Decision                                                                                                                    | Rationale                                                                                                                 | Outcome   |
-| --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | --------- |
-| Preserve the current runtime foundation (`src/modules`, `src/core/bot.ts`, `src/core/hsm.ts`, `src/core/CommandHandler.ts`) | The repo already has the right architectural skeleton; the problem is reliability and completeness, not lack of structure | — Pending |
-| Treat the HSM as the non-negotiable integrity boundary                                                                      | The bot must survive bad AI output without entering corrupted runtime state                                               | — Pending |
-| Use both atomic tools and bounded complex task tools/states                                                                 | Pure per-step LLM control is too slow and brittle for gameplay; bounded higher-level execution improves responsiveness    | — Pending |
-| Limit MVP provider support to OpenAI-compatible APIs                                                                        | This reduces variability while the runtime contract is still being hardened                                               | — Pending |
-| Accept milestone completion only after in-game validation                                                                   | Synthetic tests alone do not prove the bot is useful or stable during real survival play                                  | — Pending |
+| Решение                                                                                                                          | Обоснование                                                                                                          | Исход     |
+| -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | --------- |
+| Сохранить текущий фундамент рантайма (`src/modules`, `src/core/bot.ts`, `src/core/hsm.ts`, `src/core/CommandHandler.ts`)         | В репо уже правильный архитектурный скелет; проблема — в надёжности и полноте, а не в отсутствии структуры           | — Pending |
+| Считать HSM несокрушимой границей целостности                                                                                    | Бот обязан переживать плохой вывод AI без ухода в повреждённое состояние рантайма                                    | — Pending |
+| Использовать и атомарные инструменты, и ограниченные сложные инструменты/стейты задач                                             | Чистый пошаговый LLM-контроль слишком медленный и хрупкий для геймплея; ограниченное высокоуровневое исполнение отзывчивее | — Pending |
+| Ограничить MVP-поддержку провайдеров OpenAI-совместимыми API                                                                     | Снижает вариативность, пока контракт рантайма ещё закаляется                                                        | — Pending |
+| Принимать майлстоун только после внутриигровой проверки                                                                          | Синтетические тесты сами по себе не доказывают пользу и стабильность бота в реальном выживании                       | — Pending |
 
-## Evolution
+## Эволюция
 
-This document evolves at phase transitions and milestone boundaries.
+Документ эволюционирует на переходах фаз и границах майлстоунов.
 
-**After each phase transition**:
+**После каждого перехода фазы**:
 
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
+1. Требования инвалидированы? → Перенести во Вне скоупа с причиной
+2. Требования проверены? → Перенести в Проверенные со ссылкой на фазу
+3. Появились новые требования? → Добавить в Активные
+4. Есть решения для журнала? → Добавить в Ключевые решения
+5. «Что это» всё ещё точно? → Обновить при дрейфе
 
-**After each milestone**:
+**После каждого майлстоуна**:
 
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
+1. Полное ревью всех секций
+2. Проверка ключевой ценности — приоритет всё ещё верный?
+3. Аудит вне скоупа — причины всё ещё валидны?
+4. Обновить Контекст под текущее состояние
 
 ---
 
-_Last updated: 2026-04-14 after project direction reset_
+_Последнее обновление: 2026-04-14 после ресета направления проекта; 2026-09-08 — перевод ядра планирования на русский, архив старого AI-рефактора, удаление GSD-доков_

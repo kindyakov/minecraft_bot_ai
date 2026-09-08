@@ -2,6 +2,7 @@
 
 > **Focus:** tech
 > **Generated:** 2026-04-06
+> **Синхронизация (2026-09-08):** ссылка на `.codex/agents` ниже исправлена на `.agents/skills`; алиасы дополнены `@/ai/*`, `@/building/*`. Канон — код и `AGENTS.md`.
 > **Codebase:** voxel-pilot
 
 ## Languages
@@ -13,7 +14,7 @@
 **Secondary:**
 
 - JSON - Configuration files, package manifests, type definitions
-- TOML - Subagent definitions in `.codex/agents/`
+- TOML - historical subagent definitions (no `.codex/agents/` directory exists anymore; skills live in `.agents/skills/`)
 
 ## Runtime
 
@@ -98,7 +99,7 @@
 
 **Build:**
 
-- `tsconfig.json` - Target ES2022, module ESNext, strict mode, path aliases (`@/*`, `@/core/*`, `@/hsm/*`, `@/config/*`, `@/utils/*`, `@/modules/*`)
+- `tsconfig.json` - Target ES2022, module ESNext, strict mode, path aliases (`@/*`, `@/core/*`, `@/hsm/*`, `@/ai/*`, `@/building/*`, `@/config/*`, `@/utils/*`, `@/modules/*`)
 - `tsc-alias` rewrites `@/` paths in compiled output
 - `knip.json` - Dead code detection with matching path alias config
 - `.prettierrc` - Tabs, 2-width, no semicolons, single quotes, import ordering plugin

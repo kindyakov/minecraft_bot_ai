@@ -1,10 +1,11 @@
-import 'dotenv/config'
 import inventoryViewer from 'mineflayer-web-inventory'
 
-import type { Bot } from '../../types'
+import type { Bot } from '@/types'
+
+import Config from '@/config/config'
 
 export const loadWebInventory = (bot: Bot): void => {
 	inventoryViewer(bot, {
-		port: parseInt(process.env.MINECRAFT_WEB_INVENTORY_PORT || '3001', 10)
+		port: Config.diagnostics.webInventoryPort
 	})
 }

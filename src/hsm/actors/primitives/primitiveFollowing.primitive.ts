@@ -14,7 +14,7 @@ interface FollowingState extends BaseServiceState {
 }
 
 interface FollowingOptions {
-	target: Entity // Цель для следования (сущность, блок или координаты)
+	target: Entity | null // Цель для следования (сущность, блок или координаты)
 	distance?: number // Дистанция следования (по умолчанию 3 блока)
 }
 

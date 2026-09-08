@@ -2,6 +2,7 @@
 
 > **Focus:** Technical debt, bugs, security, performance, fragile areas
 > **Generated:** 2026-04-06
+> **Синхронизация (2026-09-08):** ложное утверждение про `TaskDefinition`-типы ниже исправлено (таких типов в `src/hsm/types.ts` нет); мёртвые `CRAFT/SMELT/SLEEP`-события удалены из `PrimitiveEvents`. Канон — код и `AGENTS.md`.
 > **Codebase:** voxel-pilot (Minecraft AI bot)
 
 ## Tech Debt
@@ -29,12 +30,11 @@
 - **Impact:** Dead code paths, unclear which plugins are actually active. `loadTool` is loaded despite a comment saying it's incompatible.
 - **Fix approach:** Remove commented-out calls. If a plugin is intentionally disabled, document why in a config flag or remove entirely.
 
-### Unused exported types in `src/hsm/types.ts`
+### Removed dead primitive events in `src/hsm/types.ts` (2026-09-08)
 
-- **Files:** `src/hsm/types.ts`
-- **Issue:** Several interfaces are defined but never imported elsewhere: `TaskDefinition`, `TaskRegistry`, `TaskValidationResult`, `TaskSuggestion`, `TaskPreconditions`, `TaskParams`. These appear to be remnants of an older task planning system that was replaced by the current `AGENT_LOOP`.
-- **Impact:** Confusion about what the task system actually is. Misleading exports suggest capabilities that don't exist.
-- **Fix approach:** Remove unused interfaces or move them to a `legacy/` directory with deprecation notes.
+- **Was:** `PrimitiveEvents` carried legacy variants with no producer or consumer in the machine: `FOUND_FOOD`, `FOUND`, `INVENTORY_FULL`, `SUCCESSFULLY`, `OPENED` / `OPEN_FAILED`, `CRAFTED` / `CRAFT_FAILED`, `SMELTED` / `SMELT_FAILED`, `WOKE_UP` / `SLEEP_FAILED`.
+- **Now:** only events actually emitted and handled remain (`NOT_FOUND`, `BLOCKS_FOUND`, `ARRIVED`, `NAVIGATION_FAILED`, `BROKEN`, `BREAKING_FAILED`, `WINDOW_*`, `PLACED`, `PLACING_FAILED`, `FOLLOWING_*`).
+- **Rule going forward:** adding a new primitive event requires a producer (primitive actor) and a consumer (`machine.ts` transition) in the same change.
 
 ## Known Bugs
 
@@ -122,11 +122,11 @@
 
 ## Fragile Areas
 
-### The HSM machine is a single 900+ line file
+### The HSM machine is a single ~1800-line file
 
-- **Files:** `src/hsm/machine.ts` (900+ lines)
+- **Files:** `src/hsm/machine.ts` (~1800 lines)
 - **Why fragile:** All state definitions, guards, actions, and transitions are in one file. Adding a new state or modifying transitions requires understanding the entire machine. The `resolveExecutionActor` and `resolveExecutionInput` switch statements must be kept in sync with the machine's `RESOLVE` state transitions.
-- **Safe modification:** When adding new execution tools, update: (1) `AGENT_TOOLS` in `src/ai/tools.ts`, (2) `resolveExecutionActor`, (3) `resolveExecutionInput`, (4) the `RESOLVE` state in the machine, (5) `validateExecutionTool` in `src/ai/loop.ts`. Missing any one of these causes silent failures.
+- **Safe modification:** When adding new execution tools, update all five places (see `AGENTS.md`): (1) `AGENT_TOOLS` in `src/ai/tools/catalog.ts`, (2) tool-name unions in `src/ai/contracts/execution.ts` + `src/ai/tools/names.ts`, (3) `summarizeExecution`, (4) `validateExecutionTool` in `src/ai/loop/`, (5) `resolveExecutionActor` + `resolveExecutionInput` + `RESOLVE` transitions in `src/hsm/machine.ts`. Missing any one of these causes silent failures.
 - **Test coverage:** `src/tests/hsm/machine.test.ts` has extensive tests (2000+ lines) but focuses on transition correctness, not integration with primitives.
 
 ### `resolveExecutionInput` uses `as any` for all option types

@@ -14,7 +14,8 @@ import type { AgentTurnInput, AgentTurnResult } from '../contracts/agentTurn.js'
 import type { PendingExecution } from '../contracts/execution.js'
 import {
 	collectGroundedFacts,
-	createGroundedTurnFacts
+	createGroundedTurnFacts,
+	hasGroundedReferences
 } from './grounding.js'
 import {
 	MAX_INLINE_TOOL_ROUNDS,
@@ -71,7 +72,7 @@ export const runAgentTurn = async (
 				typeof response.outputText === 'string'
 					? response.outputText.trim()
 					: ''
-			if (plainTextOutput) {
+			if (plainTextOutput && hasGroundedReferences(groundedFacts)) {
 				console.log(
 					'[AI] plain_text_fallback_finish',
 					JSON.stringify({
@@ -94,6 +95,21 @@ export const runAgentTurn = async (
 					})
 				)
 				return result
+			}
+
+			if (plainTextOutput) {
+				console.log(
+					'[AI] turn_failed',
+					JSON.stringify({
+						reason: 'Model returned plain text without grounded inspect data',
+						transcript
+					})
+				)
+				return {
+					kind: 'failed',
+					reason: 'Model returned plain text without grounded inspect data',
+					transcript
+				}
 			}
 
 			if (modelRetries < MAX_MODEL_RETRIES) {

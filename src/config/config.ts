@@ -24,10 +24,16 @@ interface LoggingConfig {
 	file: string
 }
 
+interface DiagnosticsConfig {
+	viewerPort: number
+	webInventoryPort: number
+}
+
 export class Config {
 	private readonly _minecraft: MinecraftConfig
 	private readonly _ai: AIConfig
 	private readonly _logging: LoggingConfig
+	private readonly _diagnostics: DiagnosticsConfig
 
 	constructor() {
 		const env = validateEnv()
@@ -52,6 +58,14 @@ export class Config {
 			level: (env.LOG_LEVEL as WinstonLogLevel) || 'info',
 			file: env.LOG_FILE || 'logs/bot.log'
 		}
+
+		this._diagnostics = {
+			viewerPort: parseInt(env.MINECRAFT_VIEWER_PORT || '3000', 10),
+			webInventoryPort: parseInt(
+				env.MINECRAFT_WEB_INVENTORY_PORT || '3001',
+				10
+			)
+		}
 	}
 
 	get minecraft(): MinecraftConfig {
@@ -62,6 +76,9 @@ export class Config {
 	}
 	get logging(): LoggingConfig {
 		return this._logging
+	}
+	get diagnostics(): DiagnosticsConfig {
+		return this._diagnostics
 	}
 
 	get isDevelopment(): boolean {

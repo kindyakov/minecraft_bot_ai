@@ -2,6 +2,7 @@
 
 > **Focus:** quality
 > **Generated:** 2026-04-06
+> **Синхронизация (2026-09-08):** противоречие про `UPPER_SNAKE_CASE` ниже исправлено; алиасы дополнены `@/ai/*`, `@/building/*`. Канон — код и `AGENTS.md`.
 > **Codebase:** voxel-pilot
 
 ## Naming Patterns
@@ -23,7 +24,7 @@
 
 - camelCase: `currentGoal`, `pendingExecution`, `activeWindowSession`
 - Private fields use `_` prefix on interface-level grouping: `_minecraft`, `_ai`, `_logging` in `Config`
-- Constants: UPPER_SNAKE_CASE not used; module-level constants use camelCase: `MAX_INLINE_TOOL_ROUNDS`, `DB_VERSION`
+- Constants: UPPER_SNAKE_CASE for module-level limits and protocol constants: `MAX_INLINE_TOOL_ROUNDS`, `DB_VERSION`, `AGENT_SYSTEM_PROMPT`
 
 **Types & Interfaces:**
 
@@ -70,9 +71,10 @@ npm run format    # prettier --write "src/**/*.{ts,js}"
 4. Config: `@/config/(.*)`
 5. Core: `@/core/(.*)`
 6. HSM: `@/hsm/(.*)`
-7. Modules: `@/modules/(.*)`
-8. Utils: `@/utils/(.*)`
-9. Relative: `^[./]`
+7. AI: `@/ai/(.*)`
+8. Modules: `@/modules/(.*)`
+9. Utils: `@/utils/(.*)`
+10. Relative: `^[./]`
 
 Groups are separated by blank lines (`importOrderSeparation: true`) and specifiers are sorted (`importOrderSortSpecifiers: true`).
 
@@ -86,7 +88,9 @@ Groups are separated by blank lines (`importOrderSeparation: true`) and specifie
 	"@/config/*": ["src/config/*"],
 	"@/utils/*": ["src/utils/*"],
 	"@/modules/*": ["src/modules/*"],
-	"@/core/*": ["src/core/*"]
+	"@/core/*": ["src/core/*"],
+	"@/ai/*": ["src/ai/*"],
+	"@/building/*": ["src/building/*"]
 }
 ```
 

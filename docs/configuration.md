@@ -1,5 +1,7 @@
 # Configuration
 
+Language versions: [English](configuration.md) | [Русский](configuration.ru.md)
+
 Configuration is validated in `src/config/env.ts` with Ajv and consumed in `src/config/config.ts`.
 The recommended way to set values is `.env` based on `.env.example`.
 

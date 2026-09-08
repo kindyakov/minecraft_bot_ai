@@ -1,120 +1,120 @@
-# Roadmap: VoxelPilot
+# Дорожная карта: VoxelPilot
 
-## Overview
+## Обзор
 
-This roadmap defines the first real product milestone for VoxelPilot: an MVP solo-companion runtime that is stable under bad AI output, equipped with a bounded LLM tool surface, backed by persistent memory, and proven in live Minecraft gameplay. The intent is not to chase every future bot feature at once, but to establish a dependable core that can later grow into broader capability families such as farming and building.
+Эта дорожная карта задаёт первый настоящий продуктовый майлстоун VoxelPilot: MVP-рантайм соло-компаньона, который стабилен под плохим выводом AI, оснащён ограниченной LLM-поверхностью инструментов, опирается на постоянную память и доказан в живом геймплее Minecraft. Замысел — не гнаться сразу за каждой будущей фичей бота, а поставить надёжное ядро, которое позже дорастёт до широких семейств способностей вроде фермерства и строительства.
 
-## Milestones
+## Майлстоуны
 
-- 🚧 **v1.0 MVP Solo Companion Runtime** - Phases 1-5 (current)
+- 🚧 **v1.0 MVP Solo Companion Runtime** — фазы 1–5 (текущий)
 
-## Phases
+## Фазы
 
-- [ ] **Phase 1: Runtime Integrity and HSM Recovery** - Make the HSM and runtime failure paths resilient when AI or external systems behave badly.
-- [ ] **Phase 2: Bounded Agent Tool Surface** - Ship the MVP LLM tool contract, validation layer, and execution semantics for atomic and complex task tools.
-- [ ] **Phase 3: Persistent Memory Reliability** - Make long-lived memory durable, useful, and safely integrated into task execution.
-- [ ] **Phase 4: Core Survival Task Execution** - Prove end-to-end gameplay for basic resource gathering and interruption handling.
-- [ ] **Phase 5: Combat Assistance and In-Game Acceptance** - Validate combat help and complete milestone-level in-game acceptance.
+- [ ] **Фаза 1: Целостность рантайма и восстановление HSM** — сделать HSM и пути сбоев рантайма устойчивыми, когда AI или внешние системы ведут себя плохо.
+- [ ] **Фаза 2: Ограниченная поверхность инструментов агента** — поставить MVP-контракт LLM-инструментов, слой валидации и семантику исполнения для атомарных и сложных инструментов задач.
+- [ ] **Фаза 3: Надёжность постоянной памяти** — сделать долгоживущую память durable, полезной и безопасно интегрированной в исполнение задач.
+- [ ] **Фаза 4: Исполнение базовых задач выживания** — доказать end-to-end геймплей по добыче базовых ресурсов и обработке прерываний.
+- [ ] **Фаза 5: Помощь в бою и внутриигровая приёмка** — проверить помощь в бою и закрыть приёмку майлстоуна в реальной игре.
 
-## Phase Details
+## Детали фаз
 
-### Phase 1: Runtime Integrity and HSM Recovery
+### Фаза 1: Целостность рантайма и восстановление HSM
 
-**Goal**: Ensure the bot survives invalid LLM output, command interruptions, and runtime failures without corrupting the HSM or crashing the process.
-**Depends on**: Nothing (first phase)
-**Requirements**: [RT-01, RT-02, RT-03]
-**Success Criteria** (what must be TRUE):
+**Гол**: бот переживает невалидные решения LLM, прерывания команд и сбои рантайма без порчи HSM и падения процесса.
+**Зависит от**: ничего (первая фаза)
+**Требования**: [RT-01, RT-02, RT-03]
+**Критерии успеха** (что обязано быть TRUE):
 
-1. Invalid or missing AI decisions do not break HSM integrity.
-2. Active goals can be cancelled, replaced, or failed cleanly through the runtime contract.
-3. Startup, reconnect, and runtime error paths leave the bot recoverable.
-   **Plans**: 3 plans
+1. Невалидные или missing AI-решения не ломают целостность HSM.
+2. Активные голы чисто отменяются, заменяются и фейлятся через контракт рантайма.
+3. Пути старта, реконнекта и runtime-ошибок оставляют бота восстанавливаемым.
+   **Планы**: 3 плана
 
-Plans:
+Планы:
 
-- [ ] 01-01: Audit and harden HSM transitions and guardrails around task execution
-- [ ] 01-02: Harden command interruption, goal replacement, and failure propagation paths
-- [ ] 01-03: Add regression coverage for startup, reconnect, and runtime recovery behavior
+- [ ] 01-01: аудит и закалка переходов HSM и гардрейлов вокруг исполнения задач
+- [ ] 01-02: закалка прерывания команд, замены голов и путей распространения сбоев
+- [ ] 01-03: регрессионное покрытие поведения старта, реконнекта и восстановления рантайма
 
-### Phase 2: Bounded Agent Tool Surface
+### Фаза 2: Ограниченная поверхность инструментов агента
 
-**Goal**: Define and harden the MVP tool interface so the agent can act through bounded contracts instead of brittle freeform behavior.
-**Depends on**: Phase 1
-**Requirements**: [TL-01, TL-02, TL-03]
-**Success Criteria** (what must be TRUE):
+**Гол**: задать и закалить MVP-интерфейс инструментов, чтобы агент действовал через ограниченные контракты вместо хрупкого свободного поведения.
+**Зависит от**: фаза 1
+**Требования**: [TL-01, TL-02, TL-03]
+**Критерии успеха** (что обязано быть TRUE):
 
-1. The agent uses only approved OpenAI-compatible tool calls for MVP behavior.
-2. Malformed or hallucinated tool invocations are rejected safely and surfaced as structured failures.
-3. The runtime supports both atomic tools and bounded higher-level task tools/states with clear ownership.
-   **Plans**: 3 plans
+1. Агент использует только аппрувнутые OpenAI-совместимые tool calls для MVP-поведения.
+2. Malformed- и галлюцинированные вызовы безопасно отвергаются и показываются как структурные сбои.
+3. Рантайм поддерживает и атомарные инструменты, и ограниченные высокоуровневые инструменты/стейты с явным владением.
+   **Планы**: 3 плана
 
-Plans:
+Планы:
 
-- [ ] 02-01: Define and verify the MVP tool catalog and tool-call validation contract
-- [ ] 02-02: Harden tool execution failure handling, logging, and agent feedback loops
-- [ ] 02-03: Introduce or stabilize bounded higher-level task tools/states for multi-step work such as mining
+- [ ] 02-01: задать и проверить MVP-каталог инструментов и контракт валидации tool-call
+- [ ] 02-02: закалить обработку сбоев исполнения инструментов, логирование и петли обратной связи агенту
+- [ ] 02-03: ввести или стабилизировать ограниченные высокоуровневые инструменты/стейты задач для многошаговой работы вроде добычи
 
-### Phase 3: Persistent Memory Reliability
+### Фаза 3: Надёжность постоянной памяти
 
-**Goal**: Make long-lived memory stable across restarts and useful during task execution instead of being passive storage.
-**Depends on**: Phase 2
-**Requirements**: [MEM-01, MEM-02]
-**Success Criteria** (what must be TRUE):
+**Гол**: сделать долгоживущую память стабильной между рестартами и полезной во время исполнения задач, а не пассивным хранилищем.
+**Зависит от**: фаза 2
+**Требования**: [MEM-01, MEM-02]
+**Критерии успеха** (что обязано быть TRUE):
 
-1. Memory survives restart cycles and restores useful execution context.
-2. The agent can read and update relevant memory entries during task flow.
-3. Memory operations remain bounded and do not destabilize runtime behavior.
-   **Plans**: 2 plans
+1. Память переживает циклы рестартов и восстанавливает полезный контекст исполнения.
+2. Агент может читать и обновлять релевантные записи памяти в потоке задач.
+3. Операции памяти остаются ограниченными и не дестабилизируют поведение рантайма.
+   **Планы**: 2 плана
 
-Plans:
+Планы:
 
-- [ ] 03-01: Harden SQLite memory persistence, restoration, and schema-backed access patterns
-- [ ] 03-02: Integrate memory read/write paths into the agent loop and verify practical usefulness
+- [ ] 03-01: закалить SQLite-персистентность памяти, восстановление и доступ по схеме
+- [ ] 03-02: интегрировать пути чтения/записи памяти в цикл агента и проверить практическую пользу
 
-### Phase 4: Core Survival Task Execution
+### Фаза 4: Исполнение базовых задач выживания
 
-**Goal**: Prove that the bot can complete basic solo-survival helper tasks end-to-end in live gameplay.
-**Depends on**: Phase 3
-**Requirements**: [GP-01, GP-02]
-**Success Criteria** (what must be TRUE):
+**Гол**: доказать, что бот закрывает базовые соло-задачи помощника выживания end-to-end в живом геймплее.
+**Зависит от**: фаза 3
+**Требования**: [GP-01, GP-02]
+**Критерии успеха** (что обязано быть TRUE):
 
-1. The bot can gather basic resources end-to-end in a real game session.
-2. The bot handles common task interruptions such as low food, full inventory, and tool availability problems.
-3. Task execution remains responsive without collapsing back into brittle manual micromanagement.
-   **Plans**: 3 plans
+1. Бот добывает базовые ресурсы end-to-end в реальной игровой сессии.
+2. Бот обрабатывает типовые прерывания задач: низкая еда, давление инвентаря, проблемы доступности инструментов.
+3. Исполнение задач остаётся отзывчивым и не скатывается в хрупкий ручной микроменеджмент.
+   **Планы**: 3 плана
 
-Plans:
+Планы:
 
-- [ ] 04-01: Implement and verify the end-to-end mining/resource-gathering flow
-- [ ] 04-02: Handle interruption cases for food risk, inventory pressure, and tool continuity
-- [ ] 04-03: Add focused tests plus repeatable in-game validation scenarios for core survival tasks
+- [ ] 04-01: реализовать и проверить end-to-end поток добычи/копания ресурсов
+- [ ] 04-02: обработать прерывания по риску еды, давлению инвентаря и непрерывности инструментов
+- [ ] 04-03: добавить фокусные тесты и повторяемые внутриигровые сценарии проверки базовых задач выживания
 
-### Phase 5: Combat Assistance and In-Game Acceptance
+### Фаза 5: Помощь в бою и внутриигровая приёмка
 
-**Goal**: Validate combat help and complete full MVP acceptance in real gameplay.
-**Depends on**: Phase 4
-**Requirements**: [GP-03, VR-01]
-**Success Criteria** (what must be TRUE):
+**Гол**: проверить помощь в бою и закрыть полную MVP-приёмку в реальном геймплее.
+**Зависит от**: фаза 4
+**Требования**: [GP-03, VR-01]
+**Критерии успеха** (что обязано быть TRUE):
 
-1. The bot can defend itself and assist the player in combat without permanently breaking task flow.
-2. MVP acceptance is based on both targeted tests and live in-game runs.
-3. The milestone ends with a stable, publicly understandable MVP scope rather than an unbounded wishlist.
-   **Plans**: 2 plans
+1. Бот может защищать себя и ассистить игроку в бою без необратимого разрыва потока задач.
+2. MVP-приёмка опирается и на точечные тесты, и на живые игровые прогоны.
+3. Майлстоун заканчивается стабильным, публично понятным MVP-скоупом, а не безграничным вишлистом.
+   **Планы**: 2 плана
 
-Plans:
+Планы:
 
-- [ ] 05-01: Harden combat-assistance integration with the task runtime and player-help scenarios
-- [ ] 05-02: Run milestone-level in-game acceptance, capture failures, and close MVP gaps
+- [ ] 05-01: закалить интеграцию помощи в бою с рантаймом задач и сценариями помощи игроку
+- [ ] 05-02: прогнать внутриигровую приёмку уровня майлстоуна, зафиксировать сбои и закрыть MVP-пробелы
 
-## Progress
+## Прогресс
 
-**Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+**Порядок исполнения:**
+Фазы идут по номерам: 1 → 2 → 3 → 4 → 5
 
-| Phase                                       | Milestone | Plans Complete | Status      | Completed |
-| ------------------------------------------- | --------- | -------------- | ----------- | --------- |
-| 1. Runtime Integrity and HSM Recovery       | v1.0      | 0/3            | Not started | -         |
-| 2. Bounded Agent Tool Surface               | v1.0      | 0/3            | Not started | -         |
-| 3. Persistent Memory Reliability            | v1.0      | 0/2            | Not started | -         |
-| 4. Core Survival Task Execution             | v1.0      | 0/3            | Not started | -         |
-| 5. Combat Assistance and In-Game Acceptance | v1.0      | 0/2            | Not started | -         |
+| Фаза                                    | Майлстоун | Планов готово | Статус      | Завершена |
+| --------------------------------------- | --------- | ------------- | ----------- | --------- |
+| 1. Целостность рантайма и восстановление HSM       | v1.0      | 0/3           | Не начата   | -         |
+| 2. Ограниченная поверхность инструментов агента    | v1.0      | 0/3           | Не начата   | -         |
+| 3. Надёжность постоянной памяти                    | v1.0      | 0/2           | Не начата   | -         |
+| 4. Исполнение базовых задач выживания              | v1.0      | 0/3           | Не начата   | -         |
+| 5. Помощь в бою и внутриигровая приёмка            | v1.0      | 0/2           | Не начата   | -         |

@@ -15,8 +15,8 @@ interface PlacingState extends BaseServiceState {
 
 interface PlacingOptions {
 	blockName: string // Название блока для размещения
-	position: Vec3 // Позиция, где нужно поставить блок
-	faceVector?: Vec3 // Вектор грани (по умолчанию сверху)
+	position: Vec3 | null // Позиция, где нужно поставить блок
+	faceVector?: Vec3 | null // Вектор грани (по умолчанию сверху)
 }
 
 export const primitivePlacing = createStatefulService<
@@ -31,7 +31,8 @@ export const primitivePlacing = createStatefulService<
 	},
 
 	onStart: async ({ sendBack, setState, input, bot, abortSignal }) => {
-		const { blockName, position, faceVector = new Vec3Class(0, 1, 0) } = input
+		const { blockName, position, faceVector } = input
+		const faceDirection = faceVector ?? new Vec3Class(0, 1, 0)
 
 		if (!blockName) {
 			console.error('❌ [primitivePlacing] Не предоставлен blockName')
@@ -134,8 +135,8 @@ export const primitivePlacing = createStatefulService<
 			// Проверка отмены
 			if (abortSignal.aborted) return
 
-			// Размещаем блок
-			await bot.placeBlock(referenceBlock, faceVector as any)
+		// Размещаем блок
+		await bot.placeBlock(referenceBlock, faceDirection)
 
 			console.log(
 				`✅ [primitivePlacing] Блок ${blockName} размещён на ${position}`

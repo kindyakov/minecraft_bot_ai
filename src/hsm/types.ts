@@ -1,3 +1,4 @@
+import type { WindowSession, WindowTransferResult } from '@/ai/runtime/window.js'
 import type { Block, Entity, Vec3 } from '@/types'
 
 import type { MachineContext } from '@/hsm/context'
@@ -40,39 +41,22 @@ export type UserEvents =
 	| { type: 'STOP_CURRENT_GOAL'; username?: string }
 
 export type PrimitiveEvents =
-	| { type: 'FOUND_FOOD' }
 	| { type: 'NOT_FOUND'; reason: string }
-	| { type: 'FOUND'; block?: Block; entity?: Entity }
 	| { type: 'BLOCKS_FOUND'; blocks: Block[] }
-	| { type: 'INVENTORY_FULL' }
-	| { type: 'SUCCESSFULLY' }
 	| { type: 'ARRIVED' }
 	| { type: 'NAVIGATION_FAILED'; reason?: string }
 	| { type: 'BROKEN' }
 	| { type: 'BREAKING_FAILED'; reason?: string }
-	| { type: 'OPENED'; container: any; block: Block }
-	| { type: 'OPEN_FAILED'; reason: string }
-	| { type: 'WINDOW_OPENED'; session: any }
+	| { type: 'WINDOW_OPENED'; session: WindowSession }
 	| { type: 'WINDOW_OPEN_FAILED'; reason: string }
-	| { type: 'WINDOW_ITEM_TRANSFERRED'; transferred: any }
+	| { type: 'WINDOW_ITEM_TRANSFERRED'; transferred: WindowTransferResult }
 	| { type: 'WINDOW_TRANSFER_FAILED'; reason: string }
 	| { type: 'WINDOW_CLOSED' }
 	| { type: 'WINDOW_CLOSE_FAILED'; reason: string }
-	| { type: 'CRAFTED'; itemName: string; count: number }
-	| { type: 'CRAFT_FAILED'; reason: string }
-	| {
-			type: 'SMELTED'
-			inputItemName: string
-			count: number
-			outputItem: string | null
-	  }
-	| { type: 'SMELT_FAILED'; reason: string }
 	| { type: 'PLACED'; blockName: string; position: Vec3 }
 	| { type: 'PLACING_FAILED'; reason: string }
 	| { type: 'FOLLOWING_STOPPED'; reason: string }
 	| { type: 'FOLLOWING_FAILED'; reason: string }
-	| { type: 'WOKE_UP' }
-	| { type: 'SLEEP_FAILED'; reason: string }
 
 export type SystemEvents = { type: 'ERROR'; error: string }
 

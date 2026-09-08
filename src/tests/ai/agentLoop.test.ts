@@ -935,7 +935,7 @@ test('runAgentTurn rejects navigation to unsupported workstation for crafting go
 	assert.match(result.reason, /unsupported workstation for crafting tasks/i)
 })
 
-test('runAgentTurn finishes with plain text when the model returns no tool call', async () => {
+test('runAgentTurn fails on plain text without grounded inspect data', async () => {
 	const client = new OpenAIResponsesClient({
 		client: {
 			responses: {
@@ -989,13 +989,99 @@ test('runAgentTurn finishes with plain text when the model returns no tool call'
 		client
 	})
 
+	assert.equal(result.kind, 'failed')
+	if (result.kind !== 'failed') {
+		assert.fail('Expected failed result')
+	}
+	assert.match(result.reason, /without grounded inspect data/i)
+})
+
+test('runAgentTurn finishes with plain text after grounded inspect data was gathered', async () => {
+	const responses = [
+		{
+			id: 'resp_inspect',
+			output: [
+				{
+					type: 'function_call',
+					call_id: 'call_1',
+					name: 'memory_read',
+					arguments: JSON.stringify({
+						query_tags: ['home'],
+						max_distance: 100
+					})
+				}
+			]
+		},
+		{
+			id: 'resp_plain_text',
+			output_text: 'Дом находится на отмеченной позиции.',
+			output: []
+		}
+	]
+
+	const client = new OpenAIResponsesClient({
+		client: {
+			responses: {
+				create: async () => responses.shift() as any
+			}
+		},
+		model: 'test-model'
+	})
+
+	const memory = {
+		readEntries: () => [
+			{
+				id: 'entry_home',
+				type: 'location',
+				position: { x: 10, y: 64, z: 10 },
+				tags: ['home'],
+				description: 'Base',
+				data: {},
+				updatedAt: Date.now()
+			}
+		],
+		saveEntry: () => null,
+		updateEntryData: () => null,
+		deleteEntry: () => false
+	} as any
+
+	const bot = {
+		memory,
+		health: 20,
+		food: 20,
+		oxygenLevel: 20,
+		entity: { position: createVec3(0, 64, 0) },
+		game: { dimension: 'overworld' },
+		time: { isDay: true, timeOfDay: 1000 },
+		inventory: {
+			slots: Array.from({ length: 46 }, () => null),
+			items: () => []
+		},
+		getEquipmentDestSlot: () => 36,
+		blockAt: () => null,
+		findBlocks: () => [],
+		entities: {},
+		closeWindow: () => {}
+	} as any
+
+	const result = await runAgentTurn({
+		bot,
+		memory,
+		currentGoal: 'Где дом?',
+		subGoal: null,
+		lastAction: null,
+		lastResult: null,
+		lastReason: null,
+		errorHistory: [],
+		taskContext: createTaskContext('Где дом?', null),
+		client
+	})
+
 	assert.equal(result.kind, 'finish')
 	if (result.kind !== 'finish') {
 		assert.fail('Expected finish result')
 	}
-	assert.equal(result.message, 'В моем инвентаре есть кирка и еда.')
-	assert.match(result.transcript[0]!, /^round_0_ms:\d+$/)
-	assert.equal(result.transcript.length, 1)
+	assert.equal(result.message, 'Дом находится на отмеченной позиции.')
 })
 
 test('runAgentTurn still fails when the model returns no tool call and no plain-text response', async () => {

@@ -15,7 +15,9 @@
 			"@/config/*": ["src/config/*"],
 			"@/utils/*": ["src/utils/*"],
 			"@/modules/*": ["src/modules/*"],
-			"@/core/*": ["src/core/*"]
+			"@/core/*": ["src/core/*"],
+			"@/ai/*": ["src/ai/*"],
+			"@/building/*": ["src/building/*"]
 		},
 
 		// Строгость

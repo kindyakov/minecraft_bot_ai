@@ -2,6 +2,7 @@
 
 > **Focus:** tech
 > **Generated:** 2026-04-06
+> **Синхронизация (2026-09-08):** число инструментов ниже исправлено с 16 на 17 (добавлен `mine_resource`). Канон — `src/ai/tools/catalog.ts` и `AGENTS.md`.
 > **Codebase:** voxel-pilot
 
 ## APIs & External Services
@@ -163,7 +164,7 @@ Plugins are loaded in `src/modules/plugins/index.plugins.ts` and registered in `
 
 ## AI Agent Tool Integration
 
-The bot exposes 16 agent tools to the LLM (`src/ai/tools.ts`), categorized as:
+The bot exposes 17 agent tools to the LLM (`src/ai/tools/catalog.ts`), categorized as:
 
 **Inline tools** (execute within thinking phase):
 
@@ -172,7 +173,7 @@ The bot exposes 16 agent tools to the LLM (`src/ai/tools.ts`), categorized as:
 
 **Execution tools** (trigger HSM state transitions):
 
-- `navigate_to`, `break_block`, `place_block`, `follow_entity` - Movement and interaction
+- `navigate_to`, `break_block`, `mine_resource` (batch MINING sub-state), `place_block`, `follow_entity` - Movement and interaction
 - `open_window`, `transfer_item`, `close_window` - Container interactions
 
 **Control tools:**

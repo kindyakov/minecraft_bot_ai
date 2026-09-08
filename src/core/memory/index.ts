@@ -22,6 +22,8 @@ type SqliteDatabase = InstanceType<typeof BetterSqlite3>
 
 const DB_VERSION = '2.0.0'
 
+const RUNTIME_STATE_META_KEY = 'runtime_state_json'
+
 const distanceBetween = (a: MemoryPosition, b: MemoryPosition): number => {
 	const dx = a.x - b.x
 	const dy = a.y - b.y
@@ -41,6 +43,50 @@ const parseJsonObject = (value: string): Record<string, any> => {
 	}
 
 	return {}
+}
+
+type PersistedRuntimeState = {
+	version: string
+	world: {
+		knownPlayers: BotMemoryData['world']['knownPlayers']
+	}
+	experience: BotMemoryData['experience']
+	goals: {
+		completed: BotMemoryData['goals']['completed']
+		failed: BotMemoryData['goals']['failed']
+	}
+	preferences: BotMemoryData['preferences']
+	stats: BotMemoryData['stats']
+}
+
+const isRecordLike = (value: unknown): value is Record<string, unknown> =>
+	Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+const isPersistedRuntimeState = (
+	value: unknown
+): value is PersistedRuntimeState => {
+	if (!isRecordLike(value) || typeof value.version !== 'string') {
+		return false
+	}
+
+	const { world, experience, goals, preferences, stats } = value
+	if (!isRecordLike(world) || !isRecordLike(world.knownPlayers)) {
+		return false
+	}
+
+	if (!isRecordLike(experience)) {
+		return false
+	}
+
+	if (
+		!isRecordLike(goals) ||
+		!Array.isArray(goals.completed) ||
+		!Array.isArray(goals.failed)
+	) {
+		return false
+	}
+
+	return isRecordLike(preferences) && isRecordLike(stats)
 }
 
 type EntryRow = {
@@ -78,10 +124,12 @@ export class MemoryManager {
 		this.db ??= new BetterSqlite3(this.dbPath)
 		this.initializeSchema()
 		this.ensureMeta()
+		this.restoreRuntimeState()
 	}
 
 	async save(): Promise<void> {
 		this.touchMeta('last_updated', new Date().toISOString())
+		this.persistRuntimeState()
 	}
 
 	close(): void {
@@ -533,6 +581,58 @@ export class MemoryManager {
 			.get(key) as MetaRow | undefined
 
 		return row?.value ?? null
+	}
+
+	private persistRuntimeState(): void {
+		const { knownLocations: _derived, ...world } = this.memoryState.world
+		this.touchMeta(
+			RUNTIME_STATE_META_KEY,
+			serialize({
+				version: DB_VERSION,
+				world,
+				experience: this.memoryState.experience,
+				goals: {
+					completed: this.memoryState.goals.completed,
+					failed: this.memoryState.goals.failed
+				},
+				preferences: this.memoryState.preferences,
+				stats: this.memoryState.stats
+			})
+		)
+	}
+
+	private restoreRuntimeState(): void {
+		const raw = this.getMetaValue(RUNTIME_STATE_META_KEY)
+		if (!raw) {
+			return
+		}
+
+		let parsed: unknown
+		try {
+			parsed = JSON.parse(raw) as unknown
+		} catch {
+			return
+		}
+
+		if (!isPersistedRuntimeState(parsed) || parsed.version !== DB_VERSION) {
+			return
+		}
+
+		const fresh = this.createDefaultState()
+		this.memoryState = {
+			...fresh,
+			world: {
+				knownPlayers: parsed.world.knownPlayers,
+				knownLocations: fresh.world.knownLocations
+			},
+			experience: parsed.experience,
+			goals: {
+				completed: parsed.goals.completed,
+				failed: parsed.goals.failed
+			},
+			preferences: parsed.preferences,
+			stats: parsed.stats
+		}
 	}
 
 	private getEntryById(id: string): MemoryEntry | null {

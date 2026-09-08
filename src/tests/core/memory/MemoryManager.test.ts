@@ -121,3 +121,40 @@ test('load ignores legacy JSON memory file and does not create backup', async ()
 		false
 	)
 })
+
+test('save persists players, task stats and completed goals across restarts', async () => {
+	const dataDir = await createTempDataDir()
+	const manager = new MemoryManager({
+		botName: 'PersistentBot',
+		dataDir
+	})
+
+	await manager.load()
+
+	manager.rememberPlayer('Steve', { friendly: true })
+	manager.rememberTask('mining', true, 120)
+	manager.setCurrentGoal({
+		goal: 'Mine diamonds',
+		priority: 1,
+		startedAt: new Date().toISOString(),
+		tasks: []
+	})
+	manager.completeCurrentGoal()
+	await manager.save()
+	manager.close()
+
+	const restarted = new MemoryManager({
+		botName: 'PersistentBot',
+		dataDir
+	})
+	await restarted.load()
+
+	const memory = restarted.getMemory()
+	assert.equal(memory.world.knownPlayers['Steve']?.interactions, 1)
+	assert.equal(memory.world.knownPlayers['Steve']?.friendly, true)
+	assert.equal(memory.experience.tasksCompleted['mining']?.count, 1)
+	assert.equal(memory.goals.completed.length, 1)
+	assert.equal(memory.goals.completed[0]?.goal, 'Mine diamonds')
+	assert.equal(memory.goals.current, undefined)
+	restarted.close()
+})

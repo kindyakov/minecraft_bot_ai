@@ -1,5 +1,7 @@
 # Architecture
 
+Language versions: [English](architecture.md) | [Русский](architecture.ru.md)
+
 This bot is a Mineflayer runtime wrapped in an XState machine.
 The current design is small and explicit:
 
@@ -75,15 +77,19 @@ Current top-level states:
 - `DECIDE_NEXT`
 
 `THINKING` calls `runAgentTurn()`.
-`EXECUTING` resolves one pending execution tool to a primitive:
+`EXECUTING` resolves one pending execution tool to a primitive.
+Canonical names (see `src/ai/tools/catalog.ts`, `src/ai/tools/names.ts` — code wins over this doc):
 
-- `call_navigate` -> `primitiveNavigating`
-- `call_break_block` -> `primitiveBreaking`
-- `call_craft` -> `primitiveCraft`
-- `call_craft_workbench` -> `primitiveCraftInWorkbench`
-- `call_smelt` -> `primitiveSmelt`
-- `call_place_block` -> `primitivePlacing`
-- `call_follow_entity` -> `primitiveFollowing`
+- `navigate_to` -> `primitiveNavigating`
+- `break_block` -> `primitiveBreaking`
+- `mine_resource` -> `MINING` batch sub-state (`CHECKING_PRECONDITIONS -> SEARCHING -> CHECKING_DISTANCE -> NAVIGATING/BREAKING -> CHECKING_GOAL -> TASK_COMPLETED/TASK_FAILED`)
+- `place_block` -> `primitivePlacing`
+- `follow_entity` -> `primitiveFollowing`
+- `open_window` -> `primitiveOpenWindow`
+- `transfer_item` -> `primitiveTransferItem`
+- `close_window` -> `primitiveCloseWindow`
+
+There are no `call_craft` / `call_smelt` primitives in the current machine. `mine_resource` performs its own batch search and does not require a grounded `inspect_blocks` position first.
 
 ## AI Loop
 
@@ -97,32 +103,31 @@ It builds a deterministic snapshot, sends it to the model, and accepts only thre
 The loop is intentionally strict:
 
 - one execution decision only
-- no plain text answers
 - no mixed terminal and execution actions
 - retry is limited when the model fails to return a tool call
+- plain-text output without a tool call is `failed`, unless inspect data was already gathered in the turn (grounded fallback to `finish`; see `docs/tasks/grounded-plain-text-fallback-для-agent-loop.md`)
 
 ## Snapshot
 
-`src/ai/snapshot.ts` summarizes:
+`src/ai/snapshot.ts` is intentionally minimal. It summarizes only the current cycle state:
 
 - health, food, oxygen
-- position, dimension, biome, day/night
-- inventory, equipment, free slots
-- nearby interactable blocks
-- nearby resource blocks
-- nearby entities
+- position, dimension
+- active window session summary
 - current goal and subgoal
 - last action result and recent errors
+
+Inventory, equipment, nearby blocks, entities, and interactables are NOT in the snapshot. The agent must fetch live world facts through inspect tools (`inspect_inventory`, `inspect_blocks`, `inspect_entities`, `inspect_window`). See `docs/tasks/сужение-snapshot-и-переход-к-inspect-tools.md` for the boundary rationale.
 
 ## Combat
 
 Combat is handled by dedicated actors, not by the AI loop.
-The combat layer can:
+`MAIN_ACTIVITY.COMBAT` currently has two leaf states selected by `DECIDING`:
 
-- approach a target
-- flee from a target
-- melee attack
-- ranged skirmish
+- `MELEE_ATTACKING`
+- `RANGED_SKIRMISHING`
+
+There are no `APPROACHING` / `FLEEING` states in the current machine. If the combat diagram shows them, the diagram is stale.
 
 Visibility and reachability checks are shared with guards and monitoring logic.
 

@@ -14,65 +14,66 @@ progress:
   percent: 0
 ---
 
-# Project State
+# Состояние проекта
 
-## Project Reference
+## Ссылка на проект
 
-See: .planning/PROJECT.md (updated 2026-04-14)
+См.: .planning/PROJECT.md (обновлён 2026-04-14, переведён на русский 2026-09-08)
 
-**Core value:** The bot must remain functionally useful and structurally intact even when the LLM hallucinates, times out, or returns bad decisions.
-**Current focus:** Phase 1 ready to discuss — Runtime Integrity and HSM Recovery
+**Ключевая ценность:** бот обязан оставаться функционально полезным и структурно целым, даже когда LLM галлюцинирует, таймаутится или возвращает плохие решения.
+**Текущий фокус:** фаза 1 готова к обсуждению — целостность рантайма и восстановление HSM
 
-## Current Position
+## Текущая позиция
 
-Phase: 1 of 5 (Runtime Integrity and HSM Recovery)
-Plan: 0 of 3 in current phase
-Status: Ready to plan
-Last activity: 2026-04-14 — Replaced the old refactor-centric planning artifacts with a product MVP direction
+Фаза: 1 из 5 (целостность рантайма и восстановление HSM)
+План: 0 из 3 в текущей фазе
+Статус: готов к планированию
+Последняя активность: 2026-04-14 — замена старых рефактор-центричных артефактов планирования направлением продуктового MVP
 
-Progress: [░░░░░░░░░░] 0%
+Прогресс: [░░░░░░░░░░] 0%
 
-## Performance Metrics
+## Метрики
 
-**Velocity:**
+**Скорость:**
 
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0.0 hours
+- Всего планов завершено: 0
+- Средняя длительность: -
+- Всего времени исполнения: 0.0 часов
 
-**By Phase:**
+**По фазам:**
 
-| Phase | Plans | Total | Avg/Plan |
-| ----- | ----- | ----- | -------- |
-| -     | -     | -     | -        |
+| Фаза | Планы | Всего | Среднее/план |
+| ---- | ----- | ----- | ------------ |
+| -    | -     | -     | -            |
 
-**Recent Trend:**
+**Недавний тренд:**
 
-- Last 5 plans: -
-- Trend: Not enough data
+- Последние 5 планов: -
+- Тренд: данных недостаточно
 
-## Accumulated Context
+## Накопленный контекст
 
-### Decisions
+### Решения
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
+Решения журналятся в таблице ключевых решений PROJECT.md.
+Недавние решения, влияющие на текущую работу:
 
-- [Reset]: Reframed planning around the actual product `VoxelPilot`, not the old `src/ai` refactor campaign.
-- [MVP]: The first milestone is `MVP Solo Companion Runtime`.
-- [Verification]: In-game validation is required in addition to automated tests.
+- [Reset]: переформулировано планирование вокруг настоящего продукта `VoxelPilot`, а не старой кампании рефактора `src/ai`.
+- [MVP]: первый майлстоун — `MVP Solo Companion Runtime`.
+- [Verification]: внутриигровая проверка обязательна в дополнение к автотестам.
+- [2026-09-08]: ядро планирования переведено на русский (язык разработки); завершённый AI-рефактор заархивирован в `.planning/archive/`; GSD-доки из `docs/` удалены; канон инструментов зафиксирован в `AGENTS.md` (17 инструментов: 8 inline + 8 execution + `finish_goal`).
 
-### Pending Todos
+### Отложенные todos
 
-None yet.
+Пока нет.
 
-### Blockers/Concerns
+### Блокеры/опасения
 
-- Current confidence is limited by the gap between targeted tests and real in-game validation.
-- The exact MVP tool inventory still needs phase-level scoping during discussion/planning.
+- Текущая уверенность ограничена разрывом между точечными тестами и реальной внутриигровой проверкой.
+- Точный MVP-инвентарь инструментов ещё требует скоупинга на уровне фаз при обсуждении/планировании.
 
-## Session Continuity
+## Непрерывность сессий
 
-Last session: 2026-04-14 00:00
-Stopped at: Product-level planning reset complete; ready to discuss Phase 1
-Resume file: None
+Последняя сессия: 2026-04-14 00:00
+Остановились на: ресет продуктового планирования завершён; готовы обсуждать фазу 1
+Файл возобновления: нет
