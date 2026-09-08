@@ -9,7 +9,17 @@ import {
 import type { WindowRuntime } from '@/ai/runtime/window.js'
 import type { TaskContext } from '@/ai/taskContext.js'
 
+import type { ApproachAttempt } from '@/utils/combat/approachPolicy'
+import type { ThreatKind } from '@/utils/combat/selfDefense'
+
 export interface ThreatObservation {
+	creeper: {
+		swelling: boolean | null
+		ignited: boolean | null
+		powered: boolean | null
+		disengaged: boolean
+	} | null
+	kind: ThreatKind
 	entityId: number
 	position: Vec3
 	distance: number
@@ -20,6 +30,15 @@ export interface ThreatObservation {
 export interface MachineContext {
 	bot: Bot | null
 	health: number
+	recoveryRelocation: { from: Vec3; goal: Vec3 } | null
+	recoveryNoFoodNotified: boolean
+	threatObservationAt: number | null
+	lastDamage: {
+		sequence: number
+		observedAt: number
+		sourceId: number | null
+		sourcePosition: Vec3 | null
+	}
 	food: number
 	oxygenLevel: number
 	foodSaturation: number
@@ -59,15 +78,30 @@ export interface MachineContext {
 		threatRetentionMs: number
 		combatMode: 'defensive' | 'attack' | 'retreat'
 		safeEatDistance: number
+		interruptEatDistance: number
 		fleeTargetDistance: number
 		safePlayerDistance: number
 		fleeToPlayerRadius: number
 		enemyMeleeRange: number
+		selfDefenseDistance: number
+		creeperDangerDistance: number
+		aggressionRetentionMs: number
 		maxCountSlotsInInventory: number
 		foodEmergency: number
 		foodRestored: number
 		healthEmergency: number
 		healthFullyRestored: number
+		recoveryRetryMs: number
+		escapeNoProgressMs: number
+		movementProgressDistance: number
+		escapeThreatChangeDistance: number
+		escapeRouteAttempts: number
+		escapeRouteTimeoutMs: number
+		escapeSearchSliceMs: number
+		approachNoProgressMs: number
+		approachRouteAttempts: number
+		approachChangedConditionRetries: number
+		approachForgetMs: number
 		pathfindTimeout: number
 		maxPathLengthMultiplier: number
 		pathfindCacheDuration: number
@@ -81,6 +115,7 @@ export interface MachineContext {
 	preferredCombatTargetId: number | null
 	combatStopRequested: boolean
 	rangedUnavailable: boolean
+	approachAttempts: Record<number, ApproachAttempt>
 	recoveryFailure: 'no_food' | 'error' | null
 
 	isActiveTask: boolean
@@ -107,6 +142,15 @@ export interface MachineContext {
 export const context: MachineContext = {
 	bot: null,
 	health: 20,
+	recoveryRelocation: null,
+	recoveryNoFoodNotified: false,
+	threatObservationAt: null,
+	lastDamage: {
+		sequence: 0,
+		observedAt: 0,
+		sourceId: null,
+		sourcePosition: null
+	},
 	food: 20,
 	oxygenLevel: 20,
 	foodSaturation: 5,
@@ -145,16 +189,31 @@ export const context: MachineContext = {
 		maxObservDist: 50,
 		threatRetentionMs: 2000,
 		combatMode: 'defensive',
-		safeEatDistance: 20,
+		safeEatDistance: 30,
+		interruptEatDistance: 20,
 		fleeTargetDistance: 15,
 		safePlayerDistance: 10,
 		fleeToPlayerRadius: 50,
 		enemyMeleeRange: 5,
+		selfDefenseDistance: 8,
+		creeperDangerDistance: 12,
+		aggressionRetentionMs: 10000,
 		maxCountSlotsInInventory: 45,
 		foodEmergency: 6,
 		foodRestored: 18,
 		healthEmergency: 10,
 		healthFullyRestored: 18,
+		recoveryRetryMs: 1000,
+		escapeNoProgressMs: 1500,
+		movementProgressDistance: 0.75,
+		escapeThreatChangeDistance: 3,
+		escapeRouteAttempts: 8,
+		escapeRouteTimeoutMs: 200,
+		escapeSearchSliceMs: 10,
+		approachNoProgressMs: 3000,
+		approachRouteAttempts: 3,
+		approachChangedConditionRetries: 2,
+		approachForgetMs: 30000,
 		pathfindTimeout: 800,
 		maxPathLengthMultiplier: 2,
 		pathfindCacheDuration: 3000
@@ -168,6 +227,7 @@ export const context: MachineContext = {
 	preferredCombatTargetId: null,
 	combatStopRequested: false,
 	rangedUnavailable: false,
+	approachAttempts: {},
 	recoveryFailure: null,
 
 	isActiveTask: false,

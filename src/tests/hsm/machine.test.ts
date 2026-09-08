@@ -9,6 +9,7 @@ import { runAgentTurn } from '../../ai/loop.js'
 import { createTaskContext } from '../../ai/taskContext.js'
 import { createBotMachine } from '../../hsm/machine.js'
 import type { Bot } from '../../types/index.js'
+import { registry } from './fixtures/handoffBot'
 import { publishEntities } from './fixtures/publishEntities'
 
 test('model arguments rejected by the real turn are explained to the next HSM turn', async () => {
@@ -157,9 +158,7 @@ class FakeBot extends EventEmitter {
 		slots: Array.from({ length: 46 }, () => null),
 		items: () => []
 	}
-	registry = {
-		isNewerOrEqualTo: () => true
-	}
+	registry = registry
 	movement = {
 		goals: {
 			Default: { id: 'default-goal' }
@@ -231,7 +230,7 @@ class FakeBot extends EventEmitter {
 		eating: async () => {},
 		stopEating: () => {},
 		findNearestEnemy: () => null,
-		getMeleeWeapon: () => null,
+		getMeleeWeapon: () => ({ name: 'iron_sword' }),
 		getRangeWeapon: () => null,
 		getArrow: () => null,
 		searchPlayer: () => null,
@@ -369,6 +368,13 @@ const createTestActor = () => {
 	}
 
 	actor.start()
+	// The test observer has completed an empty-world scan.
+	actor.send({
+		type: 'UPDATE_ENTITIES',
+		entities: [],
+		enemies: [],
+		players: []
+	})
 	return { bot, actor }
 }
 
@@ -401,6 +407,12 @@ test('critical updates do not restart recovery or overwrite its return destinati
 		)
 		actor.send({ type: 'UPDATE_HEALTH', health: 20 })
 		actor.send({ type: 'UPDATE_FOOD', food: 20 })
+		actor.send({
+			type: 'UPDATE_ENTITIES',
+			entities: [],
+			enemies: [],
+			players: []
+		})
 		actor.send({ type: 'HEALTH_RESTORED' })
 		assert.ok(
 			actor.getSnapshot().matches({ MAIN_ACTIVITY: { TASKS: 'THINKING' } })
@@ -442,6 +454,12 @@ test('recovery replans an interrupted navigation without executing empty argumen
 		await waitForTurn()
 		actor.send({ type: 'UPDATE_HEALTH', health: 8 })
 		actor.send({ type: 'UPDATE_HEALTH', health: 20 })
+		actor.send({
+			type: 'UPDATE_ENTITIES',
+			entities: [],
+			enemies: [],
+			players: []
+		})
 		actor.send({ type: 'HEALTH_RESTORED' })
 		await waitForTurn()
 		assert.equal(turns, 2)
@@ -570,6 +588,12 @@ test('interrupting the last allowed action cannot issue action 129 after recover
 		actor.send({ type: 'UPDATE_HEALTH', health: 8 })
 		assert.equal(actor.getSnapshot().context.goalExecution.attempts, 128)
 		actor.send({ type: 'UPDATE_HEALTH', health: 20 })
+		actor.send({
+			type: 'UPDATE_ENTITIES',
+			entities: [],
+			enemies: [],
+			players: []
+		})
 		actor.send({ type: 'HEALTH_RESTORED' })
 		await waitForTurn()
 		assert.equal(actor.getSnapshot().context.currentGoal, null)
@@ -907,7 +931,7 @@ test('combat falls back to MELEE_ATTACKING when ranged mode is unavailable', asy
 			type: 'START_COMBAT',
 			target: {
 				...enemy,
-				position: createVec3(12, 64, 0)
+				position: createVec3(8, 64, 0)
 			} as any
 		})
 		await waitForTurn()
@@ -957,7 +981,7 @@ test('combat chooses RANGED_SKIRMISHING when ranged window is valid', async () =
 			type: 'START_COMBAT',
 			target: {
 				...enemy,
-				position: createVec3(12, 64, 0)
+				position: createVec3(8, 64, 0)
 			} as any
 		})
 		await waitForTurn()
@@ -1169,6 +1193,13 @@ test('urgent needs returns to TASKS.THINKING when a goal exists', async () => {
 			true
 		)
 
+		actor.send({
+			type: 'UPDATE_ENTITIES',
+			entities: [],
+			enemies: [],
+			players: []
+		})
+
 		actor.send({ type: 'FOOD_RESTORED' })
 		await waitForTurn()
 
@@ -1197,6 +1228,13 @@ test('urgent needs returns to IDLE when there is no active goal', async () => {
 			actor.getSnapshot().matches({ MAIN_ACTIVITY: 'URGENT_NEEDS' } as never),
 			true
 		)
+
+		actor.send({
+			type: 'UPDATE_ENTITIES',
+			entities: [],
+			enemies: [],
+			players: []
+		})
 
 		actor.send({ type: 'HEALTH_RESTORED' })
 		await waitForTurn()
@@ -1247,7 +1285,7 @@ test('UPDATE_HEALTH preempts combat into urgent healing while a melee threat is 
 	}
 })
 
-test('UPDATE_FOOD does not preempt active melee combat while the hostile is still close', async () => {
+test('critical food preempts active melee combat even while the hostile is close', async () => {
 	const { actor } = createTestActor()
 
 	try {
@@ -1275,7 +1313,7 @@ test('UPDATE_FOOD does not preempt active melee combat while the hostile is stil
 		assert.equal(actor.getSnapshot().context.food, 5)
 		assert.equal(
 			actor.getSnapshot().matches({
-				MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
+				MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_EATING' }
 			} as never),
 			true
 		)
@@ -1333,7 +1371,7 @@ test('URGENT_NEEDS remains sticky on UPDATE_ENTITIES while emergency recovery is
 	}
 })
 
-test('URGENT_NEEDS returns to history instead of routing through COMBAT when recovery completes', async () => {
+test('URGENT_NEEDS replans the saved goal only after health has actually recovered', async () => {
 	const { actor } = createTestActor()
 
 	try {
@@ -1359,6 +1397,13 @@ test('URGENT_NEEDS returns to history instead of routing through COMBAT when rec
 			true
 		)
 
+		actor.send({ type: 'UPDATE_HEALTH', health: 18 })
+		actor.send({
+			type: 'UPDATE_ENTITIES',
+			entities: [],
+			enemies: [],
+			players: []
+		})
 		actor.send({ type: 'HEALTH_RESTORED' })
 		await waitForTurn()
 		await waitForTurn()
@@ -2353,7 +2398,7 @@ test('UPDATE_ENTITIES closes an active window before auto-combat preemption', as
 		)
 		assert.equal(
 			(actor.getSnapshot().context as any).preferredCombatTargetId,
-			null
+			enemy.id
 		)
 	} finally {
 		actor.stop()

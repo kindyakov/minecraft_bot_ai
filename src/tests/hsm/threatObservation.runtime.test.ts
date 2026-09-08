@@ -133,11 +133,11 @@ test('brief entity loss preserves a bounded threat snapshot and updates its dist
 	assert.equal(actor.getSnapshot().context.movementOwner, 'NONE')
 })
 
-test('survival reacts to a new close threat while combat retains a distant target', async t => {
+test('survival reacts to a new close threat before the combat controller has retargeted', async t => {
 	t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'] })
 	const { bot, actor, enemy, step } = createHarness(true)
 	t.after(() => actor.stop())
-	enemy.position = new Vec3(18, 64, 0)
+	enemy.position = new Vec3(8, 64, 0)
 	bot.entities = { 1: enemy }
 	await flush()
 	for (let tick = 0; tick < 7; tick++) {
@@ -145,6 +145,7 @@ test('survival reacts to a new close threat while combat retains a distant targe
 		await flush()
 	}
 	assert.equal(bot.pvp.target?.id, enemy.id)
+	enemy.position = new Vec3(18, 64, 0)
 	const close = {
 		...enemy,
 		id: 2,
@@ -156,7 +157,7 @@ test('survival reacts to a new close threat while combat retains a distant targe
 	assert.equal(
 		bot.pvp.target?.id,
 		enemy.id,
-		'A new observation does not replace the retained combat target'
+		'The movement handoff cannot wait for the combat controller to retarget'
 	)
 	actor.send({ type: 'UPDATE_HEALTH', health: 8 })
 	await flush()

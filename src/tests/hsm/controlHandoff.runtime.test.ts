@@ -72,13 +72,28 @@ test('survival releases the shield raised by autonomous creeper defense', async 
 	const { bot, actor, enemy, observe, step } = createHarness()
 	t.after(() => actor.stop())
 	bot.inventory.slots[45] = new ItemFactory(registry.itemsByName.shield.id, 1)
-	Object.assign(enemy, { name: 'creeper', metadata: [...Array(16).fill(0), 1] })
+	Object.assign(enemy, { name: 'creeper', metadata: [] })
+	const keys: string[] = registry.entitiesByName.creeper.metadataKeys
+	Object.assign(enemy.metadata, {
+		[keys.indexOf('swell_dir')]: -1,
+		[keys.indexOf('is_ignited')]: false,
+		[keys.indexOf('is_powered')]: false
+	})
 	observe()
 	await flush()
 	t.mock.timers.tick(500)
 	await flush()
+	Object.assign(enemy.metadata, { [keys.indexOf('swell_dir')]: 1 })
 	step()
-	assert.equal(bot.usingItem, true, 'The real PVP plugin raised the shield')
+	assert.ok(
+		bot.itemUses > 0,
+		'The real PVP plugin raised the shield before the next observation'
+	)
+	assert.equal(
+		bot.usingItem,
+		false,
+		'The new creeper observation cancels autonomous shielding'
+	)
 	actor.send({ type: 'UPDATE_HEALTH', health: 8 })
 	await flush()
 	t.mock.timers.tick(100)
@@ -101,6 +116,12 @@ test('canceling food during equip cannot start eating after escape begins', asyn
 	const { bot, actor, enemy, observe, step } = createHarness()
 	t.after(() => actor.stop())
 	loadAutoEat(bot.asBot())
+	actor.send({
+		type: 'UPDATE_ENTITIES',
+		entities: [],
+		enemies: [],
+		players: []
+	})
 	const bread: Item = new ItemFactory(registry.itemsByName.bread.id, 1)
 	bread.slot = 36
 	bot.inventory.items = () => [bread]
@@ -144,7 +165,7 @@ test('a ranged physics callback queued before preemption cannot reactivate item 
 		new ItemFactory(registry.itemsByName.bow.id, 1),
 		new ItemFactory(registry.itemsByName.arrow.id, 16)
 	]
-	enemy.position.x = 12
+	enemy.position.x = 8
 	// A health packet arrives during a tick whose listener list already includes ranged combat.
 	bot.once('physicsTick', () =>
 		actor.send({ type: 'UPDATE_HEALTH', health: 8 })
@@ -173,6 +194,12 @@ test('a canceled food equip rejection cannot perform late inventory recovery', a
 	const { bot, actor, observe } = createHarness()
 	t.after(() => actor.stop())
 	loadAutoEat(bot.asBot())
+	actor.send({
+		type: 'UPDATE_ENTITIES',
+		entities: [],
+		enemies: [],
+		players: []
+	})
 	initAutoEat(bot.asBot())
 	const bread: Item = new ItemFactory(registry.itemsByName.bread.id, 1)
 	bread.slot = 36
@@ -207,20 +234,21 @@ test('a pathfinder equip completing after preemption cannot start old digging', 
 	t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] })
 	const { bot, actor, enemy, observe } = createHarness()
 	t.after(() => actor.stop())
-	bot.solidAt = position =>
-		position.y < 64 || (Math.floor(position.x) === 1 && position.y < 67)
 	bot.inventory.items = () => [
-		new ItemFactory(registry.itemsByName.iron_pickaxe.id, 1)
+		new ItemFactory(registry.itemsByName.iron_pickaxe.id, 1),
+		new ItemFactory(registry.itemsByName.iron_sword.id, 1)
 	]
 	enemy.position.x = 5
+	observe()
+	await flush()
 	let finishEquip = () => {}
 	bot.equipGate = new Promise<void>(resolve => {
 		finishEquip = resolve
 	})
-	observe()
-	await flush()
 	t.mock.timers.tick(500)
 	await flush()
+	bot.solidAt = position =>
+		position.y < 64 || (Math.floor(position.x) === 1 && position.y < 67)
 	bot.emit('physicsTick')
 	await flush()
 	assert.ok(
@@ -256,15 +284,16 @@ test('a pathfinder placement equip cannot continue on a canceled route', async t
 	bot.movements.canDig = false
 	Object.assign(bot.pathfinder, { LOSWhenPlacingBlocks: false })
 	bot.inventory.items = () => [
-		new ItemFactory(registry.itemsByName.cobblestone.id, 16)
+		new ItemFactory(registry.itemsByName.cobblestone.id, 16),
+		new ItemFactory(registry.itemsByName.iron_sword.id, 1)
 	]
 	enemy.position.x = 5
+	observe()
+	await flush()
 	let finishEquip = () => {}
 	bot.equipGate = new Promise<void>(resolve => {
 		finishEquip = resolve
 	})
-	observe()
-	await flush()
 	t.mock.timers.tick(500)
 	await flush()
 	bot.emit('physicsTick')
@@ -339,6 +368,12 @@ for (const ending of ['death', 'stop'] as const) {
 		const { bot, actor } = createHarness()
 		t.after(() => actor.stop())
 		loadAutoEat(bot.asBot())
+		actor.send({
+			type: 'UPDATE_ENTITIES',
+			entities: [],
+			enemies: [],
+			players: []
+		})
 		const bread: Item = new ItemFactory(registry.itemsByName.bread.id, 1)
 		bread.slot = 36
 		bot.inventory.items = () => [bread]
@@ -375,6 +410,12 @@ test('food success clears its observers and allows another eating attempt', asyn
 	const { bot, actor } = createHarness()
 	t.after(() => actor.stop())
 	loadAutoEat(bot.asBot())
+	actor.send({
+		type: 'UPDATE_ENTITIES',
+		entities: [],
+		enemies: [],
+		players: []
+	})
 	const bread: Item = new ItemFactory(registry.itemsByName.bread.id, 2)
 	bread.slot = 36
 	bot.inventory.items = () => [bread]

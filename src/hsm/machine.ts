@@ -1,5 +1,13 @@
 import { Vec3 as Vec3Class } from 'vec3'
-import { assign, fromCallback, fromPromise, setup } from 'xstate'
+import {
+	and,
+	assign,
+	fromCallback,
+	fromPromise,
+	not,
+	setup,
+	stateIn
+} from 'xstate'
 import type { AnyActorLogic } from 'xstate'
 
 import type { Bot, Entity } from '@/types'
@@ -7,6 +15,7 @@ import type { Bot, Entity } from '@/types'
 import Logger from '@/config/logger'
 
 import { miningActions } from '@/hsm/actions/mining.actions'
+import { safetyActions } from '@/hsm/actions/safety.actions'
 import combatActors from '@/hsm/actors/combat.actors'
 import monitoringActors from '@/hsm/actors/monitoring.actors'
 import { primitiveBreaking } from '@/hsm/actors/primitives/primitiveBreaking.primitive'
@@ -18,9 +27,21 @@ import { primitivePlacing } from '@/hsm/actors/primitives/primitivePlacing.primi
 import { primitiveSearchBlock } from '@/hsm/actors/primitives/primitiveSearchBlock.primitive'
 import { primitiveTransferItem } from '@/hsm/actors/primitives/primitiveTransferItem.primitive'
 import survivalActors from '@/hsm/actors/survival.actors'
+import { worldObservation } from '@/hsm/actors/worldObservation.actors'
 import { type MachineContext, context } from '@/hsm/context'
-import combatGuards from '@/hsm/guards/combat.guards'
+import combatGuards, {
+	eventCanAutoEnterCombat,
+	eventCanSkirmishRanged,
+	eventCanSkirmishRangedFromMelee,
+	eventEnemyInMeleeRange,
+	isCombatTargetUpdateEvent
+} from '@/hsm/guards/combat.guards'
 import { miningGuards } from '@/hsm/guards/mining.guards'
+import {
+	canAttemptRecovery,
+	canPreemptForHungerRecovery,
+	isRecoverySafe
+} from '@/hsm/guards/survival.guards'
 import type { MachineEvent, MiningTaskData } from '@/hsm/types'
 import { observeThreats } from '@/hsm/utils/threatObservation'
 
@@ -36,8 +57,15 @@ import { type WindowRuntime, getWindowRuntime } from '@/ai/runtime/window.js'
 import { createTaskContext } from '@/ai/taskContext.js'
 import { parseExecution } from '@/ai/tools/executionDefinitions.js'
 
-import { canSeeEnemy } from '@/utils/combat/enemyVisibility'
+import { refreshApproaches } from '@/utils/combat/approachPolicy'
 import { hasMovementController } from '@/utils/combat/movementController'
+import {
+	assessMob,
+	forbidsMelee,
+	isDefensiveCandidate,
+	requiresAvoidance,
+	selectCombatTarget
+} from '@/utils/combat/selfDefense'
 
 const defaultThinkingActor = fromPromise<
 	AgentTurnResult,
@@ -204,104 +232,8 @@ const resolveExecutionInput = (
 	}
 }
 
-const isCombatTargetUpdateEvent = (
-	event: MachineEvent
-): event is Extract<MachineEvent, { type: 'UPDATE_COMBAT_TARGET' }> =>
-	event.type === 'UPDATE_COMBAT_TARGET'
-
-const meleeExitRangeBuffer = 1.5
-
-const getMeleeExitRange = (context: Pick<MachineContext, 'preferences'>) =>
-	context.preferences.enemyMeleeRange + meleeExitRangeBuffer
-
-const eventCanAutoEnterCombat = ({
-	context,
-	event
-}: {
-	context: MachineContext
-	event: MachineEvent
-}) =>
-	isCombatTargetUpdateEvent(event) &&
-	context.preferences.autoDefend &&
-	!context.combatStopRequested &&
-	Boolean(event.combatTarget.entity)
-
-const eventEnemyInMeleeRange = ({
-	event,
-	context
-}: {
-	context: MachineContext
-	event: MachineEvent
-}) =>
-	isCombatTargetUpdateEvent(event) &&
-	Boolean(event.combatTarget.entity) &&
-	event.combatTarget.distance <= context.preferences.enemyMeleeRange
-
-const hasCloseMeleeThreat = (context: MachineContext) =>
-	Boolean(context.combatTarget.entity) &&
-	context.combatTarget.distance <= context.preferences.enemyMeleeRange
-
-const canAttemptRecovery = (context: MachineContext) =>
-	context.recoveryFailure === null ||
-	(context.recoveryFailure === 'no_food' &&
-		(context.bot?.utils.getAllFood().length ?? 0) > 0)
-
-const canPreemptForHungerRecovery = ({
-	context,
-	event
-}: {
-	context: MachineContext
-	event: MachineEvent
-}) =>
-	event.type === 'UPDATE_FOOD' &&
-	canAttemptRecovery(context) &&
-	event.food < context.preferences.foodEmergency &&
-	!(context.movementOwner === 'PVP' && hasCloseMeleeThreat(context))
-
-const eventCanSkirmishRanged = ({
-	event,
-	context
-}: {
-	context: MachineContext
-	event: MachineEvent
-}) => {
-	if (
-		context.rangedUnavailable ||
-		!isCombatTargetUpdateEvent(event) ||
-		!event.combatTarget.entity ||
-		event.combatTarget.distance <= context.preferences.enemyMeleeRange
-	) {
-		return false
-	}
-
-	const weapon = context.bot?.utils.getRangeWeapon()
-	const arrows = context.bot?.utils.getArrow()
-
-	return (
-		Boolean(weapon && arrows && context.bot) &&
-		canSeeEnemy(context.bot!, event.combatTarget.entity)
-	)
-}
-
-const eventCanSkirmishRangedFromMelee = ({
-	event,
-	context
-}: {
-	context: MachineContext
-	event: MachineEvent
-}) => {
-	if (
-		!isCombatTargetUpdateEvent(event) ||
-		!event.combatTarget.entity ||
-		event.combatTarget.distance <= getMeleeExitRange(context)
-	) {
-		return false
-	}
-
-	return eventCanSkirmishRanged({ event, context })
-}
-
 interface MachineFactoryOptions {
+	preferences?: Partial<MachineContext['preferences']>
 	thinkingActor?: AnyActorLogic
 	actors?: Record<string, AnyActorLogic>
 }
@@ -312,6 +244,38 @@ type ThinkingDoneEvent = {
 
 export const createBotMachine = (options?: MachineFactoryOptions) => {
 	const actorOverrides = options?.actors ?? {}
+	const preferences = { ...context.preferences, ...options?.preferences }
+	for (const [name, value] of Object.entries(preferences)) {
+		if (typeof value !== 'number') continue
+		const permitsZero = name === 'approachChangedConditionRetries'
+		if (
+			!Number.isFinite(value) ||
+			(permitsZero ? value < 0 : value <= 0) ||
+			(/Attempts$|Retries$/.test(name) && !Number.isInteger(value))
+		) {
+			throw new Error(`Invalid preference: ${name}`)
+		}
+	}
+	if (
+		preferences.healthEmergency >= preferences.healthFullyRestored ||
+		preferences.healthFullyRestored > 20 ||
+		preferences.foodEmergency >= preferences.foodRestored ||
+		preferences.foodRestored > 20
+	) {
+		throw new Error(
+			'Recovery thresholds must satisfy emergency < restored <= 20'
+		)
+	}
+	if (
+		!Number.isFinite(preferences.interruptEatDistance) ||
+		!Number.isFinite(preferences.safeEatDistance) ||
+		preferences.interruptEatDistance <= 0 ||
+		preferences.interruptEatDistance >= preferences.safeEatDistance
+	) {
+		throw new Error(
+			'Eating distance must satisfy 0 < interruptEatDistance < safeEatDistance'
+		)
+	}
 
 	return setup({
 		types: {} as {
@@ -319,7 +283,12 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 			events: MachineEvent
 			input: { bot: Bot }
 		},
+		delays: {
+			recoveryRetry: ({ context }) => context.preferences.recoveryRetryMs
+		},
 		actors: {
+			serviceTacticalRetreat: survivalActors.serviceTacticalRetreat,
+			worldObservation,
 			windowLifetime: fromCallback<MachineEvent, WindowRuntime>(
 				({ input }) =>
 					() => {
@@ -389,6 +358,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 		},
 		actions: {
 			...miningActions,
+			...safetyActions,
 			logStateEntry: ({ context, event }, params: unknown) => {
 				const state =
 					params && typeof params === 'object' && 'state' in params
@@ -520,6 +490,11 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 			updateEntities: assign(({ context, event }) => {
 				if (event.type !== 'UPDATE_ENTITIES') return {}
 				return {
+					threatObservationAt: Date.now(),
+					approachAttempts: refreshApproaches(
+						context,
+						new Set(event.enemies.map(entity => entity.id))
+					),
 					entities: event.entities,
 					enemies: event.enemies,
 					players: event.players,
@@ -529,39 +504,22 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 								event.enemies,
 								context.bot.entity.position,
 								Date.now(),
-								context.preferences.threatRetentionMs
+								context.preferences.threatRetentionMs,
+								entity => assessMob(context, entity),
+								context.bot
 							)
 						: {})
 				}
 			}),
-			updateCombatTarget: assign(({ context, event }) => {
-				if (event.type !== 'UPDATE_COMBAT_TARGET') return {}
-				const preferredTarget =
-					context.preferredCombatTargetId === null
-						? null
-						: ([
-								...context.entities,
-								...context.enemies,
-								...context.players
-							].find(
-								entity =>
-									entity.id === context.preferredCombatTargetId &&
-									entity.isValid !== false
-							) ?? null)
+			updateCombatTarget: assign(({ context }) => {
+				const combatTarget = selectCombatTarget(context)
 				return {
-					combatTarget: preferredTarget
-						? {
-								entity: preferredTarget,
-								distance:
-									context.bot?.entity.position.distanceTo(
-										preferredTarget.position
-									) ?? event.combatTarget.distance
-							}
-						: event.combatTarget,
+					combatTarget,
 					combatStopRequested:
-						context.combatStopRequested && Boolean(event.combatTarget.entity)
+						context.combatStopRequested && combatTarget.entity !== null
 				}
 			}),
+
 			removeEntity: assign(({ context, event }) => {
 				if (event.type !== 'REMOVE_ENTITY') {
 					return {}
@@ -592,6 +550,17 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				}
 			}),
 			updateAfterDeath: assign({
+				recoveryRelocation: null,
+				recoveryNoFoodNotified: false,
+				threatObservationAt: null,
+				approachAttempts: {},
+				lastDamage: {
+					sequence: 0,
+					observedAt: 0,
+					sourceId: null,
+					sourcePosition: null
+				},
+				health: 0,
 				nearestThreat: null,
 				threats: [],
 				entities: [],
@@ -644,7 +613,6 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					pendingExecution: null,
 					lastToolTranscript: [],
 					goalExecution: createGoalExecution(),
-					recoveryFailure: null,
 					errorHistory: []
 				}
 			}),
@@ -656,7 +624,6 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					pendingExecution: null,
 					lastToolTranscript: [],
 					goalExecution: createGoalExecution(),
-					movementOwner: 'NONE',
 					preferredCombatTargetId: null,
 					combatStopRequested: false
 				}
@@ -738,26 +705,10 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					}
 				}
 			}),
-			setCombatTargetFromObservation: assign(({ context, event }) => {
-				if (
-					event.type !== 'UPDATE_COMBAT_TARGET' ||
-					!event.combatTarget.entity
-				) {
-					return {}
-				}
-
-				return {
-					preferredCombatTargetId: event.combatTarget.entity.id,
-					combatStopRequested: false,
-					combatTarget: {
-						entity: event.combatTarget.entity,
-						distance:
-							context.bot?.entity?.position?.distanceTo(
-								event.combatTarget.entity.position
-							) ?? event.combatTarget.distance
-					}
-				}
-			}),
+			setCombatTargetFromObservation: assign(({ context }) => ({
+				preferredCombatTargetId: context.combatTarget.entity?.id ?? null,
+				combatStopRequested: false
+			})),
 			suppressCombatAutoEntry: assign({
 				combatStopRequested: true
 			}),
@@ -890,12 +841,56 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 		type: 'parallel',
 		context: ({ input }) => ({
 			...context,
+			preferences: { ...preferences },
 			bot: input.bot,
 			windows: getWindowRuntime(input.bot),
 			goalExecution: createGoalExecution()
 		}),
-		invoke: { src: 'windowLifetime', input: ({ context }) => context.windows! },
+		always: [
+			{
+				guard: and([
+					not(
+						stateIn(
+							'#MINECRAFT_BOT.MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING'
+						)
+					),
+					({ context }) =>
+						context.health > 0 &&
+						context.health < context.preferences.healthEmergency
+				]),
+				target: '#MINECRAFT_BOT.MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING'
+			},
+			{
+				guard: and([
+					not(stateIn('#MINECRAFT_BOT.MAIN_ACTIVITY.URGENT_NEEDS')),
+					({ context }) =>
+						context.health > 0 &&
+						context.food < context.preferences.foodEmergency &&
+						(canAttemptRecovery(context) || !isRecoverySafe(context))
+				]),
+				target: '#MINECRAFT_BOT.MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING'
+			},
+			{
+				guard: and([
+					not(stateIn('#MINECRAFT_BOT.MAIN_ACTIVITY.URGENT_NEEDS')),
+					not(stateIn('#MINECRAFT_BOT.MAIN_ACTIVITY.COMBAT.RETREATING')),
+					({ context }) => context.health > 0 && requiresAvoidance(context)
+				]),
+				target: '#MINECRAFT_BOT.MAIN_ACTIVITY.COMBAT.RETREATING'
+			}
+		],
+		invoke: [
+			{ src: 'windowLifetime', input: ({ context }) => context.windows! },
+			{
+				src: 'worldObservation',
+				input: ({ context }) => ({ bot: context.bot! })
+			}
+		],
 		on: {
+			PASSABILITY_CHANGED: { actions: 'observePassability' },
+			DAMAGE_OBSERVED: { actions: ['observeDamage', 'cancelDamagedEating'] },
+			RECOVERY_RELOCATION: { actions: 'storeRecoveryRelocation' },
+			RECOVERY_FOOD_AVAILABILITY: { actions: 'observeRecoveryFood' },
 			UPDATE_POSITION: {
 				actions: ['updatePosition']
 			},
@@ -918,6 +913,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				actions: ['closeActiveWindowSession', 'clearGoal']
 			},
 			START_COMBAT: {
+				guard: ({ context, event }) =>
+					isDefensiveCandidate(context, event.target),
 				target: '#MINECRAFT_BOT.MAIN_ACTIVITY.COMBAT',
 				actions: [
 					'closeActiveWindowSession',
@@ -958,8 +955,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					UPDATE_HEALTH: {
 						guard: ({ context, event }) =>
 							event.type === 'UPDATE_HEALTH' &&
-							event.health < context.preferences.healthEmergency &&
-							canAttemptRecovery(context),
+							event.health > 0 &&
+							event.health < context.preferences.healthEmergency,
 						target: '.URGENT_NEEDS.EMERGENCY_HEALING'
 					},
 					UPDATE_FOOD: {
@@ -996,6 +993,10 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 						entry: ['closeActiveWindowSession'],
 						exit: ['ownMovementNone'],
 						on: {
+							USER_COMMAND: { actions: ['setGoalFromUserCommand'] },
+							STOP_CURRENT_GOAL: { actions: ['clearGoal'] },
+							START_COMBAT: {},
+							STOP_COMBAT: {},
 							UPDATE_HEALTH: {},
 							UPDATE_FOOD: {},
 							START_URGENT_NEEDS: {},
@@ -1021,60 +1022,109 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 									UPDATE_HEALTH: {
 										guard: ({ context, event }) =>
 											event.type === 'UPDATE_HEALTH' &&
+											event.health > 0 &&
 											event.health < context.preferences.healthEmergency,
 										target: 'EMERGENCY_HEALING'
 									},
-									FOOD_RESTORED: [
-										{ guard: 'isHealthCritical', target: 'EMERGENCY_HEALING' },
-										{
-											target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
-											actions: ['clearRecoveryFailure']
-										}
-									]
-								},
-								invoke: {
-									src: 'emergencyEating',
-									input: ({ context }: { context: MachineContext }) => ({
-										bot: context.bot!
-									}),
-									onDone: {
+									FOOD_RESTORED: {
+										guard: ({ context }) =>
+											context.food >= context.preferences.foodRestored &&
+											isRecoverySafe(context),
 										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
 										actions: ['clearRecoveryFailure']
 									},
-									onError: {
-										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
-										actions: ['recordRecoveryFailure', 'notifyThinkingFailure']
+									RECOVERY_FAILED: [
+										{
+											guard: ({ context, event }) =>
+												event.cause === 'no_food' && isRecoverySafe(context),
+											target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
+											actions: [
+												'recordRecoveryFailure',
+												'notifyThinkingFailure'
+											]
+										},
+										{ target: '.RETRYING', actions: ['recordRecoveryFailure'] }
+									],
+									ERROR: {
+										target: '.RETRYING',
+										actions: ['recordRecoveryFailure']
 									}
+								},
+								initial: 'RUNNING',
+								states: {
+									RUNNING: {
+										invoke: {
+											src: 'emergencyEating',
+											input: ({ context }: { context: MachineContext }) => ({
+												bot: context.bot!
+											}),
+											onDone: 'RETRYING',
+											onError: {
+												target: 'RETRYING',
+												actions: ['recordRecoveryFailure']
+											}
+										}
+									},
+									RETRYING: { after: { recoveryRetry: 'RUNNING' } }
 								}
 							},
 							EMERGENCY_HEALING: {
 								on: {
-									HEALTH_RESTORED: [
-										{ guard: 'isHungerCritical', target: 'EMERGENCY_EATING' },
-										{
-											target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
-											actions: ['clearRecoveryFailure']
-										}
-									]
-								},
-								invoke: {
-									src: 'emergencyHealing',
-									input: ({ context }: { context: MachineContext }) => ({
-										bot: context.bot!
-									}),
-									onDone: {
+									HEALTH_RESTORED: {
+										guard: ({ context }) =>
+											context.health >=
+												context.preferences.healthFullyRestored &&
+											isRecoverySafe(context),
 										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
 										actions: ['clearRecoveryFailure']
 									},
-									onError: {
-										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
-										actions: ['recordRecoveryFailure', 'notifyThinkingFailure']
+									RECOVERY_FAILED: { actions: ['recordRecoveryFailure'] },
+									ERROR: {
+										target: '.RETRYING',
+										actions: ['recordRecoveryFailure']
 									}
+								},
+								initial: 'RUNNING',
+								states: {
+									RUNNING: {
+										invoke: {
+											src: 'emergencyHealing',
+											input: ({ context }: { context: MachineContext }) => ({
+												bot: context.bot!
+											}),
+											onDone: 'RETRYING',
+											onError: {
+												target: 'RETRYING',
+												actions: ['recordRecoveryFailure']
+											}
+										}
+									},
+									RETRYING: { after: { recoveryRetry: 'RUNNING' } }
 								}
 							}
 						}
 					},
 					COMBAT: {
+						always: [
+							{
+								guard: and([
+									not(
+										stateIn('#MINECRAFT_BOT.MAIN_ACTIVITY.COMBAT.RETREATING')
+									),
+									'approachIsBlocked'
+								]),
+								target: '.RETREATING'
+							},
+							{
+								guard: and([
+									not(
+										stateIn('#MINECRAFT_BOT.MAIN_ACTIVITY.COMBAT.RETREATING')
+									),
+									'mustRetreat'
+								]),
+								target: '.RETREATING'
+							}
+						],
 						entry: [
 							'resetRanged',
 							{
@@ -1095,12 +1145,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 								actions: ['disableRanged']
 							},
 							ERROR: {
-								target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
-								actions: [
-									'recordCombatFailure',
-									'suppressCombatAutoEntry',
-									'clearCombatTarget'
-								]
+								target: '.RETREATING',
+								actions: ['recordCombatFailure', 'blockCombatApproach']
 							},
 							UPDATE_COMBAT_TARGET: {
 								actions: ['updateCombatTarget']
@@ -1115,6 +1161,10 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 								target: '.MELEE_ATTACKING'
 							},
 							NO_ENEMIES: [
+								{
+									guard: ({ context }) => !isRecoverySafe(context),
+									target: '.RETREATING'
+								},
 								{
 									guard: 'isHealthCritical',
 									target:
@@ -1140,8 +1190,59 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 						},
 						initial: 'DECIDING',
 						states: {
+							RETREATING: {
+								always: [
+									{
+										guard: 'canResumeApproach',
+										target: 'DECIDING',
+										actions: 'resumeCombatApproach'
+									},
+									{
+										guard: and([not('approachIsBlocked'), 'canSkirmishRanged']),
+										target: 'RANGED_SKIRMISHING'
+									}
+								],
+								exit: ['ownMovementNone'],
+								on: {
+									RETREAT_SAFE: {
+										guard: ({ context }) => isRecoverySafe(context),
+										target: '#MINECRAFT_BOT.MAIN_ACTIVITY.RESUMING',
+										actions: ['clearCombatTarget']
+									},
+									UPDATE_COMBAT_TARGET: { actions: ['updateCombatTarget'] },
+									SURVIVAL_MODE_CHANGED: { actions: ['syncSurvivalModeOwner'] },
+									NO_ENEMIES: {},
+									ENEMY_BECAME_CLOSE: {},
+									ENEMY_BECAME_FAR: {},
+									WEAPON_BROKEN: {},
+									RANGED_UNAVAILABLE: {},
+									START_COMBAT: {},
+									STOP_COMBAT: {},
+									USER_COMMAND: { actions: ['setGoalFromUserCommand'] },
+									STOP_CURRENT_GOAL: { actions: ['clearGoal'] },
+									ERROR: {
+										target: '.RETRYING',
+										actions: ['recordCombatFailure']
+									}
+								},
+								initial: 'RUNNING',
+								states: {
+									RUNNING: {
+										invoke: {
+											src: 'serviceTacticalRetreat',
+											input: ({ context }: { context: MachineContext }) => ({
+												bot: context.bot!,
+												options: {}
+											}),
+											onError: 'RETRYING'
+										}
+									},
+									RETRYING: { after: { recoveryRetry: 'RUNNING' } }
+								}
+							},
 							DECIDING: {
 								always: [
+									{ guard: 'mustRetreat', target: 'RETREATING' },
 									{
 										target: 'MELEE_ATTACKING',
 										guard: 'isEnemyInMeleeRange'
@@ -1172,6 +1273,10 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 									}
 								],
 								on: {
+									APPROACH_SAMPLE: { actions: 'recordCombatApproach' },
+									APPROACH_ROUTE_FAILED: {
+										actions: 'recordApproachRouteFailure'
+									},
 									UPDATE_COMBAT_TARGET: [
 										{
 											guard: eventCanSkirmishRangedFromMelee,

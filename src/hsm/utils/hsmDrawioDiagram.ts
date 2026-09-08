@@ -46,6 +46,70 @@ export type HsmDrawioDiagram = {
 
 const outputStateLayouts: StateLayout[] = [
 	{
+		path: 'MAIN_ACTIVITY.COMBAT.RETREATING',
+		x: 1345,
+		y: 200,
+		width: 285,
+		height: 270,
+		kind: 'compound',
+		summary:
+			'Continuous escape; no weapon, explosive/uncertain threat or exhausted approach.'
+	},
+	{
+		path: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING.RUNNING',
+		x: 490,
+		y: 270,
+		width: 120,
+		height: 45,
+		kind: 'leaf',
+		summary: 'Observe / flee / eat'
+	},
+	{
+		path: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING.RETRYING',
+		x: 625,
+		y: 270,
+		width: 120,
+		height: 45,
+		kind: 'leaf',
+		summary: 'Retry delay'
+	},
+	{
+		path: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING.RUNNING',
+		x: 490,
+		y: 415,
+		width: 120,
+		height: 45,
+		kind: 'leaf',
+		summary: 'Observe / flee / eat'
+	},
+	{
+		path: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING.RETRYING',
+		x: 625,
+		y: 415,
+		width: 120,
+		height: 45,
+		kind: 'leaf',
+		summary: 'Retry delay'
+	},
+	{
+		path: 'MAIN_ACTIVITY.COMBAT.RETREATING.RUNNING',
+		x: 1360,
+		y: 340,
+		width: 115,
+		height: 75,
+		kind: 'leaf',
+		summary: 'Observe / flee'
+	},
+	{
+		path: 'MAIN_ACTIVITY.COMBAT.RETREATING.RETRYING',
+		x: 1490,
+		y: 340,
+		width: 115,
+		height: 75,
+		kind: 'leaf',
+		summary: 'Retry delay'
+	},
+	{
 		path: 'MAIN_ACTIVITY',
 		x: 40,
 		y: 70,
@@ -79,38 +143,38 @@ const outputStateLayouts: StateLayout[] = [
 		x: 455,
 		y: 125,
 		width: 330,
-		height: 310,
+		height: 360,
 		kind: 'compound',
 		summary:
 			'High-priority interrupt lane. Preempts other work when hunger or health crosses emergency thresholds.'
 	},
 	{
 		path: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING',
-		x: 500,
-		y: 215,
-		width: 240,
-		height: 90,
-		kind: 'leaf',
-		summary: 'Invokes survival eating recovery until food is restored.'
+		x: 475,
+		y: 200,
+		width: 290,
+		height: 130,
+		kind: 'compound',
+		summary: 'Critical hunger recovery; safe no-food may resume.'
 	},
 	{
 		path: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING',
-		x: 500,
-		y: 325,
-		width: 240,
-		height: 90,
-		kind: 'leaf',
-		summary: 'Invokes healing recovery until health is restored.'
+		x: 475,
+		y: 345,
+		width: 290,
+		height: 130,
+		kind: 'compound',
+		summary: 'Continuous survival until healthy AND safe.'
 	},
 	{
 		path: 'MAIN_ACTIVITY.COMBAT',
 		x: 830,
 		y: 125,
-		width: 500,
+		width: 820,
 		height: 370,
 		kind: 'compound',
 		summary:
-			'Tactical lane. Chooses PvP melee pressure or ranged skirmish based on enemy range and loadout.'
+			'Self-defense only. Melee, ranged or safe retreat; critical health preempts all modes.'
 	},
 	{
 		path: 'MAIN_ACTIVITY.COMBAT.DECIDING',
@@ -398,7 +462,7 @@ const noteLayouts: NoteLayout[] = [
 		width: 560,
 		height: 180,
 		title: 'External triggers',
-		body: 'USER_COMMAND -> TASKS.THINKING\nSTART_COMBAT -> COMBAT\nSTOP_COMBAT -> THINKING or IDLE\nDEATH / STOP_CURRENT_GOAL -> IDLE\nSTART_URGENT_NEEDS -> EMERGENCY_EATING or EMERGENCY_HEALING',
+		body: 'USER_COMMAND -> THINKING (deferred during safety)\nSTART_COMBAT -> COMBAT (self-defense only)\nSTOP_COMBAT cannot release safety\nDEATH -> IDLE\nSTOP_CURRENT_GOAL cancels only the goal during safety\nSTART_URGENT_NEEDS -> EMERGENCY_EATING or EMERGENCY_HEALING',
 		fillColor: '#f8fafc',
 		strokeColor: '#475569'
 	},
@@ -431,7 +495,7 @@ const noteLayouts: NoteLayout[] = [
 		width: 560,
 		height: 120,
 		title: 'Invoked actors',
-		body: 'COMBAT: serviceMeleeAttack, serviceRangedSkirmish\nURGENT_NEEDS: emergencyEating / emergencyHealing\nMONITORING: serviceEntitiesTracking',
+		body: 'COMBAT: melee, ranged, tacticalRetreat\nURGENT_NEEDS: emergencyEating / emergencyHealing\nMONITORING: serviceEntitiesTracking',
 		fillColor: '#fff7ed',
 		strokeColor: '#c2410c'
 	},
@@ -449,6 +513,57 @@ const noteLayouts: NoteLayout[] = [
 ]
 
 const edgeLayouts: EdgeLayout[] = [
+	{
+		id: 'edge-safety-error-0',
+		source: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING.RUNNING',
+		target: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING.RETRYING',
+		label: 'ERROR / failed attempt'
+	},
+	{
+		id: 'edge-safety-retry-0',
+		source: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING.RETRYING',
+		target: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING.RUNNING',
+		label: 'after recoveryRetry',
+		dashed: true
+	},
+	{
+		id: 'edge-safety-error-1',
+		source: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING.RUNNING',
+		target: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING.RETRYING',
+		label: 'ERROR / failed attempt'
+	},
+	{
+		id: 'edge-safety-retry-1',
+		source: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING.RETRYING',
+		target: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING.RUNNING',
+		label: 'after recoveryRetry',
+		dashed: true
+	},
+	{
+		id: 'edge-safety-error-2',
+		source: 'MAIN_ACTIVITY.COMBAT.RETREATING.RUNNING',
+		target: 'MAIN_ACTIVITY.COMBAT.RETREATING.RETRYING',
+		label: 'ERROR / failed attempt'
+	},
+	{
+		id: 'edge-safety-retry-2',
+		source: 'MAIN_ACTIVITY.COMBAT.RETREATING.RETRYING',
+		target: 'MAIN_ACTIVITY.COMBAT.RETREATING.RUNNING',
+		label: 'after recoveryRetry',
+		dashed: true
+	},
+	{
+		id: 'edge-combat-retreat',
+		source: 'MAIN_ACTIVITY.COMBAT',
+		target: 'MAIN_ACTIVITY.COMBAT.RETREATING',
+		label: 'unsafe / unarmed / approach exhausted'
+	},
+	{
+		id: 'edge-combat-resume-approach',
+		source: 'MAIN_ACTIVITY.COMBAT.RETREATING',
+		target: 'MAIN_ACTIVITY.COMBAT.DECIDING',
+		label: 'changed conditions [bounded retry]'
+	},
 	{
 		id: 'edge-root-user-command',
 		source: 'note-external-triggers',
@@ -508,22 +623,21 @@ const edgeLayouts: EdgeLayout[] = [
 		id: 'edge-urgent-eating-resuming',
 		source: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_EATING',
 		target: 'MAIN_ACTIVITY.RESUMING',
-		label: 'FOOD_RESTORED / done',
+		label: 'FOOD_RESTORED / no_food [safe]',
 		strokeColor: '#d97706'
 	},
 	{
 		id: 'edge-urgent-healing-resuming',
 		source: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING',
 		target: 'MAIN_ACTIVITY.RESUMING',
-		label: 'HEALTH_RESTORED / done',
+		label: 'HEALTH_RESTORED [healthy AND safe]',
 		strokeColor: '#dc2626'
 	},
 	{
-		id: 'edge-urgent-error-resuming',
-		source: 'MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING',
+		id: 'edge-combat-retreat-safe',
+		source: 'MAIN_ACTIVITY.COMBAT.RETREATING',
 		target: 'MAIN_ACTIVITY.RESUMING',
-		label: 'ERROR / RECOVERY_FAILED',
-		dashed: true,
+		label: 'RETREAT_SAFE [fresh observation / safe]',
 		strokeColor: '#64748b'
 	},
 	{

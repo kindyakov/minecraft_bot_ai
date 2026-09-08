@@ -5,6 +5,16 @@ import type { MachineContext } from '@/hsm/context'
 import type { WindowTransferResult } from '@/ai/runtime/window.js'
 
 export type HealthEvents =
+	| {
+			type: 'RECOVERY_RELOCATION'
+			relocation: MachineContext['recoveryRelocation']
+	  }
+	| { type: 'RECOVERY_FOOD_AVAILABILITY'; available: boolean }
+	| {
+			type: 'DAMAGE_OBSERVED'
+			sourceId: number | null
+			sourcePosition: Vec3 | null
+	  }
 	| { type: 'UPDATE_HEALTH'; health: number }
 	| { type: 'UPDATE_FOOD'; food: number }
 	| { type: 'UPDATE_SATURATION'; foodSaturation: number }
@@ -19,6 +29,10 @@ export type HealthEvents =
 	| { type: 'START_URGENT_NEEDS'; need: 'food' | 'health' }
 
 export type CombatEvents =
+	| { type: 'APPROACH_SAMPLE' }
+	| { type: 'APPROACH_ROUTE_FAILED' }
+	| { type: 'PASSABILITY_CHANGED'; position: Vec3 }
+	| { type: 'RETREAT_SAFE' }
 	| { type: 'START_COMBAT'; target: Entity | null }
 	| { type: 'STOP_COMBAT' }
 	| { type: 'WEAPON_BROKEN' }

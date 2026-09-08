@@ -7,6 +7,7 @@ import { Vec3 } from 'vec3'
 import { createActor, fromPromise } from 'xstate'
 
 import { createBotMachine } from '../../hsm/machine.js'
+import { registry } from './fixtures/handoffBot'
 import { publishEntities } from './fixtures/publishEntities'
 
 const hangingActor = fromPromise(async () => {
@@ -51,9 +52,7 @@ class CombatBot extends EventEmitter {
 		slots: Array.from({ length: 46 }, () => null),
 		items: () => this.inventoryItems
 	}
-	registry = {
-		isNewerOrEqualTo: () => true
-	}
+	registry = registry
 	movement = {
 		goals: {
 			Default: { id: 'default-goal' }
@@ -257,7 +256,7 @@ test('a rejected ranged equip falls back once and stays in melee for this encoun
 	}
 	const actor = createRuntimeActor(bot)
 	try {
-		await enterCombat(actor, createEnemy(12))
+		await enterCombat(actor, createEnemy(8))
 		await delay(700)
 		assert.equal(bot.equipCalls.filter(name => name === 'bow').length, 1)
 		assert.equal(
@@ -268,7 +267,7 @@ test('a rejected ranged equip falls back once and stays in melee for this encoun
 		)
 		assert.equal(actor.getSnapshot().context.rangedUnavailable, true)
 		actor.send({ type: 'STOP_COMBAT' })
-		actor.send({ type: 'START_COMBAT', target: createEnemy(12) as any })
+		actor.send({ type: 'START_COMBAT', target: createEnemy(8) as any })
 		await delay(20)
 		assert.equal(bot.equipCalls.filter(name => name === 'bow').length, 2)
 	} finally {
@@ -276,8 +275,9 @@ test('a rejected ranged equip falls back once and stays in melee for this encoun
 	}
 })
 
-test('a combat callback error exits combat and suppresses automatic restart', async () => {
+test('a combat callback error retreats instead of treating the threat as resolved', async () => {
 	const bot = new CombatBot()
+	bot.inventoryItems = [{ name: 'iron_sword' }]
 	bot.pvp.attack = () => {
 		throw new Error('attack controller failed')
 	}
@@ -285,12 +285,15 @@ test('a combat callback error exits combat and suppresses automatic restart', as
 	try {
 		await enterCombat(actor, createEnemy(2))
 		await delay(700)
-		assert.equal(actor.getSnapshot().matches({ MAIN_ACTIVITY: 'IDLE' }), true)
+		assert.equal(
+			actor.getSnapshot().matches({ MAIN_ACTIVITY: { COMBAT: 'RETREATING' } }),
+			true
+		)
 		assert.match(
 			actor.getSnapshot().context.lastReason ?? '',
 			/attack controller failed/
 		)
-		assert.equal(actor.getSnapshot().context.combatStopRequested, true)
+		assert.equal(actor.getSnapshot().context.approachAttempts[1]?.blocked, true)
 	} finally {
 		actor.stop()
 	}
@@ -366,7 +369,7 @@ test('STOP_COMBAT cleans up active ranged combat', async () => {
 	const actor = createRuntimeActor(bot)
 
 	try {
-		await enterCombat(actor, createEnemy(12))
+		await enterCombat(actor, createEnemy(8))
 		await delay(50)
 
 		assert.deepEqual(bot.equipCalls, ['bow'])
@@ -387,7 +390,7 @@ test('ranged skirmish owns only ranged attacks and leaves movement idle', async 
 	const actor = createRuntimeActor(bot)
 
 	try {
-		await enterCombat(actor, createEnemy(12))
+		await enterCombat(actor, createEnemy(8))
 		await delay(300)
 
 		assert.equal(
@@ -418,7 +421,7 @@ test('ranged skirmish does not require the movement plugin', async () => {
 	const actor = createRuntimeActor(bot)
 
 	try {
-		await enterCombat(actor, createEnemy(12))
+		await enterCombat(actor, createEnemy(8))
 		await delay(300)
 
 		assert.equal(
@@ -449,7 +452,7 @@ test('combat hands off from melee to ranged skirmish without overlap', async () 
 
 		assert.equal(bot.pvpAttackCalls > 0, true)
 
-		await enterCombat(actor, createEnemy(12))
+		await enterCombat(actor, createEnemy(8))
 		await delay(350)
 
 		assert.equal(
@@ -476,7 +479,7 @@ test('combat hands off from ranged skirmish back to melee without overlap', asyn
 	const actor = createRuntimeActor(bot)
 
 	try {
-		await enterCombat(actor, createEnemy(12))
+		await enterCombat(actor, createEnemy(8))
 		await delay(350)
 
 		assert.equal(bot.hawkEyeAttackCalls > 0, true)
@@ -545,7 +548,7 @@ test('ranged skirmish re-equips when weapon instance changes but type stays the 
 	const actor = createRuntimeActor(bot)
 
 	try {
-		await enterCombat(actor, createEnemy(12))
+		await enterCombat(actor, createEnemy(8))
 		await delay(350)
 
 		assert.deepEqual(bot.equipCalls, ['bow'])
@@ -566,7 +569,7 @@ test('delayed ranged equip does not continue combat startup after STOP_COMBAT', 
 	const actor = createRuntimeActor(bot)
 
 	try {
-		await enterCombat(actor, createEnemy(12))
+		await enterCombat(actor, createEnemy(8))
 		actor.send({ type: 'STOP_COMBAT' })
 		await delay(150)
 

@@ -4,6 +4,7 @@ import type { Entity, Item } from '@/types'
 
 import Logger from '@/config/logger'
 
+import type { MachineContext } from '@/hsm/context'
 import {
 	type BaseServiceState,
 	createStatefulService
@@ -32,75 +33,18 @@ const logCombatRuntime = (event: string, payload: Record<string, unknown>) => {
 const isPvpTargetActive = (bot: any, enemy: Entity) =>
 	bot.pvp?.target?.id === enemy.id
 
-const getCombatDistance = (position: any, entity: Entity): number =>
-	position?.distanceTo?.(entity.position) ?? Number.POSITIVE_INFINITY
-
 const meleeExitRangeBuffer = 1.5
-
 const resolveCombatTarget = (
-	context: any,
-	currentTarget: Entity | null = null
-): { entity: Entity | null; distance: number } => {
-	const position = context.position ?? context.bot?.entity?.position ?? null
-	const enemies = Array.isArray(context.enemies) ? context.enemies : []
-
-	if (!position) {
-		return context.combatTarget ?? { entity: null, distance: Infinity }
+	context: MachineContext
+): MachineContext['combatTarget'] => {
+	const entity = context.combatTarget.entity
+	if (!entity || entity.isValid === false)
+		return { entity: null, distance: Infinity }
+	return {
+		entity,
+		distance:
+			context.bot?.entity.position.distanceTo(entity.position) ?? Infinity
 	}
-
-	const pickVisibleTarget = (targetId: number | null): Entity | null => {
-		if (targetId === null) {
-			return null
-		}
-
-		return (
-			enemies.find(
-				(enemy: Entity) =>
-					enemy?.id === targetId &&
-					Boolean(enemy.isValid) &&
-					getCombatDistance(position, enemy) <=
-						context.preferences.maxDistToEnemy
-			) ?? null
-		)
-	}
-
-	const stickyTarget =
-		pickVisibleTarget(currentTarget?.id ?? null) ??
-		pickVisibleTarget(context.combatTarget.entity?.id ?? null)
-
-	if (stickyTarget) {
-		return {
-			entity: stickyTarget,
-			distance: getCombatDistance(position, stickyTarget)
-		}
-	}
-
-	if (
-		context.combatTarget?.entity &&
-		Boolean(context.combatTarget.entity.isValid) &&
-		context.combatTarget.distance <= context.preferences.maxDistToEnemy
-	) {
-		return context.combatTarget
-	}
-
-	const fallback = enemies
-		.filter(
-			(enemy: Entity) =>
-				enemy?.position &&
-				Boolean(enemy.isValid) &&
-				getCombatDistance(position, enemy) <= context.preferences.maxDistToEnemy
-		)
-		.sort(
-			(left: Entity, right: Entity) =>
-				getCombatDistance(position, left) - getCombatDistance(position, right)
-		)[0]
-
-	return fallback
-		? {
-				entity: fallback,
-				distance: getCombatDistance(position, fallback)
-			}
-		: { entity: null, distance: Infinity }
 }
 
 const issueMeleeAttack = (
@@ -188,8 +132,12 @@ const serviceMeleeAttack = createStatefulService<MeleeAttackState>({
 		Logger.debug(`Melee equipped: ${meleeWeapon.name}`)
 	},
 
-	onTick: ({ context, state, bot, sendBack, setState }) => {
-		const target = resolveCombatTarget(context, state.currentTarget)
+	onTick: ({ context, state, bot, sendBack, setState, abortSignal }) => {
+		if (!bot.utils.getMeleeWeapon()) {
+			sendBack({ type: 'WEAPON_BROKEN' })
+			return
+		}
+		const target = resolveCombatTarget(context)
 
 		if (!target.entity) {
 			if (state.currentTarget) {
@@ -212,6 +160,8 @@ const serviceMeleeAttack = createStatefulService<MeleeAttackState>({
 		}
 
 		const enemy = target.entity
+		sendBack({ type: 'APPROACH_SAMPLE' })
+		if (abortSignal.aborted) return
 
 		if (!state.currentTarget || state.currentTarget.id !== enemy.id) {
 			if (state.currentTarget) {
@@ -238,6 +188,12 @@ const serviceMeleeAttack = createStatefulService<MeleeAttackState>({
 		}
 	},
 
+	onEvents: () => ({
+		path_update: ({ sendBack }, result: { status?: string }) => {
+			if (result.status === 'noPath' || result.status === 'timeout')
+				sendBack({ type: 'APPROACH_ROUTE_FAILED' })
+		}
+	}),
 	onCleanup: ({ bot, setState }) => {
 		stopMeleeAttack(bot, 'cleanup', logCombatRuntime)
 		setState({ currentTarget: null })
@@ -288,7 +244,7 @@ const serviceRangedSkirmish = createStatefulService<RangedSkirmishState>({
 		setState,
 		abortSignal
 	}) => {
-		const target = resolveCombatTarget(context, state.currentTarget)
+		const target = resolveCombatTarget(context)
 
 		if (!target.entity) {
 			if (state.currentTarget) {

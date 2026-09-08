@@ -1,9 +1,6 @@
-import type { Entity } from '@/types'
-
 import { createStatefulService } from '@/hsm/helpers/createStatefulService'
-import { isEntityOfType } from '@/hsm/utils/isEntityOfType'
 
-import { canAttackEnemy } from '@/utils/combat/enemyVisibility'
+import { assessMob, selectCombatTarget } from '@/utils/combat/selfDefense'
 
 const serviceEntitiesTracking = createStatefulService({
 	name: 'serviceEntitiesTracking',
@@ -26,60 +23,23 @@ const serviceEntitiesTracking = createStatefulService({
 				entity.position &&
 				position.distanceTo(entity.position) <= radius
 		)
+		const enemies = observed.filter(
+			entity => assessMob(context, entity) !== null
+		)
 		sendBack({
 			type: 'UPDATE_ENTITIES',
-			entities: observed.filter(entity => !isEntityOfType(entity)),
-			enemies: observed.filter(entity => isEntityOfType(entity)),
+			entities: observed.filter(entity => !enemies.includes(entity)),
+			enemies,
 			players: observed.filter(entity => entity.type === 'player')
 		})
 	},
 
-	onAsyncTick: async ({ bot, getContext, sendBack, abortSignal }) => {
+	onAsyncTick: ({ getContext, sendBack }) => {
 		const context = getContext()
-		if (!bot.entity?.position || context.health <= 0) return
-		const candidates = context.enemies
-			.filter(
-				enemy =>
-					bot.entity.position.distanceTo(enemy.position) <=
-					context.preferences.maxDistToEnemy
-			)
-			.sort(
-				(a, b) =>
-					bot.entity.position.distanceTo(a.position) -
-					bot.entity.position.distanceTo(b.position)
-			)
-		let target: Entity | null = null
-		for (const enemy of candidates) {
-			if (abortSignal.aborted) return
-			const canAttack = await canAttackEnemy(
-				bot,
-				enemy,
-				context.preferences.maxDistToEnemy,
-				context.preferences.maxDistToEnemy *
-					context.preferences.maxPathLengthMultiplier,
-				context.preferences.pathfindTimeout,
-				context.isActiveTask
-			)
-			if (abortSignal.aborted || getContext().health <= 0) return
-			if (
-				canAttack &&
-				enemy.isValid !== false &&
-				getContext().enemies.includes(enemy) &&
-				bot.entity.position.distanceTo(enemy.position) <=
-					getContext().preferences.maxDistToEnemy
-			) {
-				target = enemy
-				break
-			}
-		}
+		if (context.health <= 0) return
 		sendBack({
 			type: 'UPDATE_COMBAT_TARGET',
-			combatTarget: {
-				entity: target,
-				distance: target
-					? bot.entity.position.distanceTo(target.position)
-					: Infinity
-			}
+			combatTarget: selectCombatTarget(context)
 		})
 	}
 })

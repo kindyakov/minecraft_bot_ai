@@ -18,8 +18,11 @@ import { publishEntities } from './publishEntities'
 
 const require = createRequire(import.meta.url)
 export const registry = require('minecraft-data')('1.20.4')
-const Block = require('prismarine-block')('1.20.4')
+export const BlockFactory = require('prismarine-block')('1.20.4')
 export const ItemFactory = require('prismarine-item')('1.20.4')
+const EntityFactory = require('prismarine-entity')('1.20.4')
+export const createEntityFixture = (fields: Partial<Entity>): Entity =>
+	Object.assign(new EntityFactory(fields.id ?? 1), fields)
 const { Physics, PlayerState } = require('prismarine-physics')
 
 export class HandoffBot extends EventEmitter {
@@ -103,7 +106,10 @@ export class HandoffBot extends EventEmitter {
 	hasPlugin(plugin: (bot: Bot) => void) {
 		return this.plugins.has(plugin)
 	}
-	chat() {}
+	chatMessages: string[] = []
+	chat(message: string) {
+		this.chatMessages.push(message)
+	}
 	nearestEntity(filter: (entity: Entity) => boolean = () => true) {
 		return (
 			Object.values(this.entities)
@@ -168,7 +174,7 @@ export class HandoffBot extends EventEmitter {
 		await this.aimGate
 	}
 	blockAt(position: Vec3) {
-		const block = Block.fromStateId(
+		const block = BlockFactory.fromStateId(
 			(this.solidAt(position)
 				? registry.blocksByName.stone
 				: registry.blocksByName.air
@@ -182,6 +188,9 @@ export class HandoffBot extends EventEmitter {
 
 export const createHarness = (backgroundTracking = false) => {
 	const bot = new HandoffBot()
+	const sword = new ItemFactory(registry.itemsByName.iron_sword.id, 1)
+	sword.slot = 36
+	bot.inventory.items = () => [sword]
 	bot.loadPlugin(pathfinderPackage.pathfinder)
 	loadPvp(bot.asBot())
 	loadMovement(bot.asBot())
