@@ -60,3 +60,61 @@ test('OpenAIResponsesClient maps parsed function calls into compact tool calls',
 		}
 	])
 })
+
+test('OpenAIResponsesClient falls back to JSON arguments and drops non-call items', async () => {
+	const parsedResponse: ParsedToolResponse = {
+		id: 'resp_fallback',
+		output_text: '',
+		output: [
+			{
+				type: 'function_call',
+				call_id: 'call_1',
+				name: 'navigate_to',
+				arguments: '{"position":{"x":1,"y":64,"z":1}}'
+			},
+			{
+				type: 'function_call',
+				call_id: 'call_2',
+				name: 'inspect_blocks',
+				arguments: 'not-json{{{'
+			},
+			{
+				type: 'reasoning',
+				id: 'rs_1',
+				summary: []
+			}
+		]
+	}
+
+	const client = new OpenAIResponsesClient({
+		apiKey: 'test-key',
+		model: 'gpt-5-mini',
+		timeoutMs: 5000,
+		client: {
+			responses: {
+				create: async () => parsedResponse
+			}
+		} as any
+	})
+
+	const response = await client.createResponse({
+		instructions: 'test instructions',
+		input: 'test input',
+		tools: []
+	})
+
+	assert.deepEqual(response.toolCalls satisfies ParsedToolCall[], [
+		{
+			callId: 'call_1',
+			name: 'navigate_to',
+			arguments: {
+				position: { x: 1, y: 64, z: 1 }
+			}
+		},
+		{
+			callId: 'call_2',
+			name: 'inspect_blocks',
+			arguments: {}
+		}
+	])
+})

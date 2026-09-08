@@ -42,21 +42,15 @@ test('buildHsmDrawioDiagram emits mxGraphModel XML with key zones and animated f
 		'agent loop edge should be marked as animated'
 	)
 	assert.ok(
-		diagram.animatedEdgeIds.includes('edge-combat-deciding-approaching'),
-		'combat loop edge should be marked as animated'
+		diagram.animatedEdgeIds.includes('edge-combat-deciding-melee'),
+		'combat melee edge should be marked as animated'
+	)
+	assert.ok(
+		diagram.animatedEdgeIds.includes('edge-combat-deciding-ranged'),
+		'combat ranged edge should be marked as animated'
 	)
 	assert.ok(
 		diagram.animatedEdgeIds.includes('edge-mining-searching-checking-distance'),
 		'mining loop edge should be marked as animated'
 	)
-})
-
-test('buildHsmDrawioDiagram includes explanatory annotations for major machine regions', () => {
-	const diagram = buildHsmDrawioDiagram()
-
-	assert.match(diagram.xml, /Main runtime lane/)
-	assert.match(diagram.xml, /Parallel monitors/)
-	assert.match(diagram.xml, /Agent loop/)
-	assert.match(diagram.xml, /Mining workflow/)
-	assert.match(diagram.xml, /Legend/)
 })

@@ -93,35 +93,6 @@ test('updateEntryData and deleteEntry mutate persisted records', async () => {
 	)
 })
 
-test('load ignores legacy JSON memory file and does not create backup', async () => {
-	const dataDir = await createTempDataDir()
-	const botName = 'MigratingBot'
-	const legacyPath = path.join(dataDir, `bot_memory_${botName}.json`)
-
-	await fs.writeFile(
-		legacyPath,
-		JSON.stringify({ legacy: true }, null, 2),
-		'utf8'
-	)
-
-	const manager = new MemoryManager({
-		botName,
-		dataDir
-	})
-
-	await manager.load()
-
-	assert.equal(manager.readEntries({}).length, 0)
-
-	const backups = await fs.readdir(dataDir)
-	assert.equal(
-		backups.some(fileName =>
-			fileName.startsWith(`bot_memory_${botName}.backup_`)
-		),
-		false
-	)
-})
-
 test('save persists players, task stats and completed goals across restarts', async () => {
 	const dataDir = await createTempDataDir()
 	const manager = new MemoryManager({

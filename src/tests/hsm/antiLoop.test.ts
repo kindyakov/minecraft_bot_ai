@@ -19,3 +19,29 @@ test('AntiLoopGuard ignores repeated updates with the same state signature', () 
 	assert.equal(stats.totalUpdates, 1)
 	assert.equal(stats.updatesInLastSecond, 1)
 })
+
+test('AntiLoopGuard trips on update flood and recovers after reset', () => {
+	const originalConsoleError = console.error
+	console.error = () => {}
+	try {
+		const guard = new AntiLoopGuard({
+			maxTransitionsPerSecond: 2,
+			emergencyStopAfter: 100,
+			windowMs: 60_000
+		})
+
+		assert.equal(guard.recordUpdate('STATE_A'), true)
+		assert.equal(guard.recordUpdate('STATE_B'), true)
+		assert.equal(guard.recordUpdate('STATE_C'), false)
+
+		assert.equal(guard.getStats().loopDetected, true)
+		assert.equal(guard.recordUpdate('STATE_D'), false)
+
+		guard.reset()
+
+		assert.equal(guard.getStats().loopDetected, false)
+		assert.equal(guard.recordUpdate('STATE_D'), true)
+	} finally {
+		console.error = originalConsoleError
+	}
+})

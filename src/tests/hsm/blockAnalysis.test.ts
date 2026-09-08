@@ -76,6 +76,9 @@ test('filterByYRange returns all blocks when no Y filter is specified', () => {
 
 	assert.strictEqual(filtered.length, blocks.length)
 	assert.deepEqual(filtered, blocks)
+	assert.notStrictEqual(filtered, blocks)
+	filtered.pop()
+	assert.strictEqual(blocks.length, 3)
 })
 
 test('calculateBlockScore prefers level, above, and nearer blocks', () => {
@@ -115,6 +118,10 @@ test('selectBestBlocks returns the top N prioritized blocks', () => {
 	const selected = selectBestBlocks(blocks, 2)
 
 	assert.deepEqual(selected, [blocks[1], blocks[2]])
+	assert.deepEqual(selectBestBlocks(blocks, 0), [])
+	assert.deepEqual(selectBestBlocks(blocks, -3), [])
+	assert.deepEqual(selectBestBlocks(blocks, 99), [blocks[1], blocks[2], blocks[0]])
+	assert.deepEqual(selectBestBlocks(blocks, 1), [blocks[1]])
 })
 
 test('checkBlockSafety rejects a block directly below the bot and blocks without support below', () => {

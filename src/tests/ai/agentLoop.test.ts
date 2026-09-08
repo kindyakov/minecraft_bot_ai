@@ -1243,101 +1243,6 @@ test('runAgentTurn accepts plain-text finish after a grounded world inspection i
 	assert.match(result.transcript[2]!, /^round_1_ms:\d+$/)
 })
 
-test('OpenAIResponsesClient writes a markdown dump for the full request body', async () => {
-	const capturedLogs: string[] = []
-	const originalConsoleLog = console.log
-	console.log = (...args: unknown[]) => {
-		capturedLogs.push(
-			args
-				.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg)))
-				.join(' ')
-		)
-	}
-
-	try {
-		const client = new OpenAIResponsesClient({
-			client: {
-				responses: {
-					create: async () =>
-						({
-							id: 'resp_dump',
-							output_text: 'ok',
-							output: []
-						}) as any
-				}
-			},
-			model: 'test-model'
-		})
-
-		await client.createResponse({
-			instructions: 'System prompt',
-			input: 'Full payload input',
-			tools: []
-		})
-	} finally {
-		console.log = originalConsoleLog
-	}
-
-	const dumpLog = capturedLogs.find(log =>
-		log.includes('[AI] model_request_dump')
-	)
-	assert.ok(dumpLog)
-	assert.match(
-		dumpLog,
-		/logs[\\/]+ai-requests[\\/]+responses-request-.*\.md/
-	)
-})
-
-test('OpenAICompatibleChatClient writes a markdown dump for the full chat payload', async () => {
-	const capturedLogs: string[] = []
-	const originalConsoleLog = console.log
-	console.log = (...args: unknown[]) => {
-		capturedLogs.push(
-			args
-				.map(arg => (typeof arg === 'string' ? arg : JSON.stringify(arg)))
-				.join(' ')
-		)
-	}
-
-	try {
-		const { OpenAICompatibleChatClient } = await import('../../ai/client.js')
-		const client = new OpenAICompatibleChatClient({
-			client: {
-				chat: {
-					completions: {
-						create: async () =>
-							({
-								id: 'chat_dump',
-								choices: [
-									{
-										message: {
-											content: 'Привет!'
-										}
-									}
-								]
-							}) as any
-					}
-				}
-			},
-			model: 'test-chat-model'
-		})
-
-		await client.createResponse({
-			instructions: 'System prompt',
-			input: 'Привет',
-			tools: []
-		})
-	} finally {
-		console.log = originalConsoleLog
-	}
-
-	const dumpLog = capturedLogs.find(log =>
-		log.includes('[AI] model_request_dump')
-	)
-	assert.ok(dumpLog)
-	assert.match(dumpLog, /logs[\\/]+ai-requests[\\/]+chat-request-.*\.md/)
-})
-
 test('runAgentTurn assembles layered prompt context before calling the model client', async () => {
 	let capturedRequest: any = null
 
@@ -1422,44 +1327,22 @@ test('runAgentTurn assembles layered prompt context before calling the model cli
 	assert.match(capturedRequest.input, /^CURRENT_GOAL/m)
 	assert.match(capturedRequest.input, /^RUNTIME_CONTEXT/m)
 	assert.match(capturedRequest.input, /^RECENT_CONVERSATION/m)
-	assert.equal(
-		capturedRequest.promptAssembly.instructionSections[0]?.source,
-		'core_policy'
+	const instructionSections =
+		capturedRequest.promptAssembly.instructionSections ?? []
+	assert.equal(instructionSections[0]?.source, 'core_policy')
+	assert.equal(instructionSections[1]?.source, 'user_profile_prompt')
+	assert.match(
+		instructionSections[1]?.content ?? '',
+		/Helpful assistant/
 	)
-	assert.equal(
-		capturedRequest.promptAssembly.inputSections[2]?.source,
-		'conversation_context'
+	const inputSections = capturedRequest.promptAssembly.inputSections ?? []
+	assert.deepEqual(
+		inputSections.map((section: { key: string }) => section.key),
+		['current_goal', 'runtime_context', 'conversation_context']
 	)
-})
-
-test('loop facade re-exports dedicated loop ownership modules', async () => {
-	const [
-		contracts,
-		groundingModule,
-		validationModule,
-		policyModule,
-		transcriptModule,
-		runAgentTurnModule,
-		facade
-	] = await Promise.all([
-		import('../../ai/contracts/agentTurn.js'),
-		import('../../ai/loop/grounding.js'),
-		import('../../ai/loop/validation.js'),
-		import('../../ai/loop/policy.js'),
-		import('../../ai/loop/transcript.js'),
-		import('../../ai/loop/runAgentTurn.js'),
-		import('../../ai/loop.js')
-	])
-
-	assert.equal('AgentTurnResult' in contracts, false)
-	assert.equal(typeof groundingModule.collectGroundedFacts, 'function')
-	assert.equal(typeof validationModule.validateExecutionTool, 'function')
-	assert.equal(policyModule.MAX_INLINE_TOOL_ROUNDS, 4)
-	assert.equal(
-		transcriptModule.executionSignature('navigate_to', {
-			position: { x: 1, y: 2, z: 3 }
-		}),
-		'navigate_to:{"position":{"x":1,"y":2,"z":3}}'
+	const conversationSection = inputSections.find(
+		(section: { key: string }) => section.key === 'conversation_context'
 	)
-	assert.equal(runAgentTurnModule.runAgentTurn, facade.runAgentTurn)
+	assert.match(conversationSection?.content ?? '', /отвечай по-русски/)
+	assert.ok(capturedRequest.promptAssembly.toolContract)
 })

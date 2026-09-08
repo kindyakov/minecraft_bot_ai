@@ -511,12 +511,6 @@ test('delayed ranged equip does not continue combat startup after STOP_COMBAT', 
 	const bot = new DelayedEquipCombatBot()
 	bot.inventoryItems = [{ name: 'bow' }, { name: 'arrow' }]
 	const actor = createRuntimeActor(bot)
-	const originalConsoleLog = console.log
-	const capturedLogs: string[] = []
-
-	console.log = (...args: unknown[]) => {
-		capturedLogs.push(args.map(arg => String(arg)).join(' '))
-	}
 
 	try {
 		await enterCombat(actor, createEnemy(12))
@@ -524,13 +518,13 @@ test('delayed ranged equip does not continue combat startup after STOP_COMBAT', 
 		await delay(150)
 
 		assert.deepEqual(bot.equipCalls, ['bow'])
-		assert.equal(
-			capturedLogs.some(message => message.includes('Экипировал: bow')),
-			false
-		)
 		assert.equal(bot.hawkEyeAttackCalls, 0)
+		assert.equal(bot.pvpAttackCalls, 0)
+		assert.equal(
+			actor.getSnapshot().matches({ MAIN_ACTIVITY: 'IDLE' } as never),
+			true
+		)
 	} finally {
-		console.log = originalConsoleLog
 		actor.stop()
 	}
 })

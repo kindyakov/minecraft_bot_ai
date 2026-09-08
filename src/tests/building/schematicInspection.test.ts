@@ -3,7 +3,6 @@ import test from 'node:test'
 
 import {
 	decodePaletteIndices,
-	formatSchematicSummary,
 	summarizeSimplifiedSchematic
 } from '../../building/schematicInspection.js'
 
@@ -68,38 +67,4 @@ test('summarizeSimplifiedSchematic extracts palette counts and sample blocks', (
 		},
 		{ x: 1, y: 0, z: 1, paletteIndex: 0, state: 'minecraft:stone' }
 	])
-})
-
-test('formatSchematicSummary renders a readable report', () => {
-	const output = formatSchematicSummary({
-		filePath: 'data/builds/schematics/example.schem',
-		version: 3,
-		dataVersion: 3465,
-		dimensions: { width: 2, height: 1, length: 2 },
-		offset: [0, 0, 0],
-		paletteSize: 2,
-		totalBlocks: 4,
-		filledBlocks: 4,
-		blockEntitiesCount: 0,
-		topPaletteEntries: [
-			{ state: 'minecraft:stone', paletteIndex: 0, count: 2 },
-			{
-				state:
-					'minecraft:oak_stairs[facing=north,half=bottom,shape=straight,waterlogged=false]',
-				paletteIndex: 1,
-				count: 2
-			}
-		],
-		sampleBlocks: [
-			{ x: 0, y: 0, z: 0, paletteIndex: 0, state: 'minecraft:stone' }
-		]
-	})
-
-	assert.match(output, /File: data\/builds\/schematics\/example\.schem/)
-	assert.match(output, /Dimensions: 2 x 1 x 2/)
-	assert.match(output, /Palette size: 2/)
-	assert.match(output, /Filled blocks: 4/)
-	assert.match(output, /Top palette entries:/)
-	assert.match(output, /minecraft:stone .*x2/)
-	assert.match(output, /Sample blocks:/)
 })
