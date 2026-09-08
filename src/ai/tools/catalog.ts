@@ -1,6 +1,7 @@
 import type { AgentToolDefinition } from '../contracts/agentClient.js'
 import type { AgentToolName } from '../contracts/execution.js'
-import { positionSchema, vectorSchema } from './shared.js'
+import { executionDefinitions } from './executionDefinitions.js'
+import { positionSchema } from './shared.js'
 
 const FUNCTION = 'function' as const
 
@@ -12,7 +13,7 @@ const tool = (
 	type: FUNCTION,
 	name,
 	description,
-	strict: true,
+	strict: false,
 	parameters
 })
 
@@ -130,109 +131,5 @@ export const AGENT_TOOLS: AgentToolDefinition[] = [
 		},
 		required: []
 	}),
-	tool('navigate_to', 'Navigate to a target position.', {
-		type: 'object',
-		additionalProperties: false,
-		properties: {
-			position: positionSchema,
-			range: { type: 'number' }
-		},
-		required: ['position']
-	}),
-	tool('break_block', 'Break a block at a target position.', {
-		type: 'object',
-		additionalProperties: false,
-		properties: {
-			position: positionSchema
-		},
-		required: ['position']
-	}),
-	tool(
-		'mine_resource',
-		'Mine a specific quantity of a block type efficiently. Use for resource gathering tasks like mining ore, wood, or other materials. Executes batch search and cyclic mining without repeated LLM calls.',
-		{
-			type: 'object',
-			additionalProperties: false,
-			properties: {
-				block_name: {
-					type: 'string',
-					description:
-						'Block type to mine (e.g., iron_ore, coal_ore, diamond_ore, oak_log)'
-				},
-				count: {
-					type: 'number',
-					description: 'Number of blocks to mine',
-					minimum: 1,
-					maximum: 64
-				}
-			},
-			required: ['block_name', 'count']
-		}
-	),
-	tool('place_block', 'Place a block from inventory.', {
-		type: 'object',
-		additionalProperties: false,
-		properties: {
-			block_name: { type: 'string' },
-			position: positionSchema,
-			face_vector: vectorSchema
-		},
-		required: ['block_name', 'position']
-	}),
-	tool('follow_entity', 'Follow the nearest matching entity.', {
-		type: 'object',
-		additionalProperties: false,
-		properties: {
-			entity_name: { type: 'string' },
-			entity_type: { type: 'string' },
-			max_distance: { type: 'number' },
-			distance: { type: 'number' }
-		},
-		required: []
-	}),
-	tool('open_window', 'Open a nearby window-bearing block.', {
-		type: 'object',
-		additionalProperties: false,
-		properties: {
-			position: positionSchema
-		},
-		required: ['position']
-	}),
-	tool('transfer_item', 'Transfer an item between semantic window zones.', {
-		type: 'object',
-		additionalProperties: false,
-		properties: {
-			source_zone: {
-				type: 'string',
-				enum: [
-					'player_inventory',
-					'hotbar',
-					'container',
-					'input',
-					'fuel',
-					'output'
-				]
-			},
-			dest_zone: {
-				type: 'string',
-				enum: [
-					'player_inventory',
-					'hotbar',
-					'container',
-					'input',
-					'fuel',
-					'output'
-				]
-			},
-			item_name: { type: 'string' },
-			count: { type: 'number' }
-		},
-		required: ['source_zone', 'dest_zone', 'item_name', 'count']
-	}),
-	tool('close_window', 'Close the currently open window.', {
-		type: 'object',
-		additionalProperties: false,
-		properties: {},
-		required: []
-	})
+	...Object.values(executionDefinitions).map(definition => definition.tool)
 ]

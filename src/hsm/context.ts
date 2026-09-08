@@ -2,7 +2,11 @@ import type { Bot, Entity, Item, Vec3 } from '@/types'
 
 import type { PendingExecution } from '@/ai/contracts/execution.js'
 import type { ConversationEntry } from '@/ai/conversationHistory.js'
-import type { WindowSession } from '@/ai/runtime/window.js'
+import {
+	type GoalExecutionState,
+	createGoalExecution
+} from '@/ai/goalExecution.js'
+import type { WindowRuntime } from '@/ai/runtime/window.js'
 import type { TaskContext } from '@/ai/taskContext.js'
 
 export interface MachineContext {
@@ -84,13 +88,9 @@ export interface MachineContext {
 	lastReason: string | null
 	errorHistory: string[]
 	pendingExecution: PendingExecution | null
-	activeWindowSession: WindowSession | null
-	activeWindowSessionState: 'open' | 'close_failed' | null
+	windows: WindowRuntime | null
 	lastToolTranscript: string[]
-	failureSignature: string | null
-	failureRepeats: number
-	consecutiveFailures: number
-	executionAttempts: number
+	goalExecution: GoalExecutionState
 }
 
 export const context: MachineContext = {
@@ -166,8 +166,7 @@ export const context: MachineContext = {
 	subGoal: null,
 	conversationHistory: [],
 	taskContext: {
-		category: 'unknown',
-		rejectedStepSignatures: []
+		category: 'unknown'
 	},
 	lastAction: null,
 	lastActionArgs: null,
@@ -175,11 +174,7 @@ export const context: MachineContext = {
 	lastReason: null,
 	errorHistory: [],
 	pendingExecution: null,
-	activeWindowSession: null,
-	activeWindowSessionState: null,
+	windows: null,
 	lastToolTranscript: [],
-	failureSignature: null,
-	failureRepeats: 0,
-	consecutiveFailures: 0,
-	executionAttempts: 0
+	goalExecution: createGoalExecution()
 }

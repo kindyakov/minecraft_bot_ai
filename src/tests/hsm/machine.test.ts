@@ -5,7 +5,96 @@ import { setTimeout as delay } from 'node:timers/promises'
 
 import { createActor, fromPromise } from 'xstate'
 
+import { runAgentTurn } from '../../ai/loop.js'
+import { createTaskContext } from '../../ai/taskContext.js'
 import { createBotMachine } from '../../hsm/machine.js'
+import type { Bot } from '../../types/index.js'
+
+test('model arguments rejected by the real turn are explained to the next HSM turn', async () => {
+	const bot = new FakeBot()
+	let turns = 0
+	const actor = createActor(
+		createBotMachine({
+			thinkingActor: fromPromise(async ({ input, signal }) => {
+				turns++
+				if (turns > 1) {
+					assert.equal(input.context.currentGoal, 'Travel')
+					assert.match(input.context.lastReason ?? '', /range/)
+				}
+				return runAgentTurn({
+					...input.context,
+					bot: input.bot,
+					memory: input.bot.memory,
+					currentGoal: input.context.currentGoal!,
+					windows: input.context.windows!,
+					signal,
+					client: {
+						createResponse: async () => ({
+							id: String(turns),
+							outputText: '',
+							toolCalls:
+								turns === 1
+									? [
+											{
+												callId: 'bad',
+												name: 'navigate_to',
+												arguments: {
+													position: { x: 1, y: 64, z: 1 },
+													range: 'near'
+												}
+											}
+										]
+									: [
+											{
+												callId: 'finish',
+												name: 'finish_goal',
+												arguments: { message: 'Corrected' }
+											}
+										]
+						})
+					}
+				})
+			}),
+			actors: { serviceEntitiesTracking: noopActor }
+		}),
+		{ input: { bot: bot as unknown as Bot } }
+	)
+	bot.hsm = { getContext: () => actor.getSnapshot().context }
+	actor.start()
+	try {
+		actor.send({ type: 'USER_COMMAND', username: 'Steve', text: 'Travel' })
+		await waitForTurn()
+		assert.equal(turns, 2)
+		assert.equal(actor.getSnapshot().context.currentGoal, null)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('three rejected model actions terminate the goal without starting a primitive', async () => {
+	const bot = new FakeBot()
+	let turns = 0
+	const actor = createActor(
+		createBotMachine({
+			thinkingActor: fromPromise(async () => {
+				turns++
+				return { kind: 'rejected', reason: 'Invalid action', transcript: [] }
+			}),
+			actors: { serviceEntitiesTracking: noopActor }
+		}),
+		{ input: { bot: bot as unknown as Bot } }
+	)
+	bot.hsm = { getContext: () => actor.getSnapshot().context }
+	actor.start()
+	try {
+		actor.send({ type: 'USER_COMMAND', username: 'Steve', text: 'Travel' })
+		await waitForTurn()
+		assert.equal(turns, 3)
+		assert.equal(actor.getSnapshot().context.currentGoal, null)
+	} finally {
+		actor.stop()
+	}
+})
 
 const createVec3 = (x: number, y: number, z: number) => ({
 	x,
@@ -34,6 +123,26 @@ const createVec3 = (x: number, y: number, z: number) => ({
 		}
 	}
 })
+
+// Match Mineflayer's local window acquisition/release, including close failures.
+const trackWindow = (
+	bot: { currentWindow?: unknown },
+	window: unknown
+): unknown => {
+	assert.ok(
+		window &&
+			typeof window === 'object' &&
+			'close' in window &&
+			typeof window.close === 'function'
+	)
+	const close = window.close.bind(window)
+	window.close = () => {
+		close()
+		bot.currentWindow = null
+	}
+	bot.currentWindow = window
+	return window
+}
 
 class FakeBot extends EventEmitter {
 	username = 'Bot'
@@ -335,7 +444,10 @@ test('recovery replans an interrupted navigation without executing empty argumen
 		actor.send({ type: 'HEALTH_RESTORED' })
 		await waitForTurn()
 		assert.equal(turns, 2)
-		assert.equal(actor.getSnapshot().context.failureRepeats, 0)
+		assert.equal(
+			actor.getSnapshot().context.goalExecution.consecutiveFailures,
+			0
+		)
 		assert.notEqual(
 			actor.getSnapshot().context.lastReason,
 			'Unknown execution failure'
@@ -419,15 +531,67 @@ test('successful ping-pong executions cannot run a goal forever', async () => {
 	}
 })
 
+test('interrupting the last allowed action cannot issue action 129 after recovery', async () => {
+	const bot = new FakeBot() as any
+	let turns = 0
+	const actor = createActor(
+		createBotMachine({
+			thinkingActor: fromPromise(async () => ({
+				kind: 'execute',
+				execution: {
+					toolName: 'navigate_to',
+					args: { position: { x: (++turns % 2) + 10, y: 64, z: 0 } }
+				},
+				subGoal: 'Travel',
+				transcript: []
+			})),
+			actors: {
+				serviceEntitiesTracking: noopActor,
+				serviceEmergencyHealing: hangingActor
+			}
+		}),
+		{ input: { bot } }
+	)
+	bot.hsm = { getContext: () => actor.getSnapshot().context }
+	actor.start()
+	try {
+		actor.send({ type: 'USER_COMMAND', username: 'Steve', text: 'Travel' })
+		for (
+			let index = 0;
+			index < 127 && actor.getSnapshot().context.currentGoal;
+			index++
+		) {
+			await waitForTurn()
+			actor.send({ type: 'ARRIVED' })
+		}
+		await waitForTurn()
+		assert.equal(actor.getSnapshot().context.goalExecution.attempts, 128)
+		actor.send({ type: 'UPDATE_HEALTH', health: 8 })
+		assert.equal(actor.getSnapshot().context.goalExecution.attempts, 128)
+		actor.send({ type: 'UPDATE_HEALTH', health: 20 })
+		actor.send({ type: 'HEALTH_RESTORED' })
+		await waitForTurn()
+		assert.equal(actor.getSnapshot().context.currentGoal, null)
+		assert.equal(turns, 128)
+	} finally {
+		actor.stop()
+	}
+})
+
 test('late cleanup of an old window does not complete the new execution', async () => {
 	const bot = new FakeBot() as any
 	let resolveOpen: (value: unknown) => void = () => {}
 	let turns = 0
 	bot.blockAt = () => ({ name: 'furnace', position: createVec3(1, 64, 1) })
-	bot.openFurnace = () =>
-		new Promise(resolve => {
-			resolveOpen = resolve
-		})
+	bot.openFurnace = async () =>
+		trackWindow(
+			bot,
+			await (() =>
+				new Promise<{ slots: unknown[]; close(): void }>(resolve => {
+					resolveOpen = value =>
+						resolve(value as { slots: unknown[]; close(): void })
+				}))()
+		)
 	const actor = createActor(
 		createBotMachine({
 			thinkingActor: fromPromise(async () => ({
@@ -470,7 +634,7 @@ test('late cleanup of an old window does not complete the new execution', async 
 		assert.equal(actor.getSnapshot().context.pendingExecution, pending)
 		assert.equal(actor.getSnapshot().context.lastResult, null)
 		assert.equal(
-			actor.getSnapshot().context.activeWindowSessionState,
+			actor.getSnapshot().context.windows!.getSnapshot().state,
 			'close_failed'
 		)
 	} finally {
@@ -1878,40 +2042,55 @@ test('open_window, transfer_item, and close_window route through the HSM with se
 					position: createVec3(1, 64, 1)
 				}
 			: null
-	bot.openFurnace = async () => {
-		openCalls += 1
-		return {
-			slots: Array.from({ length: 46 }, (_, index) =>
-				index === 10
-					? {
-							name: 'iron_ore',
-							count: 3,
-							type: 1,
-							metadata: 0
+	bot.openFurnace = async () =>
+		trackWindow(
+			bot,
+			await (async () => {
+				openCalls += 1
+				return {
+					slots: Array.from({ length: 46 }, (_, index) =>
+						index === 10
+							? {
+									name: 'iron_ore',
+									count: 3,
+									type: 1,
+									metadata: 0
+								}
+							: null
+					),
+					close: () => {
+						closeCalls += 1
+					},
+					containerItems() {
+						return []
+					},
+					findItemRangeName(
+						this: {
+							slots: Array<{
+								name: string
+								type: number
+								metadata: number
+							} | null>
+						},
+						start: number,
+						end: number,
+						itemName: string
+					): { type: number; metadata: number | null } | null {
+						for (let index = start; index < end; index += 1) {
+							const slot = this.slots[index]
+							if (slot?.name === itemName) {
+								return {
+									type: slot.type ?? 1,
+									metadata: slot.metadata ?? null
+								}
+							}
 						}
-					: null
-			),
-			close: () => {
-				closeCalls += 1
-			},
-			containerItems() {
-				return []
-			},
-			findItemRangeName(start: number, end: number, itemName: string) {
-				for (let index = start; index < end; index += 1) {
-					const slot = this.slots[index]
-					if (slot?.name === itemName) {
-						return {
-							type: slot.type ?? 1,
-							metadata: slot.metadata ?? null
-						}
+
+						return null
 					}
 				}
-
-				return null
-			}
-		}
-	}
+			})()
+		)
 	bot.transfer = async (params: unknown) => {
 		transferCalls += 1
 		transferredArgs = params
@@ -1957,7 +2136,10 @@ test('open_window, transfer_item, and close_window route through the HSM with se
 		assert.equal(openCalls, 1)
 		assert.equal(transferCalls, 1)
 		assert.equal(closeCalls, 1)
-		assert.equal((actor.getSnapshot().context as any).activeWindowSession, null)
+		assert.equal(
+			(actor.getSnapshot().context as any).windows!.getSnapshot().session,
+			null
+		)
 		assert.equal((transferredArgs as any)?.itemType, 1)
 		assert.equal((transferredArgs as any)?.sourceStart, 3)
 		assert.equal((transferredArgs as any)?.destStart, 0)
@@ -2001,21 +2183,25 @@ test('START_COMBAT closes an active window before entering combat', async () => 
 					position: createVec3(1, 64, 1)
 				}
 			: null
-	bot.openFurnace = async () => {
-		openCalls += 1
-		return {
-			slots: Array.from({ length: 46 }, () => null),
-			close: () => {
-				closeCalls += 1
-			},
-			containerItems() {
-				return []
-			},
-			findItemRangeName() {
-				return null
-			}
-		}
-	}
+	bot.openFurnace = async () =>
+		trackWindow(
+			bot,
+			await (async () => {
+				openCalls += 1
+				return {
+					slots: Array.from({ length: 46 }, () => null),
+					close: () => {
+						closeCalls += 1
+					},
+					containerItems() {
+						return []
+					},
+					findItemRangeName() {
+						return null
+					}
+				}
+			})()
+		)
 
 	const actor = createActor(
 		createBotMachine({
@@ -2056,7 +2242,10 @@ test('START_COMBAT closes an active window before entering combat', async () => 
 
 		assert.equal(openCalls, 1)
 		assert.equal(closeCalls, 1)
-		assert.equal((actor.getSnapshot().context as any).activeWindowSession, null)
+		assert.equal(
+			(actor.getSnapshot().context as any).windows!.getSnapshot().session,
+			null
+		)
 		assert.equal(
 			(actor.getSnapshot().context as any).preferredCombatTargetId,
 			enemy.id
@@ -2092,21 +2281,25 @@ test('UPDATE_ENTITIES closes an active window before auto-combat preemption', as
 					position: createVec3(1, 64, 1)
 				}
 			: null
-	bot.openFurnace = async () => {
-		openCalls += 1
-		return {
-			slots: Array.from({ length: 46 }, () => null),
-			close: () => {
-				closeCalls += 1
-			},
-			containerItems() {
-				return []
-			},
-			findItemRangeName() {
-				return null
-			}
-		}
-	}
+	bot.openFurnace = async () =>
+		trackWindow(
+			bot,
+			await (async () => {
+				openCalls += 1
+				return {
+					slots: Array.from({ length: 46 }, () => null),
+					close: () => {
+						closeCalls += 1
+					},
+					containerItems() {
+						return []
+					},
+					findItemRangeName() {
+						return null
+					}
+				}
+			})()
+		)
 
 	const actor = createActor(
 		createBotMachine({
@@ -2153,7 +2346,10 @@ test('UPDATE_ENTITIES closes an active window before auto-combat preemption', as
 
 		assert.equal(openCalls, 1)
 		assert.equal(closeCalls, 1)
-		assert.equal((actor.getSnapshot().context as any).activeWindowSession, null)
+		assert.equal(
+			(actor.getSnapshot().context as any).windows!.getSnapshot().session,
+			null
+		)
 		assert.equal(
 			(actor.getSnapshot().context as any).preferredCombatTargetId,
 			null
@@ -2189,21 +2385,25 @@ test('START_URGENT_NEEDS closes an active window before urgent handling', async 
 					position: createVec3(1, 64, 1)
 				}
 			: null
-	bot.openFurnace = async () => {
-		openCalls += 1
-		return {
-			slots: Array.from({ length: 46 }, () => null),
-			close: () => {
-				closeCalls += 1
-			},
-			containerItems() {
-				return []
-			},
-			findItemRangeName() {
-				return null
-			}
-		}
-	}
+	bot.openFurnace = async () =>
+		trackWindow(
+			bot,
+			await (async () => {
+				openCalls += 1
+				return {
+					slots: Array.from({ length: 46 }, () => null),
+					close: () => {
+						closeCalls += 1
+					},
+					containerItems() {
+						return []
+					},
+					findItemRangeName() {
+						return null
+					}
+				}
+			})()
+		)
 
 	const actor = createActor(
 		createBotMachine({
@@ -2244,7 +2444,10 @@ test('START_URGENT_NEEDS closes an active window before urgent handling', async 
 
 		assert.equal(openCalls, 1)
 		assert.equal(closeCalls, 1)
-		assert.equal((actor.getSnapshot().context as any).activeWindowSession, null)
+		assert.equal(
+			(actor.getSnapshot().context as any).windows!.getSnapshot().session,
+			null
+		)
 		assert.equal(
 			(actor.getSnapshot() as any).matches({
 				MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_EATING' }
@@ -2332,24 +2535,28 @@ test('failed window close marks the session retryable until a confirmed close su
 					position: createVec3(1, 64, 1)
 				}
 			: null
-	bot.openFurnace = async () => {
-		openCalls += 1
-		return {
-			slots: Array.from({ length: 46 }, () => null),
-			close: () => {
-				closeCalls += 1
-				if (closeCalls === 1) {
-					throw new Error('close failed')
+	bot.openFurnace = async () =>
+		trackWindow(
+			bot,
+			await (async () => {
+				openCalls += 1
+				return {
+					slots: Array.from({ length: 46 }, () => null),
+					close: () => {
+						closeCalls += 1
+						if (closeCalls === 1) {
+							throw new Error('close failed')
+						}
+					},
+					containerItems() {
+						return []
+					},
+					findItemRangeName() {
+						return null
+					}
 				}
-			},
-			containerItems() {
-				return []
-			},
-			findItemRangeName() {
-				return null
-			}
-		}
-	}
+			})()
+		)
 
 	const actor = createActor(
 		createBotMachine({
@@ -2391,11 +2598,12 @@ test('failed window close marks the session retryable until a confirmed close su
 		assert.equal(openCalls, 1)
 		assert.equal(closeCalls, 1)
 		assert.equal(
-			(actor.getSnapshot().context as any).activeWindowSessionState,
+			(actor.getSnapshot().context as any).windows!.getSnapshot().state,
 			'close_failed'
 		)
 		assert.equal(
-			(actor.getSnapshot().context as any).activeWindowSession !== null,
+			(actor.getSnapshot().context as any).windows!.getSnapshot().session !==
+				null,
 			true
 		)
 
@@ -2408,11 +2616,12 @@ test('failed window close marks the session retryable until a confirmed close su
 		assert.equal(openCalls, 2)
 		assert.equal(closeCalls, 2)
 		assert.equal(
-			(actor.getSnapshot().context as any).activeWindowSessionState,
+			(actor.getSnapshot().context as any).windows!.getSnapshot().state,
 			'open'
 		)
 		assert.equal(
-			(actor.getSnapshot().context as any).activeWindowSession !== null,
+			(actor.getSnapshot().context as any).windows!.getSnapshot().session !==
+				null,
 			true
 		)
 	} finally {
@@ -2483,24 +2692,28 @@ test('transfer_item is rejected while the window close is unconfirmed', async ()
 					position: createVec3(1, 64, 1)
 				}
 			: null
-	bot.openFurnace = async () => {
-		openCalls += 1
-		return {
-			slots: Array.from({ length: 46 }, () => null),
-			close: () => {
-				closeCalls += 1
-				if (closeCalls === 1) {
-					throw new Error('close failed')
+	bot.openFurnace = async () =>
+		trackWindow(
+			bot,
+			await (async () => {
+				openCalls += 1
+				return {
+					slots: Array.from({ length: 46 }, () => null),
+					close: () => {
+						closeCalls += 1
+						if (closeCalls === 1) {
+							throw new Error('close failed')
+						}
+					},
+					containerItems() {
+						return []
+					},
+					findItemRangeName() {
+						return null
+					}
 				}
-			},
-			containerItems() {
-				return []
-			},
-			findItemRangeName() {
-				return null
-			}
-		}
-	}
+			})()
+		)
 	bot.transfer = async () => {
 		transferCalls += 1
 	}
@@ -2546,7 +2759,7 @@ test('transfer_item is rejected while the window close is unconfirmed', async ()
 		assert.equal(closeCalls, 1)
 		assert.equal(transferCalls, 0)
 		assert.equal(
-			(actor.getSnapshot().context as any).activeWindowSessionState,
+			(actor.getSnapshot().context as any).windows!.getSnapshot().state,
 			'close_failed'
 		)
 	} finally {
@@ -2586,32 +2799,36 @@ test('open_window abort after open preserves the session when close fails', asyn
 					position: createVec3(1, 64, 1)
 				}
 			: null
-	bot.openFurnace = async () => {
-		openCalls += 1
-		return await new Promise(resolve => {
-			setImmediate(() => {
-				process.nextTick(() => {
-					actor.send({
-						type: 'START_COMBAT',
-						target: enemy as any
+	bot.openFurnace = async () =>
+		trackWindow(
+			bot,
+			await (async () => {
+				openCalls += 1
+				return await new Promise(resolve => {
+					setImmediate(() => {
+						process.nextTick(() => {
+							actor.send({
+								type: 'START_COMBAT',
+								target: enemy as any
+							})
+						})
+						resolve({
+							slots: Array.from({ length: 46 }, () => null),
+							close: () => {
+								closeCalls += 1
+								throw new Error('close failed')
+							},
+							containerItems() {
+								return []
+							},
+							findItemRangeName() {
+								return null
+							}
+						})
 					})
 				})
-				resolve({
-					slots: Array.from({ length: 46 }, () => null),
-					close: () => {
-						closeCalls += 1
-						throw new Error('close failed')
-					},
-					containerItems() {
-						return []
-					},
-					findItemRangeName() {
-						return null
-					}
-				})
-			})
-		})
-	}
+			})()
+		)
 
 	const actor = createActor(
 		createBotMachine({
@@ -2650,11 +2867,12 @@ test('open_window abort after open preserves the session when close fails', asyn
 		assert.equal(openCalls, 1)
 		assert.equal(closeCalls, 1)
 		assert.equal(
-			(actor.getSnapshot().context as any).activeWindowSession !== null,
+			(actor.getSnapshot().context as any).windows!.getSnapshot().session !==
+				null,
 			true
 		)
 		assert.equal(
-			(actor.getSnapshot().context as any).activeWindowSessionState,
+			(actor.getSnapshot().context as any).windows!.getSnapshot().state,
 			'close_failed'
 		)
 		assert.equal((actor.getSnapshot().context as any).lastResult, null)
@@ -2695,21 +2913,25 @@ test('DEATH clears active window session state and closes any open window', asyn
 					position: createVec3(1, 64, 1)
 				}
 			: null
-	bot.openFurnace = async () => {
-		openCalls += 1
-		return {
-			slots: Array.from({ length: 46 }, () => null),
-			close: () => {
-				closeCalls += 1
-			},
-			containerItems() {
-				return []
-			},
-			findItemRangeName() {
-				return null
-			}
-		}
-	}
+	bot.openFurnace = async () =>
+		trackWindow(
+			bot,
+			await (async () => {
+				openCalls += 1
+				return {
+					slots: Array.from({ length: 46 }, () => null),
+					close: () => {
+						closeCalls += 1
+					},
+					containerItems() {
+						return []
+					},
+					findItemRangeName() {
+						return null
+					}
+				}
+			})()
+		)
 
 	const actor = createActor(
 		createBotMachine({
@@ -2749,9 +2971,12 @@ test('DEATH clears active window session state and closes any open window', asyn
 
 		assert.equal(openCalls, 1)
 		assert.equal(closeCalls, 1)
-		assert.equal((actor.getSnapshot().context as any).activeWindowSession, null)
 		assert.equal(
-			(actor.getSnapshot().context as any).activeWindowSessionState,
+			(actor.getSnapshot().context as any).windows!.getSnapshot().session,
+			null
+		)
+		assert.equal(
+			(actor.getSnapshot().context as any).windows!.getSnapshot().state,
 			null
 		)
 	} finally {
@@ -2791,21 +3016,25 @@ test('STOP_CURRENT_GOAL clears active window session state and closes any open w
 					position: createVec3(1, 64, 1)
 				}
 			: null
-	bot.openFurnace = async () => {
-		openCalls += 1
-		return {
-			slots: Array.from({ length: 46 }, () => null),
-			close: () => {
-				closeCalls += 1
-			},
-			containerItems() {
-				return []
-			},
-			findItemRangeName() {
-				return null
-			}
-		}
-	}
+	bot.openFurnace = async () =>
+		trackWindow(
+			bot,
+			await (async () => {
+				openCalls += 1
+				return {
+					slots: Array.from({ length: 46 }, () => null),
+					close: () => {
+						closeCalls += 1
+					},
+					containerItems() {
+						return []
+					},
+					findItemRangeName() {
+						return null
+					}
+				}
+			})()
+		)
 
 	const actor = createActor(
 		createBotMachine({
@@ -2845,9 +3074,12 @@ test('STOP_CURRENT_GOAL clears active window session state and closes any open w
 
 		assert.equal(openCalls, 1)
 		assert.equal(closeCalls, 1)
-		assert.equal((actor.getSnapshot().context as any).activeWindowSession, null)
 		assert.equal(
-			(actor.getSnapshot().context as any).activeWindowSessionState,
+			(actor.getSnapshot().context as any).windows!.getSnapshot().session,
+			null
+		)
+		assert.equal(
+			(actor.getSnapshot().context as any).windows!.getSnapshot().state,
 			null
 		)
 		assert.equal(
@@ -2899,21 +3131,25 @@ test('thinking finish clears active window session state and closes any open win
 					position: createVec3(1, 64, 1)
 				}
 			: null
-	bot.openFurnace = async () => {
-		openCalls += 1
-		return {
-			slots: Array.from({ length: 46 }, () => null),
-			close: () => {
-				closeCalls += 1
-			},
-			containerItems() {
-				return []
-			},
-			findItemRangeName() {
-				return null
-			}
-		}
-	}
+	bot.openFurnace = async () =>
+		trackWindow(
+			bot,
+			await (async () => {
+				openCalls += 1
+				return {
+					slots: Array.from({ length: 46 }, () => null),
+					close: () => {
+						closeCalls += 1
+					},
+					containerItems() {
+						return []
+					},
+					findItemRangeName() {
+						return null
+					}
+				}
+			})()
+		)
 
 	const actor = createActor(
 		createBotMachine({
@@ -2952,9 +3188,12 @@ test('thinking finish clears active window session state and closes any open win
 
 		assert.equal(openCalls, 1)
 		assert.equal(closeCalls, 1)
-		assert.equal((actor.getSnapshot().context as any).activeWindowSession, null)
 		assert.equal(
-			(actor.getSnapshot().context as any).activeWindowSessionState,
+			(actor.getSnapshot().context as any).windows!.getSnapshot().session,
+			null
+		)
+		assert.equal(
+			(actor.getSnapshot().context as any).windows!.getSnapshot().state,
 			null
 		)
 		assert.equal(
@@ -3006,21 +3245,25 @@ test('thinking failure clears active window session state and closes any open wi
 					position: createVec3(1, 64, 1)
 				}
 			: null
-	bot.openFurnace = async () => {
-		openCalls += 1
-		return {
-			slots: Array.from({ length: 46 }, () => null),
-			close: () => {
-				closeCalls += 1
-			},
-			containerItems() {
-				return []
-			},
-			findItemRangeName() {
-				return null
-			}
-		}
-	}
+	bot.openFurnace = async () =>
+		trackWindow(
+			bot,
+			await (async () => {
+				openCalls += 1
+				return {
+					slots: Array.from({ length: 46 }, () => null),
+					close: () => {
+						closeCalls += 1
+					},
+					containerItems() {
+						return []
+					},
+					findItemRangeName() {
+						return null
+					}
+				}
+			})()
+		)
 
 	const actor = createActor(
 		createBotMachine({
@@ -3059,9 +3302,12 @@ test('thinking failure clears active window session state and closes any open wi
 
 		assert.equal(openCalls, 1)
 		assert.equal(closeCalls, 1)
-		assert.equal((actor.getSnapshot().context as any).activeWindowSession, null)
 		assert.equal(
-			(actor.getSnapshot().context as any).activeWindowSessionState,
+			(actor.getSnapshot().context as any).windows!.getSnapshot().session,
+			null
+		)
+		assert.equal(
+			(actor.getSnapshot().context as any).windows!.getSnapshot().state,
 			null
 		)
 		assert.equal(
@@ -3232,6 +3478,96 @@ test('conversation history survives completed goals and is appended on user and 
 				message: 'что у тебя в инвентаре?'
 			}
 		])
+	} finally {
+		actor.stop()
+	}
+})
+
+test('mixed terminal and inline responses are rejected before inline side effects in either order', async () => {
+	for (const terminal of ['mine_resource', 'finish_goal']) {
+		for (const reverse of [false, true]) {
+			const fake = new FakeBot()
+			let deletions = 0
+			fake.memory.deleteEntry = () => {
+				deletions++
+				return true
+			}
+			const bot = fake as unknown as Bot
+			const calls = [
+				{
+					callId: 'terminal',
+					name: terminal,
+					arguments:
+						terminal === 'mine_resource'
+							? { block_name: 'stone', count: 1 }
+							: {}
+				},
+				{ callId: 'inline', name: 'memory_delete', arguments: { id: 'known' } }
+			]
+			const result = await runAgentTurn({
+				bot,
+				memory: bot.memory,
+				currentGoal: 'Gather',
+				subGoal: null,
+				lastAction: null,
+				lastResult: null,
+				lastReason: null,
+				errorHistory: [],
+				taskContext: createTaskContext('Gather', null),
+				client: {
+					createResponse: async () => ({
+						id: 'mixed',
+						outputText: '',
+						toolCalls: reverse ? calls.reverse() : calls
+					})
+				}
+			})
+			assert.equal(result.kind, 'rejected', terminal)
+			assert.equal(deletions, 0, terminal)
+		}
+	}
+})
+
+test('failed window close does not block emergency recovery', async () => {
+	const { bot, actor } = createTestActor()
+	bot.blockAt = () => ({ name: 'furnace', position: createVec3(1, 64, 1) })
+	bot.openFurnace = async () =>
+		trackWindow(bot, {
+			slots: [],
+			close() {
+				throw new Error('close failed')
+			}
+		})
+	try {
+		await actor.getSnapshot().context.windows!.open({ x: 1, y: 64, z: 1 })
+		actor.send({ type: 'UPDATE_HEALTH', health: 8 })
+		assert.ok(
+			actor
+				.getSnapshot()
+				.matches({ MAIN_ACTIVITY: { URGENT_NEEDS: 'EMERGENCY_HEALING' } })
+		)
+		assert.equal(
+			actor.getSnapshot().context.windows!.getSnapshot().state,
+			'close_failed'
+		)
+	} finally {
+		actor.stop()
+	}
+})
+
+test('stopping the machine releases its window without a final transition', async () => {
+	const { bot, actor } = createTestActor()
+	bot.blockAt = () => ({ name: 'furnace', position: createVec3(1, 64, 1) })
+	bot.openFurnace = async () => trackWindow(bot, { slots: [], close() {} })
+	try {
+		await actor.getSnapshot().context.windows!.open({ x: 1, y: 64, z: 1 })
+		assert.ok(bot.currentWindow)
+		actor.stop()
+		assert.equal(bot.currentWindow, null)
+		assert.equal(
+			actor.getSnapshot().context.windows!.getSnapshot().session,
+			null
+		)
 	} finally {
 		actor.stop()
 	}

@@ -11,16 +11,6 @@ import {
 	normalizeFactValue,
 	tryParsePosition
 } from './grounding.js'
-import { executionSignature } from './transcript.js'
-
-const WINDOW_ZONES = [
-	'player_inventory',
-	'hotbar',
-	'container',
-	'input',
-	'fuel',
-	'output'
-]
 
 const UNSUPPORTED_WORKSTATIONS_BY_CATEGORY: Record<string, string[]> = {
 	craft: ['stonecutter']
@@ -51,31 +41,18 @@ const isUnsupportedWorkstationValue = (
 	)
 }
 
-const getNavigateBlockName = (
-	bot: Bot,
-	args: Record<string, unknown>
-): string | null => {
-	const position = args.position
-	if (
-		!position ||
-		typeof position !== 'object' ||
-		Array.isArray(position) ||
-		typeof (position as Record<string, unknown>).x !== 'number' ||
-		typeof (position as Record<string, unknown>).y !== 'number' ||
-		typeof (position as Record<string, unknown>).z !== 'number'
-	) {
-		return null
-	}
-
-	const block = bot.blockAt(position as { x: number; y: number; z: number })
-	return block?.name ?? null
-}
-
 export const validateInlineTool = (
 	name: string,
 	args: Record<string, unknown>,
 	taskContext: TaskContext
 ): string | null => {
+	if (
+		name === 'inspect_window' &&
+		args.position !== undefined &&
+		!tryParsePosition(args.position)
+	)
+		return 'Inline tool "inspect_window" requires a finite position {x, y, z} when supplied'
+
 	if (name === 'memory_save') {
 		if (!toMemoryEntryType(args.type)) {
 			return `Inline tool "memory_save" requires type to be one of: ${MEMORY_ENTRY_TYPES.join(', ')}`
@@ -128,29 +105,22 @@ export const validateExecutionTool = (
 	groundedFacts: GroundedTurnFacts
 ): string | null => {
 	if (
-		taskContext.rejectedStepSignatures.includes(
-			executionSignature(execution.toolName, execution.args)
-		)
-	) {
-		return 'Execution step was already rejected as irrelevant for the current task'
-	}
-
-	if (
 		taskContext.category === 'craft' &&
 		execution.toolName === 'navigate_to'
 	) {
-		const blockName = getNavigateBlockName(bot, execution.args)
+		const blockName = bot.blockAt(execution.args.position)?.name
 		if (
 			blockName &&
-			(UNSUPPORTED_WORKSTATIONS_BY_CATEGORY[taskContext.category] ?? []).includes(
-				blockName
-			)
+			(
+				UNSUPPORTED_WORKSTATIONS_BY_CATEGORY[taskContext.category] ?? []
+			).includes(blockName)
 		) {
 			return 'Navigate target points to an unsupported workstation for crafting tasks'
 		}
 	}
 
-	const targetPosition = tryParsePosition(execution.args.position)
+	const targetPosition =
+		'position' in execution.args ? execution.args.position : null
 	const hasGroundedPosition =
 		targetPosition !== null &&
 		hasAnyPositionCapability(groundedFacts, targetPosition)
@@ -169,23 +139,8 @@ export const validateExecutionTool = (
 				return 'Execution tool "break_block" requires a block position grounded by inspect_blocks in this turn'
 			}
 			return null
-		case 'mine_resource': {
-			const blockName = normalizeFactValue(execution.args.block_name)
-			const count = execution.args.count
-			if (!blockName) {
-				return 'Execution tool "mine_resource" requires block_name'
-			}
-			if (
-				typeof count !== 'number' ||
-				!Number.isFinite(count) ||
-				!Number.isInteger(count) ||
-				count <= 0 ||
-				count > 64
-			) {
-				return 'Execution tool "mine_resource" requires an integer count from 1 to 64'
-			}
+		case 'mine_resource':
 			return null
-		}
 		case 'open_window':
 			if (
 				!targetPosition ||
@@ -225,36 +180,7 @@ export const validateExecutionTool = (
 			}
 			return null
 		}
-		case 'transfer_item': {
-			const sourceZone = execution.args.source_zone
-			const destZone = execution.args.dest_zone
-			if (
-				typeof sourceZone !== 'string' ||
-				!WINDOW_ZONES.includes(sourceZone)
-			) {
-				return `Execution tool "transfer_item" requires source_zone to be one of: ${WINDOW_ZONES.join(', ')}`
-			}
-			if (typeof destZone !== 'string' || !WINDOW_ZONES.includes(destZone)) {
-				return `Execution tool "transfer_item" requires dest_zone to be one of: ${WINDOW_ZONES.join(', ')}`
-			}
-			if (sourceZone === destZone) {
-				return 'Execution tool "transfer_item" requires source_zone and dest_zone to differ'
-			}
-			if (
-				typeof execution.args.item_name !== 'string' ||
-				execution.args.item_name.trim().length === 0
-			) {
-				return 'Execution tool "transfer_item" requires a non-empty item_name'
-			}
-			if (
-				typeof execution.args.count !== 'number' ||
-				!Number.isInteger(execution.args.count) ||
-				execution.args.count <= 0
-			) {
-				return 'Execution tool "transfer_item" requires count to be a positive integer'
-			}
-			return null
-		}
+		case 'transfer_item':
 		case 'close_window':
 			return null
 		default:

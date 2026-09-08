@@ -1,7 +1,7 @@
 import Logger from '@/config/logger'
+
 import { createAgentClient } from '@/ai/client.js'
 import { assembleAgentPrompt } from '@/ai/prompt.js'
-import { appendRejectedStepSignature } from '@/ai/taskContext.js'
 import {
 	AGENT_TOOLS,
 	executeInlineToolCall,
@@ -13,6 +13,8 @@ import {
 
 import type { AgentTurnInput, AgentTurnResult } from '../contracts/agentTurn.js'
 import type { PendingExecution } from '../contracts/execution.js'
+import { getWindowRuntime } from '../runtime/window.js'
+import { parseExecution } from '../tools/executionDefinitions.js'
 import {
 	collectGroundedFacts,
 	createGroundedTurnFacts,
@@ -23,12 +25,13 @@ import {
 	MAX_MODEL_RETRIES,
 	parseSubGoal
 } from './policy.js'
-import { executionSignature } from './transcript.js'
 import { validateExecutionTool, validateInlineTool } from './validation.js'
 
 export const runAgentTurn = async (
 	input: AgentTurnInput
 ): Promise<AgentTurnResult> => {
+	const windows = input.windows ?? getWindowRuntime(input.bot)
+	const windowState = windows.getSnapshot()
 	const client = input.client ?? createAgentClient()
 	const transcript: string[] = []
 	const promptAssembly = assembleAgentPrompt({
@@ -41,8 +44,8 @@ export const runAgentTurn = async (
 		lastResult: input.lastResult,
 		lastReason: input.lastReason,
 		errorHistory: input.errorHistory,
-		activeWindowSession: input.activeWindowSession ?? null,
-		activeWindowSessionState: input.activeWindowSessionState ?? null,
+		activeWindowSession: windowState.session,
+		activeWindowSessionState: windowState.state,
 		tools: AGENT_TOOLS
 	})
 
@@ -72,8 +75,7 @@ export const runAgentTurn = async (
 				throw error
 			}
 
-			const reason =
-				error instanceof Error ? error.message : String(error)
+			const reason = error instanceof Error ? error.message : String(error)
 			Logger.info('[AI] turn_failed', {
 				reason: `Model request failed: ${reason}`,
 				transcript
@@ -84,6 +86,7 @@ export const runAgentTurn = async (
 				transcript
 			}
 		}
+		input.signal?.throwIfAborted()
 		const duration = Date.now() - roundStart
 		transcript.push(`round_${round}_ms:${duration}`)
 
@@ -117,7 +120,7 @@ export const runAgentTurn = async (
 					transcript
 				})
 				return {
-					kind: 'failed',
+					kind: 'rejected',
 					reason: 'Model returned plain text without grounded inspect data',
 					transcript
 				}
@@ -141,8 +144,22 @@ export const runAgentTurn = async (
 				transcript
 			})
 			return {
-				kind: 'failed',
+				kind: 'rejected',
 				reason: 'Model did not return a tool call',
+				transcript
+			}
+		}
+
+		if (
+			response.toolCalls.length > 1 &&
+			response.toolCalls.some(
+				call => isExecutionToolName(call.name) || isControlToolName(call.name)
+			)
+		) {
+			return {
+				kind: 'rejected',
+				reason:
+					'Model mixed execution, control or informational tools in one response',
 				transcript
 			}
 		}
@@ -150,30 +167,15 @@ export const runAgentTurn = async (
 		const inlineOutputs: Array<Record<string, unknown>> = []
 		let execution: PendingExecution | null = null
 		let finishMessage: string | null = null
-		let sawInlineTool = false
 
 		for (const toolCall of response.toolCalls) {
 			transcript.push(toolCall.name)
 
 			if (isExecutionToolName(toolCall.name)) {
-				if (execution || sawInlineTool || finishMessage) {
-					Logger.info('[AI] turn_failed', {
-						reason:
-							'Model mixed execution and informational tools in one response',
-						transcript
-					})
-					return {
-						kind: 'failed',
-						reason:
-							'Model mixed execution and informational tools in one response',
-						transcript
-					}
-				}
-
-				execution = {
-					toolName: toolCall.name,
-					args: toolCall.arguments
-				}
+				const parsed = parseExecution(toolCall.name, toolCall.arguments)
+				if (!parsed.ok)
+					return { kind: 'rejected', reason: parsed.reason, transcript }
+				execution = parsed.execution
 				const executionValidationError = validateExecutionTool(
 					input.bot,
 					execution,
@@ -185,12 +187,8 @@ export const runAgentTurn = async (
 						reason: executionValidationError,
 						transcript
 					})
-					input.taskContext = appendRejectedStepSignature(
-						input.taskContext,
-						executionSignature(execution.toolName, execution.args)
-					)
 					return {
-						kind: 'failed',
+						kind: 'rejected',
 						reason: executionValidationError,
 						transcript
 					}
@@ -204,18 +202,6 @@ export const runAgentTurn = async (
 			}
 
 			if (isControlToolName(toolCall.name)) {
-				if (execution || sawInlineTool || finishMessage) {
-					Logger.info('[AI] turn_failed', {
-						reason: 'Model returned conflicting terminal actions',
-						transcript
-					})
-					return {
-						kind: 'failed',
-						reason: 'Model returned conflicting terminal actions',
-						transcript
-					}
-				}
-
 				finishMessage =
 					typeof toolCall.arguments.message === 'string'
 						? toolCall.arguments.message
@@ -235,7 +221,7 @@ export const runAgentTurn = async (
 					transcript
 				})
 				return {
-					kind: 'failed',
+					kind: 'rejected',
 					reason: `Unknown tool requested: ${toolCall.name}`,
 					transcript
 				}
@@ -252,36 +238,37 @@ export const runAgentTurn = async (
 					transcript
 				})
 				return {
-					kind: 'failed',
+					kind: 'rejected',
 					reason: inlineValidationError,
 					transcript
 				}
 			}
 
-		sawInlineTool = true
-		let result
-		try {
-			result = await executeInlineToolCall(
-				toolCall.name,
-				toolCall.arguments,
-				{
-					bot: input.bot,
-					activeWindowSession: input.activeWindowSession ?? null,
-					activeWindowSessionState: input.activeWindowSessionState ?? null
+			let result
+			try {
+				result = await executeInlineToolCall(
+					toolCall.name,
+					toolCall.arguments,
+					{
+						bot: input.bot,
+						windows,
+						signal: input.signal
+					}
+				)
+			} catch (error) {
+				input.signal?.throwIfAborted()
+				const reason = error instanceof Error ? error.message : String(error)
+				Logger.info('[AI] turn_failed', {
+					reason: `Inline tool "${toolCall.name}" threw: ${reason}`,
+					transcript
+				})
+				return {
+					kind: 'failed',
+					reason: `Inline tool "${toolCall.name}" threw: ${reason}`,
+					transcript
 				}
-			)
-		} catch (error) {
-			const reason = error instanceof Error ? error.message : String(error)
-			Logger.info('[AI] turn_failed', {
-				reason: `Inline tool "${toolCall.name}" threw: ${reason}`,
-				transcript
-			})
-			return {
-				kind: 'failed',
-				reason: `Inline tool "${toolCall.name}" threw: ${reason}`,
-				transcript
 			}
-		}
+			input.signal?.throwIfAborted()
 			inlineOutputs.push({
 				type: 'function_call_output',
 				call_id: toolCall.callId,
@@ -332,7 +319,7 @@ export const runAgentTurn = async (
 				transcript
 			})
 			return {
-				kind: 'failed',
+				kind: 'rejected',
 				reason: 'Model requested no actionable tool output',
 				transcript
 			}
@@ -347,7 +334,7 @@ export const runAgentTurn = async (
 		transcript
 	})
 	return {
-		kind: 'failed',
+		kind: 'rejected',
 		reason: 'Inline tool round limit exceeded',
 		transcript
 	}

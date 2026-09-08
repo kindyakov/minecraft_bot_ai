@@ -1,8 +1,10 @@
+import { Vec3 } from 'vec3'
+
 import type { Bot } from '@/types'
 
-import Logger from '@/config/logger'
-
 import type { MemoryPosition } from '@/core/memory/types.js'
+
+import type { WindowZone } from '../tools/executionDefinitions.js'
 
 export type WindowKind =
 	| 'player_inventory'
@@ -10,27 +12,21 @@ export type WindowKind =
 	| 'furnace_family'
 	| 'crafting_table'
 
-export type WindowZone =
-	| 'player_inventory'
-	| 'hotbar'
-	| 'container'
-	| 'input'
-	| 'fuel'
-	| 'output'
+export type { WindowZone } from '../tools/executionDefinitions.js'
 
-export interface WindowItemSnapshot {
+interface WindowItemSnapshot {
 	name: string
 	count: number
 	maxDurability?: number | null
 	durabilityUsed?: number | null
 }
 
-export interface WindowZoneSnapshot {
+interface WindowZoneSnapshot {
 	zone: WindowZone
 	items: WindowItemSnapshot[]
 }
 
-export interface WindowSnapshot {
+interface WindowSnapshot {
 	kind: WindowKind
 	blockName: string | null
 	position: MemoryPosition | null
@@ -67,9 +63,215 @@ export interface WindowTransferResult {
 	count: number
 }
 
-export interface WindowCloseResult {
+interface WindowCloseResult {
 	ok: boolean
 	reason?: string
+}
+
+interface WindowOperations {
+	current(): unknown
+	open(position: MemoryPosition): Promise<WindowSession>
+	close(session: WindowSession): void
+	transfer(
+		session: WindowSession,
+		request: WindowTransferRequest
+	): Promise<WindowTransferResult>
+}
+
+/** Owns active and temporary windows; callers never close raw session handles. */
+export class WindowRuntime {
+	private session: WindowSession | null = null
+	private state: 'open' | 'close_failed' | null = null
+	private pending: AbortController | null = null
+
+	constructor(private readonly operations: WindowOperations) {}
+
+	getSnapshot() {
+		return {
+			session: this.session,
+			state: this.state,
+			busy: this.pending !== null
+		}
+	}
+
+	private async run<T>(
+		work: (signal: AbortSignal) => Promise<T>,
+		signal?: AbortSignal
+	): Promise<T> {
+		signal?.throwIfAborted()
+		if (this.pending)
+			throw new Error('Previous window operation is still settling')
+		const controller = new AbortController()
+		this.pending = controller
+		const cancel = () => controller.abort(signal?.reason)
+		signal?.addEventListener('abort', cancel, { once: true })
+		const timer = setTimeout(
+			() => controller.abort(new Error('Window operation timed out')),
+			15_000
+		)
+		let rejectAbort: () => void = () => {}
+		const cancelled = new Promise<never>((_, reject) => {
+			rejectAbort = () => reject(controller.signal.reason)
+			controller.signal.addEventListener('abort', rejectAbort, { once: true })
+		})
+		// Keep the slot until the underlying Mineflayer operation settles, even after cancellation.
+		const operation = work(controller.signal).finally(() => {
+			if (this.pending === controller) this.pending = null
+		})
+		try {
+			return await Promise.race([operation, cancelled])
+		} finally {
+			clearTimeout(timer)
+			signal?.removeEventListener('abort', cancel)
+			controller.signal.removeEventListener('abort', rejectAbort)
+		}
+	}
+
+	private async acquire(
+		position: MemoryPosition,
+		signal: AbortSignal
+	): Promise<WindowSession> {
+		signal.throwIfAborted()
+		if (this.session)
+			throw new Error('Close the active window before opening another')
+		if (this.operations.current())
+			throw new Error('An unowned window is already open')
+		const session = await this.operations.open(position)
+		if (this.operations.current() !== session.window)
+			throw new Error('Window was superseded before opening completed')
+		this.session = session
+		this.state = 'open'
+		if (signal.aborted) {
+			this.closeOwned()
+			signal.throwIfAborted()
+		}
+		return session
+	}
+
+	open(position: MemoryPosition, signal?: AbortSignal): Promise<WindowSession> {
+		return this.run(active => this.acquire(position, active), signal)
+	}
+
+	private closeOwned(): WindowCloseResult {
+		if (!this.session) return { ok: true }
+		try {
+			// Mineflayer close mutates currentWindow and inventory; never call it for an old handle.
+			if (this.operations.current() === this.session.window) {
+				this.operations.close(this.session)
+				if (this.operations.current() === this.session.window)
+					throw new Error('Window close is unconfirmed')
+			}
+			this.session = null
+			this.state = null
+			return { ok: true }
+		} catch (error) {
+			this.state = 'close_failed'
+			return {
+				ok: false,
+				reason: error instanceof Error ? error.message : String(error)
+			}
+		}
+	}
+
+	/** Immediate resource cancellation; never waits before survival can take over. */
+	close(): WindowCloseResult {
+		this.pending?.abort()
+		const result = this.closeOwned()
+		if (!result.ok) return result
+		return this.pending
+			? { ok: false, reason: 'Window operation is still settling' }
+			: result
+	}
+
+	inspect(position?: MemoryPosition | null, signal?: AbortSignal) {
+		return this.run(async active => {
+			if (this.state === 'close_failed')
+				throw new Error('Active window close failed; retry close_window')
+			if (this.session) {
+				if (this.operations.current() !== this.session.window)
+					throw new Error('Active window is no longer current; close it first')
+				if (
+					position &&
+					(position.x !== this.session.position?.x ||
+						position.y !== this.session.position?.y ||
+						position.z !== this.session.position?.z)
+				) {
+					throw new Error(
+						'Active window is at a different position; close it first'
+					)
+				}
+				return {
+					reusedActiveSession: true,
+					kind: this.session.kind,
+					blockName: this.session.blockName,
+					window: describeWindowSession(this.session),
+					closeFailed: false
+				}
+			}
+			if (!position)
+				throw new Error(
+					'No active window session. Provide position to inspect nearby window block.'
+				)
+			const session = await this.acquire(position, active)
+			try {
+				active.throwIfAborted()
+				return {
+					reusedActiveSession: false,
+					kind: session.kind,
+					blockName: session.blockName,
+					window: describeWindowSession(session),
+					close: { ok: true }
+				}
+			} finally {
+				const result = this.closeOwned()
+				if (!result.ok)
+					throw new Error(`Failed to close temporary window: ${result.reason}`)
+			}
+		}, signal)
+	}
+
+	transfer(
+		request: WindowTransferRequest,
+		signal?: AbortSignal
+	): Promise<WindowTransferResult> {
+		return this.run(async active => {
+			if (!this.session) throw new Error('No active window session')
+			if (this.state === 'close_failed')
+				throw new Error('Active window close is unconfirmed')
+			if (this.operations.current() !== this.session.window)
+				throw new Error('Active window is no longer current')
+			const session = this.session
+			const result = await this.operations.transfer(session, request)
+			active.throwIfAborted()
+			if (this.operations.current() !== session.window)
+				throw new Error('Active window is no longer current')
+			return result
+		}, signal)
+	}
+}
+
+const runtimes = new WeakMap<Bot, WindowRuntime>()
+
+/** There is exactly one window owner per live bot, shared by HSM and inline tools. */
+export const getWindowRuntime = (bot: Bot): WindowRuntime => {
+	const existing = runtimes.get(bot)
+	if (existing) return existing
+	const runtime = new WindowRuntime({
+		current: () => bot.currentWindow,
+		open: async position => {
+			const block = bot.blockAt(new Vec3(position.x, position.y, position.z))
+			if (!block) throw new Error('Window block not found')
+			const distance = bot.entity.position.distanceTo(block.position)
+			if (distance > 4)
+				throw new Error(`Window is too far away (${distance.toFixed(1)}m)`)
+			return openWindowSession(bot, block, position)
+		},
+		close: session => closeWindowSession(bot, session),
+		transfer: (session, request) => transferWindowItem(bot, session, request)
+	})
+
+	runtimes.set(bot, runtime)
+	return runtime
 }
 
 const GENERIC_CONTAINER_BLOCK_NAMES = new Set([
@@ -244,7 +446,7 @@ export const getWindowDescriptor = (kind: WindowKind): WindowDescriptor => {
 	}
 }
 
-export const openWindowSession = async (
+const openWindowSession = async (
 	bot: Bot,
 	block: any,
 	position: MemoryPosition | null = null
@@ -267,7 +469,7 @@ export const openWindowSession = async (
 	}
 }
 
-export const transferWindowItem = async (
+const transferWindowItem = async (
 	bot: Bot,
 	session: WindowSession,
 	request: WindowTransferRequest
@@ -330,7 +532,7 @@ export const transferWindowItem = async (
 	}
 }
 
-export const closeWindowSession = (bot: Bot, session: WindowSession): void => {
+const closeWindowSession = (bot: Bot, session: WindowSession): void => {
 	if (!session.window) {
 		return
 	}
@@ -343,25 +545,7 @@ export const closeWindowSession = (bot: Bot, session: WindowSession): void => {
 	bot.closeWindow(session.window)
 }
 
-export const closeWindowSessionSafely = (
-	bot: Bot,
-	session: WindowSession
-): WindowCloseResult => {
-	try {
-		closeWindowSession(bot, session)
-		return { ok: true }
-	} catch (error) {
-		const reason =
-			error instanceof Error ? error.message : 'Unknown window close error'
-
-		Logger.warn('[AI] failed to close temporary window session', { reason })
-		return { ok: false, reason }
-	}
-}
-
-export const describeWindowSession = (
-	session: WindowSession
-): WindowSnapshot => {
+const describeWindowSession = (session: WindowSession): WindowSnapshot => {
 	const slots = Array.isArray(session.window?.slots) ? session.window.slots : []
 	const zoneSlots = session.descriptor.resolveZones(slots.length)
 

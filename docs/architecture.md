@@ -101,16 +101,16 @@ Callback services deliver synchronous and asynchronous failures as `ERROR`. They
 
 Ranged equip failure disables ranged combat for the current encounter and falls back to melee. Combat async operations, including startup equip, have a 15-second deadline without limiting the duration of a healthy encounter. A combat service error exits combat and suppresses automatic re-entry. Fleeing uses the movement controller's terrain heuristics; its fallback yaw follows Mineflayer's forward-axis convention.
 
-A goal stops after three consecutive failed executions, including different actions, or after 128 execution attempts without completion. A successful action resets the consecutive-failure count, not the total attempt budget. The global transition-rate guard resets its internal detection state after its 60-second cooldown.
+The shared policy in `src/ai/goalExecution.ts` stops a goal after three consecutive rejections or execution failures, including different causes, or after 128 started actions. Success resets consecutive failures, not the total budget; combat/survival interruption preserves both counters. Invalid model actions produce `rejected` and may be corrected in the next turn; exhausted provider retries remain terminal `failed`. The global transition-rate guard resets its internal detection state after its 60-second cooldown.
 
-Late cleanup of a canceled window open reports `WINDOW_CLEANUP_FAILED`. This can retain a retryable window session but cannot complete or fail a newer pending execution.
+`WindowRuntime` owns both active and temporary windows. Failed close retains the session for retry and blocks other window operations, but never delays survival. Cancellation or a 15-second deadline releases the caller; an unresolved Mineflayer call keeps the window slot occupied until it settles. Late cleanup cannot close a newer window or complete another execution. Close confirmation is local release of the owned window, not a server acknowledgment.
 
 Eating performs one attempt at a time; only the active survival actor owns retries. Movement decisions continue while food is being consumed, so canceling food to flee does not wait for that attempt to settle or schedule an independent retry.
 
 ## AI Loop
 
 `src/ai/loop.ts` does one turn at a time.
-It builds a deterministic snapshot, sends it to the model, and accepts only three kinds of outcomes:
+It builds a deterministic snapshot, sends it to the model, and handles these model requests:
 
 - one execution tool
 - a `finish_goal` control tool
@@ -119,9 +119,11 @@ It builds a deterministic snapshot, sends it to the model, and accepts only thre
 The loop is intentionally strict:
 
 - one execution decision only
-- no mixed terminal and execution actions
+- execution/control must be the only call in a response; mixed responses are rejected before inline side effects
 - retry is limited when the model fails to return a tool call
-- plain-text output without a tool call is `failed`, unless inspect data was already gathered in the turn (grounded fallback to `finish`; see `docs/tasks/grounded-plain-text-fallback-для-agent-loop.md`)
+- plain-text output without a tool call is `rejected`, unless inspect data was already gathered in the turn (grounded fallback to `finish`; see `docs/tasks/grounded-plain-text-fallback-для-agent-loop.md`)
+
+Execution schemas, typed argument variants, parsers, and summaries live together in `src/ai/tools/executionDefinitions.ts`. Validation does not coerce supplied values or replace invalid options with defaults. Provider tools use `strict: false` to retain omitted optional fields; execution arguments are validated locally before HSM dispatch.
 
 ## Snapshot
 

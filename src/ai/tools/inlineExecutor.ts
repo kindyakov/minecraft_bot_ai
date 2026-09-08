@@ -1,6 +1,6 @@
-import type { WindowSession } from '@/ai/runtime/window.js'
-
 import type { Bot } from '@/types'
+
+import type { WindowRuntime } from '@/ai/runtime/window.js'
 
 import type { InlineToolName } from '../contracts/execution.js'
 import { executeInspectTool } from './executors/inspect.js'
@@ -9,8 +9,8 @@ import { executeWindowTool } from './executors/window.js'
 
 export interface InlineToolExecutionContext {
 	bot: Bot
-	activeWindowSession?: WindowSession | null
-	activeWindowSessionState?: 'open' | 'close_failed' | null
+	windows?: WindowRuntime
+	signal?: AbortSignal
 }
 
 export interface InlineToolExecutionResult {

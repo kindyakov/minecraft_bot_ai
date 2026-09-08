@@ -2,97 +2,23 @@ import type { MemoryPosition } from '@/core/memory/types.js'
 
 import { createStatefulService } from '@/hsm/helpers/createStatefulService'
 
-import {
-	type WindowSession,
-	closeWindowSessionSafely,
-	openWindowSession
-} from '@/ai/runtime/window.js'
-
-interface OpenWindowState {
-	isActive: boolean
-	[key: string]: unknown
-	windowSession: WindowSession | null
-}
-
-interface OpenWindowOptions {
-	position: MemoryPosition | null
-}
-
 export const primitiveOpenWindow = createStatefulService<
-	OpenWindowState,
-	OpenWindowOptions
+	{ isActive: boolean },
+	{ position: MemoryPosition | null }
 >({
 	name: 'primitiveOpenWindow',
-	timeoutMs: 15_000,
-	initialState: {
-		isActive: true,
-		windowSession: null
-	},
-
-	onStart: async ({ bot, context, input, sendBack, setState, abortSignal }) => {
-		const { position } = input
-
-		if (context.activeWindowSession) {
-			sendBack({
-				type: 'WINDOW_OPEN_FAILED',
-				reason: 'Active window session already exists'
-			})
-			return
-		}
-
-		if (!position) {
-			sendBack({
-				type: 'WINDOW_OPEN_FAILED',
-				reason: 'No position provided'
-			})
-			return
-		}
-
-		if (abortSignal.aborted) {
-			return
-		}
-
-		const block = bot.blockAt(position)
-		if (!block) {
-			sendBack({
-				type: 'WINDOW_OPEN_FAILED',
-				reason: 'Window block not found'
-			})
-			return
-		}
-
+	onStart: async ({ context, input, sendBack, abortSignal }) => {
 		try {
-			const session = await openWindowSession(bot, block, position)
-
-			if (abortSignal.aborted) {
-				const closeResult = closeWindowSessionSafely(bot, session)
-				const dispatch = (bot as any).hsm?.send?.bind((bot as any).hsm)
-
-				if (!closeResult.ok) {
-					;(dispatch ?? sendBack)({
-						type: 'WINDOW_CLEANUP_FAILED',
-						session,
-						reason: closeResult.reason ?? 'Unknown window close error'
-					})
-				}
-
-				return
-			}
-
-			setState({ windowSession: session })
-			sendBack({
-				type: 'WINDOW_OPENED',
-				session
-			})
+			if (!input.position) throw new Error('No position provided')
+			if (!context.windows) throw new Error('Window runtime is unavailable')
+			await context.windows.open(input.position, abortSignal)
+			sendBack({ type: 'WINDOW_OPENED' })
 		} catch (error) {
-			sendBack({
-				type: 'WINDOW_OPEN_FAILED',
-				reason: error instanceof Error ? error.message : 'Unknown error'
-			})
+			if (!abortSignal.aborted)
+				sendBack({
+					type: 'WINDOW_OPEN_FAILED',
+					reason: error instanceof Error ? error.message : String(error)
+				})
 		}
-	},
-
-	onCleanup: ({ state }) => {
-		state.windowSession = null
 	}
 })

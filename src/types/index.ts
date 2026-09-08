@@ -29,6 +29,7 @@ export interface Bot {
 		slots: any[]
 		items(): any[]
 	}
+	currentWindow: unknown | null
 	heldItem: any
 	registry: any
 	movement: any

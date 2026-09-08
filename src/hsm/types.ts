@@ -2,10 +2,7 @@ import type { Block, Entity, Vec3 } from '@/types'
 
 import type { MachineContext } from '@/hsm/context'
 
-import type {
-	WindowSession,
-	WindowTransferResult
-} from '@/ai/runtime/window.js'
+import type { WindowTransferResult } from '@/ai/runtime/window.js'
 
 export type HealthEvents =
 	| { type: 'UPDATE_HEALTH'; health: number }
@@ -53,8 +50,7 @@ export type PrimitiveEvents =
 	| { type: 'NAVIGATION_FAILED'; reason?: string }
 	| { type: 'BROKEN' }
 	| { type: 'BREAKING_FAILED'; reason?: string }
-	| { type: 'WINDOW_OPENED'; session: WindowSession }
-	| { type: 'WINDOW_CLEANUP_FAILED'; session: WindowSession; reason: string }
+	| { type: 'WINDOW_OPENED' }
 	| { type: 'WINDOW_OPEN_FAILED'; reason: string }
 	| { type: 'WINDOW_ITEM_TRANSFERRED'; transferred: WindowTransferResult }
 	| { type: 'WINDOW_TRANSFER_FAILED'; reason: string }

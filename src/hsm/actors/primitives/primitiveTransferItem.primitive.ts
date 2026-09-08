@@ -1,68 +1,23 @@
 import { createStatefulService } from '@/hsm/helpers/createStatefulService'
 
-import {
-	type WindowTransferRequest,
-	type WindowTransferResult,
-	transferWindowItem
-} from '@/ai/runtime/window.js'
-
-interface TransferItemState {
-	isActive: boolean
-	[key: string]: unknown
-	transferred: WindowTransferResult | null
-}
+import type { WindowTransferRequest } from '@/ai/runtime/window.js'
 
 export const primitiveTransferItem = createStatefulService<
-	TransferItemState,
+	{ isActive: boolean },
 	WindowTransferRequest
 >({
 	name: 'primitiveTransferItem',
-	timeoutMs: 15_000,
-	initialState: {
-		isActive: true,
-		transferred: null
-	},
-
-	onStart: async ({ bot, context, input, sendBack, setState, abortSignal }) => {
-		const session = context.activeWindowSession
-
-		if (!session) {
-			sendBack({
-				type: 'WINDOW_TRANSFER_FAILED',
-				reason: 'No active window session'
-			})
-			return
-		}
-
-		if (context.activeWindowSessionState === 'close_failed') {
-			sendBack({
-				type: 'WINDOW_TRANSFER_FAILED',
-				reason: 'Active window session close is unconfirmed'
-			})
-			return
-		}
-
-		if (abortSignal.aborted) {
-			return
-		}
-
+	onStart: async ({ context, input, sendBack, abortSignal }) => {
 		try {
-			const transferred = await transferWindowItem(bot, session, input)
-
-			if (abortSignal.aborted) {
-				return
-			}
-
-			setState({ transferred })
-			sendBack({
-				type: 'WINDOW_ITEM_TRANSFERRED',
-				transferred
-			})
+			if (!context.windows) throw new Error('Window runtime is unavailable')
+			const transferred = await context.windows.transfer(input, abortSignal)
+			sendBack({ type: 'WINDOW_ITEM_TRANSFERRED', transferred })
 		} catch (error) {
-			sendBack({
-				type: 'WINDOW_TRANSFER_FAILED',
-				reason: error instanceof Error ? error.message : 'Unknown error'
-			})
+			if (!abortSignal.aborted)
+				sendBack({
+					type: 'WINDOW_TRANSFER_FAILED',
+					reason: error instanceof Error ? error.message : String(error)
+				})
 		}
 	}
 })

@@ -601,10 +601,17 @@ const edgeLayouts: EdgeLayout[] = [
 		strokeColor: '#0f766e'
 	},
 	{
+		id: 'edge-thinking-decide-next',
+		source: 'MAIN_ACTIVITY.TASKS.THINKING',
+		target: 'MAIN_ACTIVITY.TASKS.DECIDE_NEXT',
+		label: 'onDone [rejected] / always [budget exhausted]',
+		strokeColor: '#d97706'
+	},
+	{
 		id: 'edge-thinking-finish-idle',
 		source: 'MAIN_ACTIVITY.TASKS.THINKING',
 		target: 'MAIN_ACTIVITY.IDLE',
-		label: 'onDone [finish] / onError',
+		label: 'onDone [finish or failed] / onError',
 		strokeColor: '#475569'
 	},
 	{

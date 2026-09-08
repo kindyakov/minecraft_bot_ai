@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import type { WindowSession } from '../../ai/runtime/window.js'
 import {
+	WindowRuntime,
 	describePlayerInventory,
 	inferWindowKindFromBlockName
 } from '../../ai/runtime/window.js'
@@ -109,6 +110,7 @@ test('inspect_window opens, snapshots, and closes a furnace-family window', asyn
 		],
 		close: () => {
 			closeCalls += 1
+			bot.currentWindow = null
 		}
 	}
 
@@ -129,6 +131,7 @@ test('inspect_window opens, snapshots, and closes a furnace-family window', asyn
 				: null,
 		openFurnace: async () => {
 			openCalls += 1
+			bot.currentWindow = window
 			return window
 		},
 		closeWindow: () => {},
@@ -203,6 +206,7 @@ test('inspect_window fails when temporary close fails', async () => {
 				: null,
 		openFurnace: async () => {
 			openCalls += 1
+			bot.currentWindow = window
 			return window
 		},
 		closeWindow: () => {},
@@ -227,16 +231,27 @@ test('inspect_window fails when temporary close fails', async () => {
 	assert.equal(closeCalls, 1)
 	assert.match(
 		String((result.output as any).reason),
-		/runtime window state is untrusted/i
+		/Failed to close temporary window.*close failed/i
 	)
-	assert.equal((result.output as any).close.ok, false)
-	assert.match(String((result.output as any).close.reason), /close failed/)
 	assert.equal('window' in (result.output as any), false)
 })
 
 test('inspect_window rejects stale close_failed sessions', async () => {
 	let openCalls = 0
 	const activeSession = createActiveWindowSession({ x: 1, y: 64, z: 1 })
+	let current: unknown = null
+	const windows = new WindowRuntime({
+		current: () => current,
+		open: async () => {
+			current = activeSession.window
+			return activeSession
+		},
+		close: () => {
+			throw new Error('close failed')
+		},
+		transfer: async (_, request) => request
+	})
+	await windows.open({ x: 1, y: 64, z: 1 })
 
 	const bot = {
 		memory: {
@@ -258,6 +273,8 @@ test('inspect_window rejects stale close_failed sessions', async () => {
 		}
 	} as any
 
+	assert.equal(windows.close().ok, false)
+
 	const result = await executeInlineToolCall(
 		'inspect_window',
 		{
@@ -265,15 +282,14 @@ test('inspect_window rejects stale close_failed sessions', async () => {
 		},
 		{
 			bot,
-			activeWindowSession: activeSession,
-			activeWindowSessionState: 'close_failed'
+			windows
 		}
 	)
 
 	assert.equal(result.ok, false)
 	assert.match(
 		String((result.output as any).reason),
-		/stale \(previous close failed\)/i
+		/close failed.*retry close_window/i
 	)
 	assert.equal(openCalls, 0)
 })
@@ -281,6 +297,19 @@ test('inspect_window rejects stale close_failed sessions', async () => {
 test('inspect_window rejects different-position inspect when another session is active', async () => {
 	let openCalls = 0
 	const activeSession = createActiveWindowSession({ x: 1, y: 64, z: 1 })
+	let current: unknown = null
+	const windows = new WindowRuntime({
+		current: () => current,
+		open: async () => {
+			current = activeSession.window
+			return activeSession
+		},
+		close: () => {
+			throw new Error('close failed')
+		},
+		transfer: async (_, request) => request
+	})
+	await windows.open({ x: 1, y: 64, z: 1 })
 
 	const bot = {
 		memory: {
@@ -309,8 +338,7 @@ test('inspect_window rejects different-position inspect when another session is 
 		},
 		{
 			bot,
-			activeWindowSession: activeSession,
-			activeWindowSessionState: 'open'
+			windows
 		}
 	)
 
@@ -322,6 +350,19 @@ test('inspect_window rejects different-position inspect when another session is 
 test('inspect_window reuses same-position active sessions', async () => {
 	let openCalls = 0
 	const activeSession = createActiveWindowSession({ x: 1, y: 64, z: 1 })
+	let current: unknown = null
+	const windows = new WindowRuntime({
+		current: () => current,
+		open: async () => {
+			current = activeSession.window
+			return activeSession
+		},
+		close: () => {
+			throw new Error('close failed')
+		},
+		transfer: async (_, request) => request
+	})
+	await windows.open({ x: 1, y: 64, z: 1 })
 
 	const bot = {
 		memory: {
@@ -350,8 +391,7 @@ test('inspect_window reuses same-position active sessions', async () => {
 		},
 		{
 			bot,
-			activeWindowSession: activeSession,
-			activeWindowSessionState: 'open'
+			windows
 		}
 	)
 
@@ -442,4 +482,29 @@ test('inspect_window rejects unsupported workstation blocks explicitly', async (
 		/Unsupported window block/
 	)
 	assert.equal(openCalls, 0)
+})
+
+test('invalid supplied inspect position cannot silently reuse the active window', async () => {
+	const activeSession = createActiveWindowSession({ x: 1, y: 64, z: 1 })
+	let current: unknown = null
+	const windows = new WindowRuntime({
+		current: () => current,
+		open: async () => {
+			current = activeSession.window
+			return activeSession
+		},
+		close: () => {
+			current = null
+		},
+		transfer: async (_, request) => request
+	})
+	await windows.open({ x: 1, y: 64, z: 1 })
+	for (const position of [null, 'here', { x: '1', y: 64, z: 1 }]) {
+		const result = await executeInlineToolCall(
+			'inspect_window',
+			{ position },
+			{ bot: {} as import('../../types/index.js').Bot, windows }
+		)
+		assert.equal(result.ok, false)
+	}
 })

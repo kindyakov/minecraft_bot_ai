@@ -1,5 +1,5 @@
 import { Vec3 as Vec3Class } from 'vec3'
-import { assign, fromPromise, setup } from 'xstate'
+import { assign, fromCallback, fromPromise, setup } from 'xstate'
 import type { AnyActorLogic } from 'xstate'
 
 import type { Bot, Entity } from '@/types'
@@ -24,15 +24,16 @@ import { miningGuards } from '@/hsm/guards/mining.guards'
 import type { MachineEvent, MiningTaskData } from '@/hsm/types'
 
 import type { AgentTurnResult } from '@/ai/contracts/agentTurn.js'
-import type { PendingExecution } from '@/ai/contracts/execution.js'
 import { appendConversationEntry } from '@/ai/conversationHistory.js'
-import { runAgentTurn } from '@/ai/loop.js'
-import { closeWindowSession } from '@/ai/runtime/window.js'
 import {
-	appendRejectedStepSignature,
-	createTaskContext,
-	refreshTaskContext
-} from '@/ai/taskContext.js'
+	advanceGoalExecution,
+	createGoalExecution,
+	getGoalStopReason
+} from '@/ai/goalExecution.js'
+import { runAgentTurn } from '@/ai/loop.js'
+import { type WindowRuntime, getWindowRuntime } from '@/ai/runtime/window.js'
+import { createTaskContext } from '@/ai/taskContext.js'
+import { parseExecution } from '@/ai/tools/executionDefinitions.js'
 
 import { canSeeEnemy } from '@/utils/combat/enemyVisibility'
 import { hasMovementController } from '@/utils/combat/movementController'
@@ -60,18 +61,10 @@ const defaultThinkingActor = fromPromise<
 		lastReason: input.context.lastReason,
 		errorHistory: input.context.errorHistory,
 		taskContext: input.context.taskContext,
-		activeWindowSession: input.context.activeWindowSession,
-		activeWindowSessionState: input.context.activeWindowSessionState,
+		windows: input.context.windows!,
 		signal
 	})
 })
-
-const fallbackExecutionActor = fromPromise(async () => {
-	throw new Error('Unsupported execution tool')
-})
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-	Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 
 const normalizeEntitySelector = (value: unknown): string | null => {
 	if (typeof value !== 'string') {
@@ -82,85 +75,13 @@ const normalizeEntitySelector = (value: unknown): string | null => {
 	return normalized.length > 0 ? normalized : null
 }
 
-const tryGetPositionArg = (
-	execution: PendingExecution,
-	key: string
-): Vec3Class | null => {
-	const raw = execution.args[key]
-	if (!isRecord(raw)) {
-		return null
-	}
+const toVec3 = (position: { x: number; y: number; z: number }) =>
+	new Vec3Class(position.x, position.y, position.z)
 
-	const { x, y, z } = raw
-	if (
-		typeof x !== 'number' ||
-		!Number.isFinite(x) ||
-		typeof y !== 'number' ||
-		!Number.isFinite(y) ||
-		typeof z !== 'number' ||
-		!Number.isFinite(z)
-	) {
-		return null
-	}
-
-	return new Vec3Class(x, y, z)
-}
-
-const toFailureSignature = (
-	execution: PendingExecution | null,
-	reason: string | null
-): string | null => {
-	if (!execution || !reason) {
-		return null
-	}
-
-	const orderedArgs = Object.keys(execution.args)
-		.sort()
-		.reduce<Record<string, unknown>>((acc, key) => {
-			acc[key] = execution.args[key]
-			return acc
-		}, {})
-
-	return `${execution.toolName}:${JSON.stringify(orderedArgs)}:${reason}`
-}
-
-const tryCloseActiveWindowSession = (context: MachineContext): boolean => {
-	const session = context.activeWindowSession
-	if (!session || !context.bot) {
-		return false
-	}
-
-	try {
-		closeWindowSession(context.bot, session)
-		return true
-	} catch (error) {
-		Logger.error('[HSM] failed to close active window session', {
-			error:
-				error instanceof Error ? (error.stack ?? error.message) : String(error)
-		})
-		return false
-	}
-}
-
-const resolveExecutionActor = (context: MachineContext) => {
-	switch (context.pendingExecution?.toolName) {
-		case 'navigate_to':
-			return primitiveNavigating
-		case 'break_block':
-			return primitiveBreaking
-		case 'open_window':
-			return primitiveOpenWindow
-		case 'transfer_item':
-			return primitiveTransferItem
-		case 'close_window':
-			return primitiveCloseWindow
-		case 'place_block':
-			return primitivePlacing
-		case 'follow_entity':
-			return primitiveFollowing
-		default:
-			return fallbackExecutionActor
-	}
+const requireMiningExecution = (context: MachineContext) => {
+	if (context.pendingExecution?.toolName !== 'mine_resource')
+		throw new Error('Expected a mining action')
+	return context.pendingExecution.args
 }
 
 type ExecutionActorInput = {
@@ -186,16 +107,13 @@ const resolveExecutionInput = (
 			return {
 				bot,
 				options: {
-					target: tryGetPositionArg(execution, 'position'),
-					range:
-						typeof execution.args.range === 'number'
-							? execution.args.range
-							: undefined
+					target: toVec3(execution.args.position),
+					range: execution.args.range
 				}
 			}
 		case 'break_block': {
-			const targetPosition = tryGetPositionArg(execution, 'position')
-			const block = targetPosition ? bot.blockAt(targetPosition) : null
+			const targetPosition = toVec3(execution.args.position)
+			const block = bot.blockAt(targetPosition)
 			return {
 				bot,
 				options: {
@@ -207,20 +125,17 @@ const resolveExecutionInput = (
 			return {
 				bot,
 				options: {
-					position: tryGetPositionArg(execution, 'position')
+					position: toVec3(execution.args.position)
 				}
 			}
 		case 'transfer_item':
 			return {
 				bot,
 				options: {
-					sourceZone: String(execution.args.source_zone ?? ''),
-					destZone: String(execution.args.dest_zone ?? ''),
-					itemName: String(execution.args.item_name ?? ''),
-					count:
-						typeof execution.args.count === 'number'
-							? execution.args.count
-							: undefined
+					sourceZone: execution.args.source_zone,
+					destZone: execution.args.dest_zone,
+					itemName: execution.args.item_name,
+					count: execution.args.count
 				}
 			}
 		case 'close_window':
@@ -232,22 +147,18 @@ const resolveExecutionInput = (
 			return {
 				bot,
 				options: {
-					blockName: String(execution.args.block_name ?? ''),
-					position: tryGetPositionArg(execution, 'position'),
-					faceVector:
-						execution.args.face_vector &&
-						typeof execution.args.face_vector === 'object'
-							? (tryGetPositionArg(execution, 'face_vector') ?? undefined)
-							: undefined
+					blockName: execution.args.block_name,
+					position: toVec3(execution.args.position),
+					faceVector: execution.args.face_vector
+						? toVec3(execution.args.face_vector)
+						: undefined
 				}
 			}
 		case 'follow_entity': {
 			const requestedName = normalizeEntitySelector(execution.args.entity_name)
 			const requestedType = normalizeEntitySelector(execution.args.entity_type)
 			const maxDistance =
-				typeof execution.args.max_distance === 'number'
-					? execution.args.max_distance
-					: Number.POSITIVE_INFINITY
+				execution.args.max_distance ?? Number.POSITIVE_INFINITY
 			const target = bot.nearestEntity((entity: Entity) => {
 				if (!entity?.position) {
 					return false
@@ -280,10 +191,7 @@ const resolveExecutionInput = (
 				bot,
 				options: {
 					target,
-					distance:
-						typeof execution.args.distance === 'number'
-							? execution.args.distance
-							: undefined
+					distance: execution.args.distance
 				}
 			}
 		}
@@ -411,6 +319,12 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 			input: { bot: Bot }
 		},
 		actors: {
+			windowLifetime: fromCallback<MachineEvent, WindowRuntime>(
+				({ input }) =>
+					() => {
+						input.close()
+					}
+			),
 			agentThinking:
 				actorOverrides.agentThinkingTurn ??
 				options?.thinkingActor ??
@@ -441,9 +355,16 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				context.food < context.preferences.foodEmergency,
 			isEnemyNearby: ({ context }) => context.nearestEnemy.entity !== null,
 			isAgentLoopStuck: ({ context }) =>
-				context.failureRepeats >= 3 ||
-				context.consecutiveFailures >= 3 ||
-				context.executionAttempts >= 128,
+				getGoalStopReason(context.goalExecution) !== null,
+			thinkingProducedRejection: ({ event }) =>
+				(event as ThinkingDoneEvent).output?.kind === 'rejected',
+			thinkingProducedInvalidExecution: ({ event }) => {
+				const output = (event as ThinkingDoneEvent).output
+				return (
+					output?.kind === 'execute' &&
+					!parseExecution(output.execution.toolName, output.execution.args).ok
+				)
+			},
 			thinkingProducedExecution: ({ event }) =>
 				(event as ThinkingDoneEvent).output?.kind === 'execute',
 			thinkingProducedFinish: ({ event }) =>
@@ -674,17 +595,12 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				subGoal: null,
 				taskContext: createTaskContext(null, null),
 				pendingExecution: null,
-				activeWindowSession: null,
-				activeWindowSessionState: null,
 				lastToolTranscript: [],
 				preferredCombatTargetId: null,
 				combatStopRequested: false,
 				rangedUnavailable: false,
 				recoveryFailure: null,
-				failureSignature: null,
-				failureRepeats: 0,
-				consecutiveFailures: 0,
-				executionAttempts: 0
+				goalExecution: createGoalExecution()
 			}),
 			markTaskActive: assign({
 				isActiveTask: true
@@ -692,6 +608,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 			markTaskInactive: assign({
 				isActiveTask: false,
 				pendingExecution: null,
+				goalExecution: ({ context }) =>
+					advanceGoalExecution(context.goalExecution, { type: 'interrupted' }),
 				taskData: null
 			}),
 			setGoalFromUserCommand: assign(({ context, event }) => {
@@ -713,10 +631,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					taskContext: createTaskContext(event.text, null),
 					pendingExecution: null,
 					lastToolTranscript: [],
-					failureSignature: null,
-					failureRepeats: 0,
-					consecutiveFailures: 0,
-					executionAttempts: 0,
+					goalExecution: createGoalExecution(),
 					recoveryFailure: null,
 					errorHistory: []
 				}
@@ -728,10 +643,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					taskContext: createTaskContext(null, null),
 					pendingExecution: null,
 					lastToolTranscript: [],
-					failureSignature: null,
-					failureRepeats: 0,
-					consecutiveFailures: 0,
-					executionAttempts: 0,
+					goalExecution: createGoalExecution(),
 					movementOwner: 'NONE',
 					preferredCombatTargetId: null,
 					combatStopRequested: false
@@ -768,65 +680,9 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					)
 				}
 			}),
-			markWindowCloseFailed: assign(({ context }) => {
-				if (!context.activeWindowSession) {
-					return {
-						activeWindowSessionState: null
-					}
-				}
-
-				return {
-					activeWindowSessionState: 'close_failed'
-				}
-			}),
-			closeActiveWindowSession: assign(({ context }) => {
-				const closed = tryCloseActiveWindowSession(context)
-
-				if (!context.activeWindowSession) {
-					return {
-						activeWindowSessionState: null
-					}
-				}
-
-				return closed
-					? {
-							activeWindowSession: null,
-							activeWindowSessionState: null
-						}
-					: {
-							activeWindowSessionState: 'close_failed'
-						}
-			}),
-			storeWindowSession: assign(({ event }) => {
-				if (event.type !== 'WINDOW_OPENED') {
-					return {}
-				}
-
-				return {
-					activeWindowSession: event.session,
-					activeWindowSessionState: 'open'
-				}
-			}),
-			clearWindowSession: assign({
-				activeWindowSession: null,
-				activeWindowSessionState: null
-			}),
-			recoverWindowSession: assign(({ context, event }) => {
-				if (event.type !== 'WINDOW_CLEANUP_FAILED') return {}
-				if (
-					context.activeWindowSession &&
-					context.activeWindowSession.window !== event.session.window
-				) {
-					Logger.warn('[HSM] cleanup failed for a superseded window', {
-						reason: event.reason
-					})
-					return {}
-				}
-				return {
-					activeWindowSession: event.session,
-					activeWindowSessionState: 'close_failed' as const
-				}
-			}),
+			closeActiveWindowSession: ({ context }) => {
+				context.windows?.close()
+			},
 			recordRecoveryFailure: assign(({ event }) => ({
 				lastAction: 'survival_recovery',
 				lastActionArgs: null,
@@ -927,32 +783,40 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 
 				return {
 					pendingExecution: output.execution,
-					executionAttempts: context.executionAttempts + 1,
+					goalExecution: advanceGoalExecution(context.goalExecution, {
+						type: 'started'
+					}),
 					subGoal: output.subGoal,
 					lastToolTranscript: output.transcript,
-					taskContext: refreshTaskContext(
-						context.taskContext,
-						context.currentGoal,
-						output.subGoal
-					)
+					taskContext: createTaskContext(context.currentGoal, output.subGoal)
 				}
 			}),
 			storeThinkingFailure: assign(({ context, event }) => {
-				const output = (event as ThinkingDoneEvent).output
-				if (!output || output.kind !== 'failed') {
-					return {}
+				let output = (event as ThinkingDoneEvent).output
+				if (output?.kind === 'execute') {
+					const parsed = parseExecution(
+						output.execution.toolName,
+						output.execution.args
+					)
+					if (!parsed.ok)
+						output = {
+							kind: 'rejected',
+							reason: parsed.reason,
+							transcript: output.transcript
+						}
 				}
-
+				if (!output || (output.kind !== 'failed' && output.kind !== 'rejected'))
+					return {}
 				return {
 					lastResult: 'FAILED' as const,
 					lastReason: output.reason,
 					lastToolTranscript: output.transcript,
 					pendingExecution: null,
-					taskContext: appendRejectedStepSignature(
-						context.taskContext,
-						toFailureSignature(context.pendingExecution, output.reason) ??
-							`thinking_failed:${output.reason}`
-					)
+					errorHistory: [...context.errorHistory, output.reason].slice(-3),
+					goalExecution: advanceGoalExecution(context.goalExecution, {
+						type: output.kind === 'rejected' ? 'rejected' : 'failed',
+						reason: output.reason
+					})
 				}
 			}),
 			recordExecutionSuccess: assign(({ context, event }) => ({
@@ -962,15 +826,11 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				lastResult: 'SUCCESS' as const,
 				lastReason: null,
 				pendingExecution: null,
-				failureSignature: null,
-				failureRepeats: 0,
-				consecutiveFailures: 0,
+				goalExecution: advanceGoalExecution(context.goalExecution, {
+					type: 'succeeded'
+				}),
 				lastToolTranscript: [event.type],
-				taskContext: refreshTaskContext(
-					context.taskContext,
-					context.currentGoal,
-					context.subGoal
-				)
+				taskContext: createTaskContext(context.currentGoal, context.subGoal)
 			})),
 			recordExecutionFailure: assign(({ context, event }) => {
 				const reason =
@@ -979,12 +839,6 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 						: event.type === 'ERROR'
 							? event.error
 							: 'Unknown execution failure'
-				const signature = toFailureSignature(context.pendingExecution, reason)
-				const repeats =
-					signature && context.failureSignature === signature
-						? context.failureRepeats + 1
-						: 1
-
 				return {
 					lastAction: context.pendingExecution?.toolName ?? context.lastAction,
 					lastActionArgs:
@@ -992,19 +846,12 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					lastResult: 'FAILED' as const,
 					lastReason: reason,
 					pendingExecution: null,
-					failureSignature: signature,
-					failureRepeats: repeats,
-					consecutiveFailures: context.consecutiveFailures + 1,
+					goalExecution: advanceGoalExecution(context.goalExecution, {
+						type: 'failed',
+						reason
+					}),
 					errorHistory: [...context.errorHistory, reason].slice(-3),
-					lastToolTranscript: [event.type],
-					taskContext: appendRejectedStepSignature(
-						refreshTaskContext(
-							context.taskContext,
-							context.currentGoal,
-							context.subGoal
-						),
-						signature ?? `execution_failed:${reason}`
-					)
+					lastToolTranscript: [event.type]
 				}
 			}),
 			notifyGoalFinished: ({ context, event }) => {
@@ -1019,22 +866,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 				}
 			},
 			notifyLoopAbort: ({ context }) => {
-				if (context.executionAttempts >= 128) {
-					context.bot?.chat(
-						'Останавливаю задачу: исчерпан лимит действий без завершения цели.'
-					)
-					return
-				}
-				if (!context.lastAction || !context.lastReason) {
-					context.bot?.chat(
-						'Я застрял и останавливаю текущую задачу. Жду указаний.'
-					)
-					return
-				}
-
-				context.bot?.chat(
-					`Останавливаю задачу после повторных неудач. Последняя: ${context.lastAction} — "${context.lastReason}". Жду указаний.`
-				)
+				const reason = getGoalStopReason(context.goalExecution)
+				if (reason) context.bot?.chat(reason)
 			}
 		}
 	}).createMachine({
@@ -1042,8 +875,11 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 		type: 'parallel',
 		context: ({ input }) => ({
 			...context,
-			bot: input.bot
+			bot: input.bot,
+			windows: getWindowRuntime(input.bot),
+			goalExecution: createGoalExecution()
 		}),
+		invoke: { src: 'windowLifetime', input: ({ context }) => context.windows! },
 		on: {
 			UPDATE_POSITION: {
 				actions: ['updatePosition']
@@ -1098,10 +934,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 					actions: ['closeActiveWindowSession'],
 					target: '#MINECRAFT_BOT.MAIN_ACTIVITY.URGENT_NEEDS.EMERGENCY_HEALING'
 				}
-			],
-			WINDOW_CLEANUP_FAILED: {
-				actions: ['recoverWindowSession']
-			}
+			]
 		},
 		states: {
 			MAIN_ACTIVITY: {
@@ -1408,6 +1241,10 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 						states: {
 							IDLE: {},
 							THINKING: {
+								always: {
+									guard: 'isAgentLoopStuck',
+									target: 'DECIDE_NEXT'
+								},
 								entry: ['logThinkingStart'],
 								invoke: {
 									src: 'agentThinking',
@@ -1416,6 +1253,16 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 										context
 									}),
 									onDone: [
+										{
+											guard: 'thinkingProducedInvalidExecution',
+											target: 'DECIDE_NEXT',
+											actions: ['storeThinkingFailure']
+										},
+										{
+											guard: 'thinkingProducedRejection',
+											target: 'DECIDE_NEXT',
+											actions: ['storeThinkingFailure']
+										},
 										{
 											guard: 'thinkingProducedExecution',
 											target: 'EXECUTING',
@@ -1469,20 +1316,10 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 													assign({
 														taskData: ({ context }) =>
 															({
-																blockName: String(
-																	context.pendingExecution?.args.block_name ??
-																		''
-																)
-																	.trim()
+																blockName: requireMiningExecution(context)
+																	.block_name.trim()
 																	.toLowerCase(),
-																count:
-																	typeof context.pendingExecution?.args
-																		.count === 'number' &&
-																	Number.isFinite(
-																		context.pendingExecution.args.count
-																	)
-																		? context.pendingExecution.args.count
-																		: 1,
+																count: requireMiningExecution(context).count,
 																targetBlocks: [],
 																targetIndex: 0,
 																collected: 0,
@@ -1731,10 +1568,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 											WINDOW_OPENED: {
 												target:
 													'#MINECRAFT_BOT.MAIN_ACTIVITY.TASKS.DECIDE_NEXT',
-												actions: [
-													'recordExecutionSuccess',
-													'storeWindowSession'
-												]
+												actions: ['recordExecutionSuccess']
 											},
 											WINDOW_OPEN_FAILED: {
 												target:
@@ -1782,18 +1616,12 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 											WINDOW_CLOSED: {
 												target:
 													'#MINECRAFT_BOT.MAIN_ACTIVITY.TASKS.DECIDE_NEXT',
-												actions: [
-													'recordExecutionSuccess',
-													'clearWindowSession'
-												]
+												actions: ['recordExecutionSuccess']
 											},
 											WINDOW_CLOSE_FAILED: {
 												target:
 													'#MINECRAFT_BOT.MAIN_ACTIVITY.TASKS.DECIDE_NEXT',
-												actions: [
-													'recordExecutionFailure',
-													'markWindowCloseFailed'
-												]
+												actions: ['recordExecutionFailure']
 											},
 											ERROR: {
 												target:

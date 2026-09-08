@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import { OpenAIResponsesClient } from '../../ai/client.js'
 import { runAgentTurn } from '../../ai/loop.js'
+import { WindowRuntime, getWindowDescriptor } from '../../ai/runtime/window.js'
 import { createTaskContext } from '../../ai/taskContext.js'
 
 const createVec3 = (x: number, y: number, z: number) => ({
@@ -266,11 +267,11 @@ test('runAgentTurn rejects mine_resource with non-integer or excessive count', a
 			client
 		})
 
-		assert.equal(result.kind, 'failed')
-		if (result.kind !== 'failed') {
+		assert.equal(result.kind, 'rejected')
+		if (result.kind !== 'rejected') {
 			assert.fail('Expected failed result')
 		}
-		assert.match(result.reason, /integer count from 1 to 64/)
+		assert.match(result.reason, /count.*(integer|64)/)
 	}
 })
 
@@ -357,8 +358,8 @@ test('runAgentTurn rejects open_window when memory_read returns no grounded entr
 		client
 	})
 
-	assert.equal(result.kind, 'failed')
-	if (result.kind !== 'failed') {
+	assert.equal(result.kind, 'rejected')
+	if (result.kind !== 'rejected') {
 		assert.fail('Expected failed result')
 	}
 	assert.match(
@@ -567,8 +568,8 @@ test('runAgentTurn rejects open_window when memory_read grounds an incompatible 
 		client
 	})
 
-	assert.equal(result.kind, 'failed')
-	if (result.kind !== 'failed') {
+	assert.equal(result.kind, 'rejected')
+	if (result.kind !== 'rejected') {
 		assert.fail('Expected failed result')
 	}
 	assert.match(
@@ -657,8 +658,8 @@ test('runAgentTurn rejects follow_entity when inspect_entities returns no entiti
 		client
 	})
 
-	assert.equal(result.kind, 'failed')
-	if (result.kind !== 'failed') {
+	assert.equal(result.kind, 'rejected')
+	if (result.kind !== 'rejected') {
 		assert.fail('Expected failed result')
 	}
 	assert.match(
@@ -765,8 +766,8 @@ test('runAgentTurn rejects follow_entity when entity_name and entity_type do not
 		client
 	})
 
-	assert.equal(result.kind, 'failed')
-	if (result.kind !== 'failed') {
+	assert.equal(result.kind, 'rejected')
+	if (result.kind !== 'rejected') {
 		assert.fail('Expected failed result')
 	}
 	assert.match(
@@ -828,6 +829,27 @@ test('runAgentTurn does not treat snapshot window metadata as fresh grounding', 
 		closeWindow: () => {}
 	} as any
 
+	const window = { slots: [] }
+	let current: unknown = null
+	const windows = new WindowRuntime({
+		current: () => current,
+		open: async position => {
+			current = window
+			return {
+				window,
+				position,
+				blockName: 'furnace',
+				kind: 'furnace_family',
+				descriptor: getWindowDescriptor('furnace_family'),
+				openedAt: new Date().toISOString()
+			}
+		},
+		close: () => {
+			current = null
+		},
+		transfer: async (_, request) => request
+	})
+	await windows.open({ x: 1, y: 64, z: 1 })
 	const result = await runAgentTurn({
 		bot,
 		memory,
@@ -838,16 +860,12 @@ test('runAgentTurn does not treat snapshot window metadata as fresh grounding', 
 		lastReason: null,
 		errorHistory: [],
 		taskContext: createTaskContext('Re-open that window', null),
-		activeWindowSession: {
-			position: { x: 1, y: 64, z: 1 },
-			blockName: 'furnace'
-		} as any,
-		activeWindowSessionState: 'open',
+		windows,
 		client
 	})
 
-	assert.equal(result.kind, 'failed')
-	if (result.kind !== 'failed') {
+	assert.equal(result.kind, 'rejected')
+	if (result.kind !== 'rejected') {
 		assert.fail('Expected failed result')
 	}
 	assert.match(
@@ -928,8 +946,8 @@ test('runAgentTurn rejects navigation to unsupported workstation for crafting go
 		client
 	})
 
-	assert.equal(result.kind, 'failed')
-	if (result.kind !== 'failed') {
+	assert.equal(result.kind, 'rejected')
+	if (result.kind !== 'rejected') {
 		assert.fail('Expected failed result')
 	}
 	assert.match(result.reason, /unsupported workstation for crafting tasks/i)
@@ -989,8 +1007,8 @@ test('runAgentTurn fails on plain text without grounded inspect data', async () 
 		client
 	})
 
-	assert.equal(result.kind, 'failed')
-	if (result.kind !== 'failed') {
+	assert.equal(result.kind, 'rejected')
+	if (result.kind !== 'rejected') {
 		assert.fail('Expected failed result')
 	}
 	assert.match(result.reason, /without grounded inspect data/i)
@@ -1251,8 +1269,8 @@ test('runAgentTurn rejects memory_save without a finite position', async () => {
 		client
 	})
 
-	assert.equal(result.kind, 'failed')
-	if (result.kind !== 'failed') {
+	assert.equal(result.kind, 'rejected')
+	if (result.kind !== 'rejected') {
 		assert.fail('Expected failed result')
 	}
 	assert.match(result.reason, /finite position/)
@@ -1320,8 +1338,8 @@ test('runAgentTurn rejects memory_save with an unknown entry type', async () => 
 		client
 	})
 
-	assert.equal(result.kind, 'failed')
-	if (result.kind !== 'failed') {
+	assert.equal(result.kind, 'rejected')
+	if (result.kind !== 'rejected') {
 		assert.fail('Expected failed result')
 	}
 	assert.match(result.reason, /one of: container, location, resource, danger/)
@@ -1386,8 +1404,8 @@ test('runAgentTurn rejects transfer_item with unknown zones and bad count', asyn
 		client
 	})
 
-	assert.equal(result.kind, 'failed')
-	if (result.kind !== 'failed') {
+	assert.equal(result.kind, 'rejected')
+	if (result.kind !== 'rejected') {
 		assert.fail('Expected failed result')
 	}
 	assert.match(result.reason, /source_zone/)
@@ -1453,8 +1471,8 @@ test('runAgentTurn still fails when the model returns no tool call and no plain-
 		client
 	})
 
-	assert.equal(result.kind, 'failed')
-	if (result.kind !== 'failed') {
+	assert.equal(result.kind, 'rejected')
+	if (result.kind !== 'rejected') {
 		assert.fail('Expected failed result')
 	}
 	assert.equal(result.reason, 'Model did not return a tool call')
@@ -1640,10 +1658,7 @@ test('runAgentTurn assembles layered prompt context before calling the model cli
 		capturedRequest.promptAssembly.instructionSections ?? []
 	assert.equal(instructionSections[0]?.source, 'core_policy')
 	assert.equal(instructionSections[1]?.source, 'user_profile_prompt')
-	assert.match(
-		instructionSections[1]?.content ?? '',
-		/Helpful assistant/
-	)
+	assert.match(instructionSections[1]?.content ?? '', /Helpful assistant/)
 	const inputSections = capturedRequest.promptAssembly.inputSections ?? []
 	assert.deepEqual(
 		inputSections.map((section: { key: string }) => section.key),

@@ -1,8 +1,4 @@
-import type {
-	ControlToolName,
-	ExecutionToolName,
-	InlineToolName
-} from '../contracts/execution.js'
+import type { ControlToolName, InlineToolName } from '../contracts/execution.js'
 
 export type {
 	AgentToolName,
@@ -10,17 +6,6 @@ export type {
 	ExecutionToolName,
 	InlineToolName
 } from '../contracts/execution.js'
-
-const executionToolNames = new Set<ExecutionToolName>([
-	'navigate_to',
-	'break_block',
-	'mine_resource',
-	'place_block',
-	'follow_entity',
-	'open_window',
-	'transfer_item',
-	'close_window'
-])
 
 const inlineToolNames = new Set<InlineToolName>([
 	'memory_save',
@@ -35,8 +20,7 @@ const inlineToolNames = new Set<InlineToolName>([
 
 const controlToolNames = new Set<ControlToolName>(['finish_goal'])
 
-export const isExecutionToolName = (name: string): name is ExecutionToolName =>
-	executionToolNames.has(name as ExecutionToolName)
+export { isExecutionName as isExecutionToolName } from './executionDefinitions.js'
 
 export const isInlineToolName = (name: string): name is InlineToolName =>
 	inlineToolNames.has(name as InlineToolName)

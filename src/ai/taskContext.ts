@@ -9,7 +9,6 @@ export type TaskCategory =
 
 export interface TaskContext {
 	category: TaskCategory
-	rejectedStepSignatures: string[]
 }
 
 const CRAFT_KEYWORDS = [
@@ -53,38 +52,7 @@ const inferTaskCategory = (
 	return 'unknown'
 }
 
-const trimRejected = (signatures: string[]): string[] => signatures.slice(-5)
-
 export const createTaskContext = (
 	currentGoal: string | null,
 	subGoal: string | null
-): TaskContext => {
-	return {
-		category: inferTaskCategory(currentGoal, subGoal),
-		rejectedStepSignatures: []
-	}
-}
-
-export const refreshTaskContext = (
-	taskContext: TaskContext,
-	currentGoal: string | null,
-	subGoal: string | null
-): TaskContext => {
-	const next = createTaskContext(currentGoal, subGoal)
-
-	return {
-		...next,
-		rejectedStepSignatures: trimRejected(taskContext.rejectedStepSignatures)
-	}
-}
-
-export const appendRejectedStepSignature = (
-	taskContext: TaskContext,
-	signature: string
-): TaskContext => ({
-	...taskContext,
-	rejectedStepSignatures: trimRejected([
-		...taskContext.rejectedStepSignatures,
-		signature
-	])
-})
+): TaskContext => ({ category: inferTaskCategory(currentGoal, subGoal) })
