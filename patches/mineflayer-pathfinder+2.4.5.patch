@@ -1,0 +1,106 @@
+diff --git a/node_modules/mineflayer-pathfinder/index.js b/node_modules/mineflayer-pathfinder/index.js
+index b38bd30..4c3d39d 100644
+--- a/node_modules/mineflayer-pathfinder/index.js
++++ b/node_modules/mineflayer-pathfinder/index.js
+@@ -35,6 +35,7 @@ function inject (bot) {
+   const lockUseBlock = new Lock()
+ 
+   bot.pathfinder = {}
++  let pathGeneration = 0
+ 
+   bot.pathfinder.thinkTimeout = 5000 // ms
+   bot.pathfinder.tickTimeout = 40 // ms, amount of thinking per tick (max 50 ms)
+@@ -114,18 +115,12 @@ function inject (bot) {
+     }
+   })
+ 
+-  function detectDiggingStopped () {
+-    digging = false
+-    bot.removeAllListeners('diggingAborted', detectDiggingStopped)
+-    bot.removeAllListeners('diggingCompleted', detectDiggingStopped)
+-  }
+-
+   function resetPath (reason, clearStates = true) {
++    pathGeneration++
+     if (!stopPathing && path.length > 0) bot.emit('path_reset', reason)
+     path = []
+     if (digging) {
+-      bot.on('diggingAborted', detectDiggingStopped)
+-      bot.on('diggingCompleted', detectDiggingStopped)
++      digging = false
+       bot.stopDigging()
+     }
+     placing = false
+@@ -486,14 +481,18 @@ function inject (bot) {
+         const b = nextPoint.toBreak.shift()
+         const block = bot.blockAt(new Vec3(b.x, b.y, b.z), false)
+         const tool = bot.pathfinder.bestHarvestTool(block)
++        const generation = pathGeneration
+         fullStop()
+ 
+         const digBlock = () => {
++          if (generation !== pathGeneration) return
+           bot.dig(block, true)
+             .catch(_ignoreError => {
++              if (generation !== pathGeneration) return
+               resetPath('dig_error')
+             })
+             .then(function () {
++              if (generation !== pathGeneration) return
+               lastNodeTime = performance.now()
+               digging = false
+             })
+@@ -521,10 +520,13 @@ function inject (bot) {
+       // Open gates or doors
+       if (placingBlock?.useOne) {
+         if (!lockUseBlock.tryAcquire()) return
++        const generation = pathGeneration
+         bot.activateBlock(bot.blockAt(new Vec3(placingBlock.x, placingBlock.y, placingBlock.z))).then(() => {
++          if (generation !== pathGeneration) return
+           lockUseBlock.release()
+           placingBlock = nextPoint.toPlace.shift()
+         }, err => {
++          if (generation !== pathGeneration) return
+           console.error(err)
+           lockUseBlock.release()
+         })
+@@ -545,8 +547,10 @@ function inject (bot) {
+       }
+       if (canPlace) {
+         if (!lockEquipItem.tryAcquire()) return
++        const generation = pathGeneration
+         bot.equip(block, 'hand')
+           .then(function () {
++            if (generation !== pathGeneration) return
+             lockEquipItem.release()
+             const refBlock = bot.blockAt(new Vec3(placingBlock.x, placingBlock.y, placingBlock.z), false)
+             if (!lockPlaceBlock.tryAcquire()) return
+@@ -555,20 +559,27 @@ function inject (bot) {
+             }
+             bot.placeBlock(refBlock, new Vec3(placingBlock.dx, placingBlock.dy, placingBlock.dz))
+               .then(function () {
++                if (generation !== pathGeneration) return
+                 // Dont release Sneak if the block placement was not successful
+                 bot.setControlState('sneak', false)
+                 if (bot.pathfinder.LOSWhenPlacingBlocks && placingBlock.returnPos) returningPos = placingBlock.returnPos.clone()
+               })
+               .catch(_ignoreError => {
++                if (generation !== pathGeneration) return
+                 resetPath('place_error')
+               })
+               .then(() => {
++                if (generation !== pathGeneration) return
+                 lockPlaceBlock.release()
+                 placing = false
+                 lastNodeTime = performance.now()
+               })
+           })
+-          .catch(_ignoreError => {})
++          .catch(_ignoreError => {
++            if (generation !== pathGeneration) return
++            lockEquipItem.release()
++            resetPath('equip_error')
++          })
+       }
+       return
+     }

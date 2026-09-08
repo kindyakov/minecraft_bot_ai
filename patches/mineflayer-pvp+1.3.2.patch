@@ -1,0 +1,179 @@
+diff --git a/node_modules/mineflayer-pvp/lib/PVP.js b/node_modules/mineflayer-pvp/lib/PVP.js
+index 758c2b3..6a0ae60 100644
+--- a/node_modules/mineflayer-pvp/lib/PVP.js
++++ b/node_modules/mineflayer-pvp/lib/PVP.js
+@@ -26,6 +26,10 @@ class PVP {
+         this.timeToNextAttack = 0;
+         this.wasInRange = false;
+         this.blockingExplosion = false;
++        this.operationGeneration = 0;
++        this.pendingTimers = new Set();
++        this.cancelPathWait = null;
++        this.shieldRaised = false;
+         /**
+          * How close the bot will attempt to get to the target when when pursuing it.
+          */
+@@ -61,7 +65,11 @@ class PVP {
+         return __awaiter(this, void 0, void 0, function* () {
+             if (target === this.target)
+                 return;
+-            yield this.stop();
++            const stopped = this.stop();
++            const generation = this.operationGeneration;
++            yield stopped;
++            if (generation !== this.operationGeneration)
++                return;
+             this.target = target;
+             this.timeToNextAttack = 0;
+             if (!this.target)
+@@ -79,6 +87,8 @@ class PVP {
+      */
+     stop() {
+         return __awaiter(this, void 0, void 0, function* () {
++            this.cancelOperations();
++            const generation = this.operationGeneration;
+             if (this.target == null)
+                 return;
+             this.target = undefined;
+@@ -88,9 +98,12 @@ class PVP {
+                 yield this.onceWithTimeout('path_stop', 5000);
+             }
+             catch (err) {
+-                this.bot.removeAllListeners('path_stop');
++                if (generation !== this.operationGeneration)
++                    return;
+                 pathfinder.setGoal(null);
+             }
++            if (generation !== this.operationGeneration)
++                return;
+             // @ts-expect-error
+             this.bot.emit('stoppedAttacking');
+         });
+@@ -108,6 +121,7 @@ class PVP {
+             const cleanup = () => {
+                 clearTimeout(timeoutId);
+                 this.bot.removeListener(eventName, callback);
++                this.cancelPathWait = null;
+             };
+             return new Promise((resolve, reject) => {
+                 callback = () => {
+@@ -115,6 +129,10 @@ class PVP {
+                     resolve();
+                 };
+                 this.bot.once(eventName, callback);
++                this.cancelPathWait = () => {
++                    cleanup();
++                    resolve();
++                };
+                 timeoutId = setTimeout(() => {
+                     cleanup();
+                     reject();
+@@ -127,7 +145,9 @@ class PVP {
+      * @returns void
+      */
+     forceStop() {
+-        if (this.target == null)
++        const wasStopping = this.cancelPathWait !== null;
++        this.cancelOperations();
++        if (this.target == null && !wasStopping)
+             return;
+         this.target = undefined;
+         const pathfinder = this.bot.pathfinder;
+@@ -135,6 +155,29 @@ class PVP {
+         // @ts-expect-error
+         this.bot.emit('stoppedAttacking');
+     }
++    cancelOperations() {
++        this.operationGeneration++;
++        if (this.cancelPathWait)
++            this.cancelPathWait();
++        for (const timer of this.pendingTimers)
++            clearTimeout(timer);
++        this.pendingTimers.clear();
++        this.blockingExplosion = false;
++        this.wasInRange = false;
++        if (this.shieldRaised) {
++            this.shieldRaised = false;
++            this.bot.deactivateItem();
++        }
++    }
++    schedule(callback, delay) {
++        const generation = this.operationGeneration;
++        const timer = setTimeout(() => {
++            this.pendingTimers.delete(timer);
++            if (generation === this.operationGeneration)
++                callback();
++        }, delay);
++        this.pendingTimers.add(timer);
++    }
+     /**
+      * Called each tick to update attack timers.
+      */
+@@ -169,7 +212,7 @@ class PVP {
+      * Blocks a creeper explosion with a shield.
+      */
+     checkExplosion() {
+-        if (!this.target || !this.hasShield())
++        if (!this.target || !this.hasShield() || this.blockingExplosion)
+             return;
+         if (this.target.name &&
+             this.target.name === 'creeper' &&
+@@ -180,7 +223,8 @@ class PVP {
+             this.bot.pathfinder.stop();
+             this.bot.lookAt(this.target.position.offset(0, 1, 0), true);
+             this.bot.activateItem(true);
+-            setTimeout(() => {
++            this.shieldRaised = true;
++            this.schedule(() => {
+                 this.blockingExplosion = false;
+             }, 2000);
+         }
+@@ -197,34 +241,40 @@ class PVP {
+         }
+         const queue = new mineflayer_utils_1.TaskQueue();
+         const target = this.target;
++        const generation = this.operationGeneration;
+         const shield = this.hasShield();
+         if (shield) {
+-            queue.addSync(() => this.bot.deactivateItem());
+-            queue.add(cb => setTimeout(cb, 100));
++            queue.addSync(() => {
++                this.shieldRaised = false;
++                this.bot.deactivateItem();
++            });
++            queue.add(cb => this.schedule(cb, 100));
+         }
+         queue.add(cb => {
+-            if (target !== this.target)
++            if (target !== this.target || generation !== this.operationGeneration)
+                 throw 'Target changed!';
+             this.bot.lookAt(this.target.position.offset(0, this.target.height, 0), true).then(() => cb()).catch(err => cb(err));
+         });
+         queue.addSync(() => {
+-            if (target !== this.target)
++            if (target !== this.target || generation !== this.operationGeneration)
+                 throw 'Target changed!';
+             this.bot.attack(this.target);
+             // @ts-expect-error
+             this.bot.emit('attackedTarget');
+         });
+         if (shield) {
+-            queue.add(cb => setTimeout(cb, 150));
++            queue.add(cb => this.schedule(cb, 150));
+             queue.addSync(() => {
+-                if (target !== this.target)
++                if (target !== this.target || generation !== this.operationGeneration)
+                     throw 'Target changed!';
+-                if (this.hasShield())
++                if (this.hasShield()) {
+                     this.bot.activateItem(true);
++                    this.shieldRaised = true;
++                }
+             });
+         }
+         queue.runAll((err) => {
+-            if (!err)
++            if (!err && generation === this.operationGeneration)
+                 this.timeToNextAttack = this.meleeAttackRate.getTicks(this.bot);
+         });
+     }

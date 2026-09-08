@@ -1,0 +1,47 @@
+diff --git a/node_modules/minecrafthawkeye/dist/hawkEye.js b/node_modules/minecrafthawkeye/dist/hawkEye.js
+index c7dc930..1f48e20 100644
+--- a/node_modules/minecrafthawkeye/dist/hawkEye.js
++++ b/node_modules/minecrafthawkeye/dist/hawkEye.js
+@@ -22,6 +22,7 @@ const autoAttack = (targetToAttack, inputWeapon = _types.Weapons.bow, isOneShot
+   if (!targetToAttack) {
+     return false;
+   }
++  stop();
+   oneShot = isOneShot;
+   target = targetToAttack;
+   preparingShot = false;
+@@ -33,14 +34,23 @@ const autoAttack = (targetToAttack, inputWeapon = _types.Weapons.bow, isOneShot
+ };
+ exports.autoAttack = autoAttack;
+ const stop = () => {
+-  _loadBot.bot.deactivateItem();
++  const previousTarget = target;
++  target = undefined;
++  preparingShot = false;
++  chargingArrow = false;
++  infoShot = undefined;
++  prevPlayerPositions = [];
+   _loadBot.bot.removeListener('physicsTick', getGrades);
+   _loadBot.bot.removeListener('physicsTick', autoCalc);
+-  _loadBot.bot.emit('auto_shot_stopped', target);
++  if (previousTarget !== undefined) {
++    _loadBot.bot.deactivateItem();
++    _loadBot.bot.emit('auto_shot_stopped', previousTarget);
++  }
+ };
+ exports.stop = stop;
+ const getGrades = () => {
+-  if (target === undefined || (0, _types.isEntity)(target) && !target.isValid) {
++  if (target === undefined) return;
++  if ((0, _types.isEntity)(target) && !target.isValid) {
+     stop();
+     return;
+   }
+@@ -63,6 +73,7 @@ const getGrades = () => {
+   infoShot = (0, _hawkEyeEquations.default)(target, speed, weapon);
+ };
+ const autoCalc = async () => {
++  if (target === undefined) return;
+   const waitTime = _types.weaponsProps[weapon].waitTime;
+   const slotID = _loadBot.bot.getEquipmentDestSlot('hand');
+   if (_loadBot.bot.inventory.slots[slotID] === null || _loadBot.bot.inventory.slots[slotID]?.name !== weapon) {
