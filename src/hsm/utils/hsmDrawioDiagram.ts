@@ -109,7 +109,7 @@ const outputStateLayouts: StateLayout[] = [
 		height: 370,
 		kind: 'compound',
 		summary:
-			'Tactical lane. Chooses approach, melee, or ranged skirmish based on enemy range and loadout.'
+			'Tactical lane. Chooses PvP melee pressure or ranged skirmish based on enemy range and loadout.'
 	},
 	{
 		path: 'MAIN_ACTIVITY.COMBAT.DECIDING',
@@ -119,15 +119,6 @@ const outputStateLayouts: StateLayout[] = [
 		height: 85,
 		kind: 'leaf',
 		summary: 'Re-evaluates the best combat mode.'
-	},
-	{
-		path: 'MAIN_ACTIVITY.COMBAT.APPROACHING',
-		x: 1080,
-		y: 210,
-		width: 190,
-		height: 85,
-		kind: 'leaf',
-		summary: 'Pathfinds into a valid attack window.'
 	},
 	{
 		path: 'MAIN_ACTIVITY.COMBAT.MELEE_ATTACKING',
@@ -145,7 +136,7 @@ const outputStateLayouts: StateLayout[] = [
 		width: 180,
 		height: 95,
 		kind: 'leaf',
-		summary: 'Owns ranged micro when visibility and ammo allow it.'
+		summary: 'Owns ranged attacks while visibility and ammo allow it.'
 	},
 	{
 		path: 'MAIN_ACTIVITY.TASKS',
@@ -443,7 +434,7 @@ const noteLayouts: NoteLayout[] = [
 		height: 120,
 		title: 'Invoked actors',
 		body:
-			'COMBAT: serviceApproaching, serviceMeleeAttack, serviceRangedSkirmish\nURGENT_NEEDS: emergencyEating / emergencyHealing\nMONITORING: serviceEntitiesTracking',
+			'COMBAT: serviceMeleeAttack, serviceRangedSkirmish\nURGENT_NEEDS: emergencyEating / emergencyHealing\nMONITORING: serviceEntitiesTracking',
 		fillColor: '#fff7ed',
 		strokeColor: '#c2410c'
 	},
@@ -543,7 +534,7 @@ const edgeLayouts: EdgeLayout[] = [
 		id: 'edge-combat-deciding-melee',
 		source: 'MAIN_ACTIVITY.COMBAT.DECIDING',
 		target: 'MAIN_ACTIVITY.COMBAT.MELEE_ATTACKING',
-		label: 'always [isEnemyInMeleeRange]',
+		label: 'always [melee or fallback]',
 		animated: true,
 		strokeColor: '#dc2626'
 	},
@@ -556,36 +547,6 @@ const edgeLayouts: EdgeLayout[] = [
 		strokeColor: '#ea580c'
 	},
 	{
-		id: 'edge-combat-deciding-approaching',
-		source: 'MAIN_ACTIVITY.COMBAT.DECIDING',
-		target: 'MAIN_ACTIVITY.COMBAT.APPROACHING',
-		label: 'always [isEnemyNearby]',
-		animated: true,
-		strokeColor: '#b91c1c'
-	},
-	{
-		id: 'edge-combat-approaching-melee',
-		source: 'MAIN_ACTIVITY.COMBAT.APPROACHING',
-		target: 'MAIN_ACTIVITY.COMBAT.MELEE_ATTACKING',
-		label: 'UPDATE_ENTITIES [melee window]',
-		animated: true,
-		strokeColor: '#dc2626'
-	},
-	{
-		id: 'edge-combat-approaching-ranged',
-		source: 'MAIN_ACTIVITY.COMBAT.APPROACHING',
-		target: 'MAIN_ACTIVITY.COMBAT.RANGED_SKIRMISHING',
-		label: 'UPDATE_ENTITIES [ranged window]',
-		strokeColor: '#ea580c'
-	},
-	{
-		id: 'edge-combat-melee-approach',
-		source: 'MAIN_ACTIVITY.COMBAT.MELEE_ATTACKING',
-		target: 'MAIN_ACTIVITY.COMBAT.APPROACHING',
-		label: 'UPDATE_ENTITIES [target escaped]',
-		strokeColor: '#b91c1c'
-	},
-	{
 		id: 'edge-combat-melee-ranged',
 		source: 'MAIN_ACTIVITY.COMBAT.MELEE_ATTACKING',
 		target: 'MAIN_ACTIVITY.COMBAT.RANGED_SKIRMISHING',
@@ -596,15 +557,8 @@ const edgeLayouts: EdgeLayout[] = [
 		id: 'edge-combat-ranged-melee',
 		source: 'MAIN_ACTIVITY.COMBAT.RANGED_SKIRMISHING',
 		target: 'MAIN_ACTIVITY.COMBAT.MELEE_ATTACKING',
-		label: 'UPDATE_ENTITIES [enemy closes in]',
+		label: 'UPDATE_ENTITIES [enemy closes / ranged unavailable]',
 		strokeColor: '#dc2626'
-	},
-	{
-		id: 'edge-combat-ranged-approach',
-		source: 'MAIN_ACTIVITY.COMBAT.RANGED_SKIRMISHING',
-		target: 'MAIN_ACTIVITY.COMBAT.APPROACHING',
-		label: 'UPDATE_ENTITIES [line lost]',
-		strokeColor: '#b91c1c'
 	},
 	{
 		id: 'edge-combat-no-enemies-thinking',

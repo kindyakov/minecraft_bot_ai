@@ -175,7 +175,6 @@ const createSurvivalActor = (bot: SurvivalBot) => {
 			thinkingActor: hangingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor
 			}

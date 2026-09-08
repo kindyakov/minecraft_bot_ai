@@ -1,5 +1,5 @@
-import type { ConversationEntry } from '@/ai/conversationHistory.js'
 import type { PendingExecution } from '@/ai/contracts/execution.js'
+import type { ConversationEntry } from '@/ai/conversationHistory.js'
 import type { WindowSession } from '@/ai/runtime/window.js'
 import type { TaskContext } from '@/ai/taskContext.js'
 
@@ -48,7 +48,6 @@ export interface MachineContext {
 		safePlayerDistance: number
 		fleeToPlayerRadius: number
 		enemyMeleeRange: number
-		enemyRangedRange: number
 		maxCountSlotsInInventory: number
 		foodEmergency: number
 		foodRestored: number
@@ -133,7 +132,6 @@ export const context: MachineContext = {
 		safePlayerDistance: 10,
 		fleeToPlayerRadius: 50,
 		enemyMeleeRange: 5,
-		enemyRangedRange: 8,
 		maxCountSlotsInInventory: 45,
 		foodEmergency: 6,
 		foodRestored: 18,

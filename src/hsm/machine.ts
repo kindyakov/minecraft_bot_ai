@@ -404,8 +404,6 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 			serviceEntitiesTracking:
 				actorOverrides.serviceEntitiesTracking ??
 				monitoringActors.serviceEntitiesTracking,
-			serviceApproaching:
-				actorOverrides.serviceApproaching ?? combatActors.serviceApproaching,
 			serviceMeleeAttack:
 				actorOverrides.serviceMeleeAttack ?? combatActors.serviceMeleeAttack,
 			serviceRangedSkirmish:
@@ -841,15 +839,8 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 			ownMovementNone: assign({
 				movementOwner: 'NONE'
 			}),
-			ownMovementPathfinder: assign({
-				movementOwner: 'PATHFINDER'
-			}),
 			ownMovementPvp: assign({
 				movementOwner: 'PVP'
-			}),
-			ownMovementMicro: assign({
-				movementOwner: ({ context }) =>
-					hasMovementController(context.bot) ? 'MOVEMENT' : 'NONE'
 			}),
 			syncSurvivalModeOwner: assign({
 				movementOwner: ({ event, context }) => {
@@ -1200,48 +1191,10 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 										guard: 'canSkirmishRanged'
 									},
 									{
-										target: 'APPROACHING',
+										target: 'MELEE_ATTACKING',
 										guard: 'isEnemyNearby'
 									}
 								]
-							},
-							APPROACHING: {
-								entry: [
-									'ownMovementPathfinder',
-									{
-										type: 'logStateEntry',
-										params: { state: 'MAIN_ACTIVITY.COMBAT.APPROACHING' }
-									}
-								],
-								exit: [
-									{
-										type: 'logStateExit',
-										params: { state: 'MAIN_ACTIVITY.COMBAT.APPROACHING' }
-									}
-								],
-								on: {
-									UPDATE_ENTITIES: [
-										{
-											guard: eventEnemyInMeleeRange,
-											target: 'MELEE_ATTACKING',
-											actions: ['updateEntities']
-										},
-										{
-											guard: eventCanSkirmishRanged,
-											target: 'RANGED_SKIRMISHING',
-											actions: ['updateEntities']
-										},
-										{
-											actions: ['updateEntities']
-										}
-									]
-								},
-								invoke: {
-									src: 'serviceApproaching',
-									input: ({ context }: { context: MachineContext }) => ({
-										bot: context.bot
-									})
-								}
 							},
 							MELEE_ATTACKING: {
 								entry: [
@@ -1265,15 +1218,6 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 											actions: ['updateEntities']
 										},
 										{
-											guard: ({ event, context }) =>
-												isEntityUpdateEvent(event) &&
-												Boolean(event.nearestEnemy.entity) &&
-												event.nearestEnemy.distance >
-													getMeleeExitRange(context),
-											target: 'APPROACHING',
-											actions: ['updateEntities']
-										},
-										{
 											actions: ['updateEntities']
 										}
 									]
@@ -1287,7 +1231,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 							},
 							RANGED_SKIRMISHING: {
 								entry: [
-									'ownMovementMicro',
+									'ownMovementNone',
 									{
 										type: 'logStateEntry',
 										params: { state: 'MAIN_ACTIVITY.COMBAT.RANGED_SKIRMISHING' }
@@ -1311,7 +1255,7 @@ export const createBotMachine = (options?: MachineFactoryOptions) => {
 												isEntityUpdateEvent(event) &&
 												Boolean(event.nearestEnemy.entity) &&
 												!eventCanSkirmishRanged({ event, context }),
-											target: 'APPROACHING',
+											target: 'MELEE_ATTACKING',
 											actions: ['updateEntities']
 										},
 										{

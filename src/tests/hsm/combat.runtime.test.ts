@@ -249,7 +249,6 @@ const createSurvivalRuntimeActor = (bot: CombatBot) => {
 			thinkingActor: hangingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor
 			}
@@ -329,7 +328,7 @@ test('STOP_COMBAT cleans up active ranged combat', async () => {
 	}
 })
 
-test('ranged skirmish uses movement ownership without pathfinder goals', async () => {
+test('ranged skirmish owns only ranged attacks and leaves movement idle', async () => {
 	const bot = new CombatBot()
 	bot.inventoryItems = [{ name: 'bow' }, { name: 'arrow' }]
 	const actor = createRuntimeActor(bot)
@@ -344,9 +343,13 @@ test('ranged skirmish uses movement ownership without pathfinder goals', async (
 			} as never),
 			true
 		)
-		assert.equal(actor.getSnapshot().context.movementOwner, 'MOVEMENT')
-		assert.equal(bot.movementSetGoalCalls.length > 0, true)
-		assert.equal(bot.movementSteerCalls.length > 0, true)
+		assert.equal(actor.getSnapshot().context.movementOwner, 'NONE')
+		assert.equal(bot.hawkEyeAttackCalls > 0, true)
+		assert.equal(bot.movementSetGoalCalls.length, 0)
+		assert.equal(bot.movementSteerCalls.length, 0)
+		assert.equal(bot.controlStates.get('forward'), undefined)
+		assert.equal(bot.controlStates.get('sprint'), undefined)
+		assert.equal(bot.controlStates.get('jump'), undefined)
 		assert.deepEqual(
 			bot.pathfinderSetGoalCalls.filter(goal => goal !== null),
 			[]
@@ -356,33 +359,7 @@ test('ranged skirmish uses movement ownership without pathfinder goals', async (
 	}
 })
 
-test('ranged skirmish cleanup clears owned control states', async () => {
-	const bot = new CombatBot()
-	bot.inventoryItems = [{ name: 'bow' }, { name: 'arrow' }]
-	const actor = createRuntimeActor(bot)
-
-	try {
-		await enterCombat(actor, createEnemy(12))
-		await delay(300)
-
-		assert.equal(bot.controlStates.get('forward'), true)
-		assert.equal(bot.controlStates.get('sprint'), true)
-		assert.equal(bot.controlStates.get('jump'), true)
-
-		actor.send({ type: 'STOP_COMBAT' })
-		await delay(0)
-		await delay(0)
-
-		assert.equal(actor.getSnapshot().context.movementOwner, 'NONE')
-		assert.equal(bot.controlStates.get('forward'), false)
-		assert.equal(bot.controlStates.get('sprint'), false)
-		assert.equal(bot.controlStates.get('jump'), false)
-	} finally {
-		actor.stop()
-	}
-})
-
-test('ranged skirmish degrades to owner NONE when movement plugin is unavailable', async () => {
+test('ranged skirmish does not require the movement plugin', async () => {
 	const bot = new NoMovementCombatBot()
 	bot.inventoryItems = [{ name: 'bow' }, { name: 'arrow' }]
 	const actor = createRuntimeActor(bot)
@@ -428,7 +405,7 @@ test('combat hands off from melee to ranged skirmish without overlap', async () 
 			} as never),
 			true
 		)
-		assert.equal(actor.getSnapshot().context.movementOwner, 'MOVEMENT')
+		assert.equal(actor.getSnapshot().context.movementOwner, 'NONE')
 		assert.equal(bot.pvpForceStopCalls > 0, true)
 		assert.equal(bot.hawkEyeAttackCalls > 0, true)
 	} finally {

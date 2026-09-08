@@ -7,15 +7,9 @@ import {
 	createStatefulService
 } from '@/hsm/helpers/createStatefulService.js'
 
-import { GoalFollow } from '@/modules/plugins/goals.js'
-
 import { canSeeEnemy } from '@/utils/combat/enemyVisibility'
-import { hasMovementController } from '@/utils/combat/movementController'
 import {
-	clearMicroMovement,
-	enableMicroMovement,
 	stopMeleeAttack,
-	stopPathfinderMovement,
 	stopRangedAttack
 } from '@/utils/combat/runtimeControl'
 
@@ -27,10 +21,6 @@ interface RangedSkirmishState extends BaseServiceState {
 	currentTarget: Entity | null
 	weapon: Item | null
 	weaponType: Weapons | null
-}
-
-interface ApproachingState extends BaseServiceState {
-	currentTargetId: number | null
 }
 
 const logCombatRuntime = (event: string, payload: Record<string, unknown>) => {
@@ -149,29 +139,6 @@ const resolveRangedLoadout = (bot: any) => {
 	}
 }
 
-const hasValidCombatTarget = (context: any) => {
-	const target = resolveCombatTarget(context)
-	const { preferences } = context
-
-	return (
-		Boolean(target.entity?.isValid) && target.distance <= preferences.maxDistToEnemy
-	)
-}
-
-const canEnterRangedSkirmish = (bot: any, context: any) => {
-	const target = resolveCombatTarget(context)
-
-	if (!target.entity || target.distance > context.preferences.maxDistToEnemy) {
-		return false
-	}
-
-	return (
-		target.distance > context.preferences.enemyMeleeRange &&
-		resolveRangedLoadout(bot) !== null &&
-		canSeeEnemy(bot, target.entity)
-	)
-}
-
 const canExitMeleeToRanged = (
 	bot: any,
 	context: any,
@@ -187,69 +154,6 @@ const canExitMeleeToRanged = (
 		canSeeEnemy(bot, target.entity)
 	)
 }
-
-const applyRangedSkirmishMovement = (bot: any, enemy: Entity) => {
-	clearMicroMovement(bot)
-
-	if (!hasMovementController(bot)) {
-		return
-	}
-
-	enableMicroMovement(bot)
-	bot.movement.setGoal(bot.movement.goals.Default)
-	bot.movement.heuristic.get('proximity').target(enemy.position).avoid(true)
-	void bot.movement.steer(bot.movement.getYaw(enemy.position), true)
-}
-
-const serviceApproaching = createStatefulService<ApproachingState>({
-	name: 'Approaching',
-	tickInterval: 250,
-	initialState: {
-		currentTargetId: null
-	},
-
-	onTick: ({ context, bot, sendBack, state, setState }) => {
-		const target = resolveCombatTarget(context)
-
-		if (!target.entity) {
-			if (state.currentTargetId !== null) {
-				stopPathfinderMovement(bot)
-				setState({ currentTargetId: null })
-			}
-
-			sendBack({ type: 'NO_ENEMIES' })
-			return
-		}
-
-		const enemy = target.entity
-
-		if (target.distance <= context.preferences.enemyMeleeRange) {
-			stopPathfinderMovement(bot)
-			setState({ currentTargetId: null })
-			sendBack({ type: 'ENEMY_BECAME_CLOSE' })
-			return
-		}
-
-		if (canEnterRangedSkirmish(bot, context)) {
-			stopPathfinderMovement(bot)
-			setState({ currentTargetId: null })
-			sendBack({ type: 'ENEMY_BECAME_FAR' })
-			return
-		}
-
-		if (state.currentTargetId !== enemy.id) {
-			bot.pathfinder.setGoal(
-				new GoalFollow(enemy as any, context.preferences.enemyMeleeRange)
-			)
-			setState({ currentTargetId: enemy.id })
-		}
-	},
-
-	onCleanup: ({ bot, setState }) => {
-		stopPathfinderMovement(bot)
-		setState({ currentTargetId: null })
-	}
-})
 
 const serviceMeleeAttack = createStatefulService<MeleeAttackState>({
 	name: 'MeleeAttack',
@@ -361,7 +265,6 @@ const serviceRangedSkirmish = createStatefulService<RangedSkirmishState>({
 				return
 			}
 
-			applyRangedSkirmishMovement(bot, target.entity)
 			setState(loadout)
 		} catch {
 			sendBack({ type: 'ENEMY_BECAME_CLOSE' })
@@ -421,8 +324,6 @@ const serviceRangedSkirmish = createStatefulService<RangedSkirmishState>({
 			}
 		}
 
-		applyRangedSkirmishMovement(bot, enemy)
-
 		if (
 			!state.currentTarget ||
 			state.currentTarget.id !== enemy.id ||
@@ -449,7 +350,6 @@ const serviceRangedSkirmish = createStatefulService<RangedSkirmishState>({
 
 	onCleanup: ({ bot, setState }) => {
 		stopRangedAttack(bot, 'cleanup', logCombatRuntime)
-		clearMicroMovement(bot)
 		setState({ currentTarget: null, weapon: null, weaponType: null })
 	}
 })
@@ -457,7 +357,6 @@ const serviceRangedSkirmish = createStatefulService<RangedSkirmishState>({
 const serviceRangedAttack = serviceRangedSkirmish
 
 export default {
-	serviceApproaching,
 	serviceMeleeAttack,
 	serviceRangedAttack,
 	serviceRangedSkirmish

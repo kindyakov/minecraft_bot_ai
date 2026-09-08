@@ -241,7 +241,6 @@ const createTestActor = () => {
 			thinkingActor: hangingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -455,7 +454,6 @@ test('autoDefend false prevents entity updates from forcing combat entry', async
 			thinkingActor: hangingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -524,7 +522,7 @@ test('NO_ENEMIES clears nearestEnemy before returning to thinking', async () => 
 	}
 })
 
-test('combat falls back to APPROACHING when no immediate attack mode is valid', async () => {
+test('combat falls back to MELEE_ATTACKING when ranged mode is unavailable', async () => {
 	const { actor } = createTestActor()
 
 	try {
@@ -539,11 +537,11 @@ test('combat falls back to APPROACHING when no immediate attack mode is valid', 
 
 		assert.equal(
 			actor.getSnapshot().matches({
-				MAIN_ACTIVITY: { COMBAT: 'APPROACHING' }
+				MAIN_ACTIVITY: { COMBAT: 'MELEE_ATTACKING' }
 			} as never),
 			true
 		)
-		assert.equal(actor.getSnapshot().context.movementOwner, 'PATHFINDER')
+		assert.equal(actor.getSnapshot().context.movementOwner, 'PVP')
 	} finally {
 		actor.stop()
 	}
@@ -559,7 +557,6 @@ test('combat chooses RANGED_SKIRMISHING when ranged window is valid', async () =
 			thinkingActor: hangingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -594,7 +591,7 @@ test('combat chooses RANGED_SKIRMISHING when ranged window is valid', async () =
 			} as never),
 			true
 		)
-		assert.equal(actor.getSnapshot().context.movementOwner, 'MOVEMENT')
+		assert.equal(actor.getSnapshot().context.movementOwner, 'NONE')
 	} finally {
 		actor.stop()
 	}
@@ -634,7 +631,6 @@ test(
 				thinkingActor: hangingActor,
 				actors: {
 					serviceEntitiesTracking: noopActor,
-					serviceApproaching: noopActor,
 					serviceMeleeAttack: noopActor,
 					serviceRangedSkirmish: noopActor,
 					serviceFleeing: noopActor,
@@ -711,7 +707,6 @@ test(
 				thinkingActor: hangingActor,
 				actors: {
 					serviceEntitiesTracking: noopActor,
-					serviceApproaching: noopActor,
 					serviceMeleeAttack: noopActor,
 					serviceRangedSkirmish: noopActor,
 					serviceFleeing: noopActor,
@@ -1031,7 +1026,6 @@ test(
 				thinkingActor: hangingActor,
 				actors: {
 					serviceEntitiesTracking: noopActor,
-					serviceApproaching: noopActor,
 					serviceRangedSkirmish: noopActor,
 					serviceFleeing: noopActor,
 					serviceEmergencyEating: hangingActor,
@@ -1099,7 +1093,6 @@ test(
 				thinkingActor: hangingActor,
 				actors: {
 					serviceEntitiesTracking: noopActor,
-					serviceApproaching: noopActor,
 					serviceRangedSkirmish: noopActor,
 					serviceEmergencyEating: hangingActor,
 					serviceEmergencyHealing: hangingActor
@@ -1177,7 +1170,6 @@ test(
 				thinkingActor: hangingActor,
 				actors: {
 					serviceEntitiesTracking: noopActor,
-					serviceApproaching: noopActor,
 					serviceMeleeAttack: noopActor,
 					serviceRangedSkirmish: noopActor,
 					serviceFleeing: noopActor
@@ -1236,7 +1228,6 @@ test('thinking execution enters a concrete executing substate without crashing',
 				thinkingActor,
 				actors: {
 					serviceEntitiesTracking: noopActor,
-					serviceApproaching: noopActor,
 					serviceMeleeAttack: noopActor,
 					serviceRangedSkirmish: noopActor,
 					serviceFleeing: noopActor,
@@ -1304,7 +1295,6 @@ test('mine_resource execution routes into MINING search state', async () => {
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -1410,7 +1400,6 @@ test('mine_resource records failure after repeated navigation failures', async (
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -1505,7 +1494,6 @@ test('mine_resource records failure after repeated breaking failures', async () 
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -1601,7 +1589,6 @@ test('follow_entity runtime selector requires entity_name and entity_type to mat
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -1750,7 +1737,6 @@ test('open_window, transfer_item, and close_window route through the HSM with se
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -1851,7 +1837,6 @@ test('START_COMBAT closes an active window before entering combat', async () => 
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -1943,7 +1928,6 @@ test('UPDATE_ENTITIES closes an active window before auto-combat preemption', as
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -2041,7 +2025,6 @@ test('START_URGENT_NEEDS closes an active window before urgent handling', async 
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -2188,7 +2171,6 @@ test('failed window close marks the session retryable until a confirmed close su
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -2343,7 +2325,6 @@ test('transfer_item is rejected while the window close is unconfirmed', async ()
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -2452,7 +2433,6 @@ test('open_window abort after open preserves the session when close fails', asyn
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -2551,7 +2531,6 @@ test('DEATH clears active window session state and closes any open window', asyn
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -2648,7 +2627,6 @@ test('STOP_CURRENT_GOAL clears active window session state and closes any open w
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -2757,7 +2735,6 @@ test('thinking finish clears active window session state and closes any open win
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -2865,7 +2842,6 @@ test('thinking failure clears active window session state and closes any open wi
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -2944,7 +2920,6 @@ test('invalid navigate args do not default to world zero', async () => {
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,
@@ -3008,7 +2983,6 @@ test('conversation history survives completed goals and is appended on user and 
 			thinkingActor,
 			actors: {
 				serviceEntitiesTracking: noopActor,
-				serviceApproaching: noopActor,
 				serviceMeleeAttack: noopActor,
 				serviceRangedSkirmish: noopActor,
 				serviceFleeing: noopActor,

@@ -114,7 +114,6 @@ const createCombatContext = (
 	},
 	preferences: {
 		maxDistToEnemy: 20,
-		enemyRangedRange: 8,
 		enemyMeleeRange: 5
 	}
 })
